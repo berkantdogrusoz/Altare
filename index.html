@@ -445,6 +445,57 @@
             fill: #a855f7;
         }
 
+        /* Language Toggle */
+        .lang-toggle {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-left: 24px;
+        }
+
+        .lang-toggle span {
+            font-size: 0.8rem;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            color: rgba(255, 255, 255, 0.4);
+            transition: color 0.3s ease;
+            cursor: pointer;
+        }
+
+        .lang-toggle span.active-lang {
+            color: #fff;
+        }
+
+        .lang-switch {
+            position: relative;
+            width: 40px;
+            height: 22px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 11px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        .lang-switch:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .lang-switch .knob {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 16px;
+            height: 16px;
+            background: linear-gradient(135deg, #a855f7, #6366f1);
+            border-radius: 50%;
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .lang-switch.tr .knob {
+            transform: translateX(18px);
+        }
+
         /* Footer */
         footer {
             padding: 40px 48px;
@@ -497,11 +548,20 @@
     <!-- Navbar -->
     <nav id="navbar">
         <a href="#hero" class="nav-logo">Altare</a>
-        <ul class="nav-links">
-            <li><a href="#about">About</a></li>
-            <li><a href="#games">Games</a></li>
-            <li><a href="#contact">Contact</a></li>
-        </ul>
+        <div style="display:flex;align-items:center;">
+            <ul class="nav-links">
+                <li><a href="#about" data-i18n="nav-about">About</a></li>
+                <li><a href="#games" data-i18n="nav-games">Games</a></li>
+                <li><a href="#contact" data-i18n="nav-contact">Contact</a></li>
+            </ul>
+            <div class="lang-toggle">
+                <span class="active-lang" id="lang-en">EN</span>
+                <div class="lang-switch" id="langSwitch">
+                    <div class="knob"></div>
+                </div>
+                <span id="lang-tr">TR</span>
+            </div>
+        </div>
     </nav>
 
     <!-- Hero Section -->
@@ -510,11 +570,11 @@
         <div class="hero-bg-text bottom">MOBILE GAMES MOBILE GAMES&nbsp;</div>
         <div class="hero-content">
             <h1 class="hero-title">ALTARE</h1>
-            <p class="hero-subtitle">Mobile Game Studio</p>
-            <p class="hero-tagline">We Create Worlds You Can't Put Down</p>
+            <p class="hero-subtitle" data-i18n="hero-subtitle">Mobile Game Studio</p>
+            <p class="hero-tagline" data-i18n="hero-tagline">We Create Worlds You Can't Put Down</p>
         </div>
         <div class="scroll-indicator">
-            <span>Scroll</span>
+            <span data-i18n="scroll">Scroll</span>
             <div class="arrow"></div>
         </div>
     </section>
@@ -524,17 +584,17 @@
     <!-- About Section -->
     <section class="about" id="about">
         <div class="reveal">
-            <p class="section-label">Who We Are</p>
-            <h2 class="section-title">Crafting Mobile<br>Experiences</h2>
+            <p class="section-label" data-i18n="about-label">Who We Are</p>
+            <h2 class="section-title" data-i18n="about-title" data-html="true">Crafting Mobile<br>Experiences</h2>
         </div>
         <div class="about-grid">
             <div class="about-text reveal reveal-delay-1">
-                <p>
+                <p data-i18n="about-p1">
                     Altare is an indie mobile game studio passionate about creating engaging,
                     fun, and visually stunning games. We believe in the power of mobile gaming
                     to bring joy to millions of players worldwide.
                 </p>
-                <p>
+                <p data-i18n="about-p2">
                     From hyper-casual to mid-core, we explore different genres and push creative
                     boundaries to deliver unique gaming experiences that players love.
                 </p>
@@ -542,19 +602,19 @@
             <div class="about-stats reveal reveal-delay-2">
                 <div class="stat-item">
                     <div class="stat-number" data-target="4">0</div>
-                    <div class="stat-label">Games Published</div>
+                    <div class="stat-label" data-i18n="stat-games">Games Published</div>
                 </div>
                 <div class="stat-item">
                     <div class="stat-number" data-target="50">0</div>
-                    <div class="stat-label">K+ Downloads</div>
+                    <div class="stat-label" data-i18n="stat-downloads">K+ Downloads</div>
                 </div>
                 <div class="stat-item">
                     <div class="stat-number" data-target="3">0</div>
-                    <div class="stat-label">Genres</div>
+                    <div class="stat-label" data-i18n="stat-genres">Genres</div>
                 </div>
                 <div class="stat-item">
                     <div class="stat-number" data-target="2025">0</div>
-                    <div class="stat-label">Founded</div>
+                    <div class="stat-label" data-i18n="stat-founded">Founded</div>
                 </div>
             </div>
         </div>
@@ -565,18 +625,18 @@
     <!-- Marquee -->
     <div class="marquee-section">
         <div class="marquee">
-            <span class="marquee-text">Our Games</span>
-            <span class="marquee-text">Our Games</span>
-            <span class="marquee-text">Our Games</span>
-            <span class="marquee-text">Our Games</span>
+            <span class="marquee-text" data-i18n="marquee-games">Our Games</span>
+            <span class="marquee-text" data-i18n="marquee-games">Our Games</span>
+            <span class="marquee-text" data-i18n="marquee-games">Our Games</span>
+            <span class="marquee-text" data-i18n="marquee-games">Our Games</span>
         </div>
     </div>
 
     <!-- Games Section -->
     <section class="games" id="games">
         <div class="reveal">
-            <p class="section-label">Portfolio</p>
-            <h2 class="section-title">Our Games</h2>
+            <p class="section-label" data-i18n="games-label">Portfolio</p>
+            <h2 class="section-title" data-i18n="games-title">Our Games</h2>
         </div>
         <div class="games-grid">
             <div class="game-card reveal">
@@ -619,19 +679,19 @@
     <!-- Marquee 2 -->
     <div class="marquee-section">
         <div class="marquee" style="animation-direction: reverse;">
-            <span class="marquee-text">Get In Touch</span>
-            <span class="marquee-text">Get In Touch</span>
-            <span class="marquee-text">Get In Touch</span>
-            <span class="marquee-text">Get In Touch</span>
+            <span class="marquee-text" data-i18n="marquee-contact">Get In Touch</span>
+            <span class="marquee-text" data-i18n="marquee-contact">Get In Touch</span>
+            <span class="marquee-text" data-i18n="marquee-contact">Get In Touch</span>
+            <span class="marquee-text" data-i18n="marquee-contact">Get In Touch</span>
         </div>
     </div>
 
     <!-- Contact Section -->
     <section class="contact" id="contact">
         <div class="reveal">
-            <p class="section-label">Contact</p>
-            <h2 class="section-title">Let's Connect</h2>
-            <p class="contact-description">
+            <p class="section-label" data-i18n="contact-label">Contact</p>
+            <h2 class="section-title" data-i18n="contact-title">Let's Connect</h2>
+            <p class="contact-description" data-i18n="contact-desc">
                 Have a question, a collaboration idea, or just want to say hi?
                 Reach out through any of the channels below.
             </p>
@@ -658,7 +718,7 @@
 
     <!-- Footer -->
     <footer>
-        <p>&copy; 2025 Altare Mobile Game Studio. All rights reserved.</p>
+        <p data-i18n="footer">&copy; 2025 Altare Mobile Game Studio. All rights reserved.</p>
     </footer>
 
     <script>
@@ -724,6 +784,104 @@
 
         const aboutStats = document.querySelector('.about-stats');
         if (aboutStats) statsObserver.observe(aboutStats);
+
+        // Language switcher
+        const translations = {
+            en: {
+                'nav-about': 'About',
+                'nav-games': 'Games',
+                'nav-contact': 'Contact',
+                'hero-subtitle': 'Mobile Game Studio',
+                'hero-tagline': "We Create Worlds You Can't Put Down",
+                'scroll': 'Scroll',
+                'about-label': 'Who We Are',
+                'about-title': 'Crafting Mobile<br>Experiences',
+                'about-p1': 'Altare is an indie mobile game studio passionate about creating engaging, fun, and visually stunning games. We believe in the power of mobile gaming to bring joy to millions of players worldwide.',
+                'about-p2': 'From hyper-casual to mid-core, we explore different genres and push creative boundaries to deliver unique gaming experiences that players love.',
+                'stat-games': 'Games Published',
+                'stat-downloads': 'K+ Downloads',
+                'stat-genres': 'Genres',
+                'stat-founded': 'Founded',
+                'games-label': 'Portfolio',
+                'games-title': 'Our Games',
+                'contact-label': 'Contact',
+                'contact-title': "Let's Connect",
+                'contact-desc': 'Have a question, a collaboration idea, or just want to say hi? Reach out through any of the channels below.',
+                'marquee-games': 'Our Games',
+                'marquee-contact': 'Get In Touch',
+                'footer': '&copy; 2025 Altare Mobile Game Studio. All rights reserved.'
+            },
+            tr: {
+                'nav-about': 'Hakkimizda',
+                'nav-games': 'Oyunlar',
+                'nav-contact': 'Iletisim',
+                'hero-subtitle': 'Mobil Oyun Stüdyosu',
+                'hero-tagline': 'Birakamayacaginiz Dünyalar Yaratiyoruz',
+                'scroll': 'Kaydir',
+                'about-label': 'Biz Kimiz',
+                'about-title': 'Mobil Deneyimler<br>Tasarliyoruz',
+                'about-p1': 'Altare, ilgi çekici, eglenceli ve görsel olarak çarpici oyunlar yaratma tutkusuyla çalisan bagimsiz bir mobil oyun stüdyosudur. Mobil oyunlarin dünya genelinde milyonlarca oyuncuya keyif verme gücüne inaniyoruz.',
+                'about-p2': 'Hyper-casual\'dan mid-core\'a kadar farkli türleri kesfediyor ve oyuncularin sevecegi benzersiz oyun deneyimleri sunmak için yaratici sinirlari zorluyoruz.',
+                'stat-games': 'Yayinlanan Oyun',
+                'stat-downloads': 'B+ Indirme',
+                'stat-genres': 'Tür',
+                'stat-founded': 'Kurulus',
+                'games-label': 'Portföy',
+                'games-title': 'Oyunlarimiz',
+                'contact-label': 'Iletisim',
+                'contact-title': 'Bize Ulasin',
+                'contact-desc': 'Bir sorunuz, is birligi fikriniz mi var ya da sadece merhaba demek mi istiyorsunuz? Asagidaki kanallardan bize ulasin.',
+                'marquee-games': 'Oyunlarimiz',
+                'marquee-contact': 'Bize Ulasin',
+                'footer': '&copy; 2025 Altare Mobil Oyun Stüdyosu. Tüm haklari saklidir.'
+            }
+        };
+
+        let currentLang = 'en';
+        const langSwitch = document.getElementById('langSwitch');
+        const langEn = document.getElementById('lang-en');
+        const langTr = document.getElementById('lang-tr');
+
+        function setLanguage(lang) {
+            currentLang = lang;
+            document.documentElement.lang = lang;
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (translations[lang][key]) {
+                    if (el.hasAttribute('data-html')) {
+                        el.innerHTML = translations[lang][key];
+                    } else if (key === 'footer') {
+                        el.innerHTML = translations[lang][key];
+                    } else {
+                        el.textContent = translations[lang][key];
+                    }
+                }
+            });
+
+            if (lang === 'tr') {
+                langSwitch.classList.add('tr');
+                langTr.classList.add('active-lang');
+                langEn.classList.remove('active-lang');
+            } else {
+                langSwitch.classList.remove('tr');
+                langEn.classList.add('active-lang');
+                langTr.classList.remove('active-lang');
+            }
+
+            localStorage.setItem('altare-lang', lang);
+        }
+
+        langSwitch.addEventListener('click', () => {
+            setLanguage(currentLang === 'en' ? 'tr' : 'en');
+        });
+        langEn.addEventListener('click', () => setLanguage('en'));
+        langTr.addEventListener('click', () => setLanguage('tr'));
+
+        // Restore saved language
+        const savedLang = localStorage.getItem('altare-lang');
+        if (savedLang && savedLang !== 'en') {
+            setLanguage(savedLang);
+        }
 
         // Smooth scroll for nav links
         document.querySelectorAll('a[href^="#"]').forEach(anchor => {
