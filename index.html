@@ -120,6 +120,18 @@
             position: relative;
             z-index: 2;
             text-align: center;
+            animation: heroFadeIn 1.2s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both;
+        }
+
+        @keyframes heroFadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(40px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
         }
 
         .hero-title {
@@ -660,50 +672,58 @@
             }
         });
 
-        // Reveal on scroll
-        const revealElements = document.querySelectorAll('.reveal');
-        const revealOnScroll = () => {
-            revealElements.forEach(el => {
-                const top = el.getBoundingClientRect().top;
-                const trigger = window.innerHeight * 0.85;
-                if (top < trigger) {
-                    el.classList.add('active');
+        // Reveal on scroll with IntersectionObserver
+        const revealObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('active');
+                    revealObserver.unobserve(entry.target);
                 }
             });
-        };
-        window.addEventListener('scroll', revealOnScroll);
-        revealOnScroll();
+        }, {
+            threshold: 0.15,
+            rootMargin: '0px 0px -80px 0px'
+        });
 
-        // Counter animation
-        const counters = document.querySelectorAll('.stat-number[data-target]');
-        let countersAnimated = false;
-
-        const animateCounters = () => {
-            if (countersAnimated) return;
-            const aboutSection = document.getElementById('about');
-            const top = aboutSection.getBoundingClientRect().top;
-            if (top < window.innerHeight * 0.7) {
-                countersAnimated = true;
-                counters.forEach(counter => {
-                    const target = +counter.getAttribute('data-target');
-                    const duration = 2000;
-                    const start = performance.now();
-
-                    const update = (now) => {
-                        const progress = Math.min((now - start) / duration, 1);
-                        const eased = 1 - Math.pow(1 - progress, 3);
-                        counter.textContent = Math.floor(eased * target);
-                        if (progress < 1) {
-                            requestAnimationFrame(update);
-                        } else {
-                            counter.textContent = target;
-                        }
-                    };
-                    requestAnimationFrame(update);
+        // Wait for page to fully render hidden state, then observe
+        window.addEventListener('DOMContentLoaded', () => {
+            requestAnimationFrame(() => {
+                document.querySelectorAll('.reveal').forEach(el => {
+                    revealObserver.observe(el);
                 });
-            }
-        };
-        window.addEventListener('scroll', animateCounters);
+            });
+        });
+
+        // Counter animation with IntersectionObserver
+        let countersAnimated = false;
+        const statsObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting && !countersAnimated) {
+                    countersAnimated = true;
+                    document.querySelectorAll('.stat-number[data-target]').forEach(counter => {
+                        const target = +counter.getAttribute('data-target');
+                        const duration = 2000;
+                        const start = performance.now();
+
+                        const update = (now) => {
+                            const progress = Math.min((now - start) / duration, 1);
+                            const eased = 1 - Math.pow(1 - progress, 3);
+                            counter.textContent = Math.floor(eased * target);
+                            if (progress < 1) {
+                                requestAnimationFrame(update);
+                            } else {
+                                counter.textContent = target;
+                            }
+                        };
+                        requestAnimationFrame(update);
+                    });
+                    statsObserver.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.3 });
+
+        const aboutStats = document.querySelector('.about-stats');
+        if (aboutStats) statsObserver.observe(aboutStats);
 
         // Smooth scroll for nav links
         document.querySelectorAll('a[href^="#"]').forEach(anchor => {
