@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="Altare Terms of Service covering DreamRoyals, Altare games, the Altare website, and related services.">
+    <title>Altare Terms of Service</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0a0a0a;
+            color: #ffffff;
+            font-family: 'Inter', sans-serif;
+            line-height: 1.7;
+        }
+
+        a {
+            color: #9cd5ff;
+            text-decoration: none;
+        }
+
+        a:hover {
+            color: #ffffff;
+        }
+
+        .shell {
+            min-height: 100vh;
+            padding: 40px 24px 80px;
+        }
+
+        .topbar {
+            max-width: 1100px;
+            margin: 0 auto 48px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .brand {
+            font-size: 1.2rem;
+            font-weight: 900;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: #ffffff;
+        }
+
+        .top-links {
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+
+        .top-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 44px;
+            padding: 0 18px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 8px;
+            color: rgba(255, 255, 255, 0.78);
+            background: rgba(255, 255, 255, 0.03);
+            transition: border-color 0.3s ease, color 0.3s ease, background 0.3s ease;
+        }
+
+        .top-link:hover {
+            color: #ffffff;
+            border-color: rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        .hero {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 48px 0 32px;
+        }
+
+        .eyebrow {
+            color: #06b6d4;
+            font-size: 0.82rem;
+            font-weight: 700;
+            letter-spacing: 0.26em;
+            text-transform: uppercase;
+            margin-bottom: 18px;
+        }
+
+        h1 {
+            font-size: clamp(44px, 8vw, 86px);
+            line-height: 0.95;
+            letter-spacing: -0.04em;
+            text-transform: uppercase;
+            font-weight: 900;
+            background: linear-gradient(135deg, #06b6d4, #6366f1, #a855f7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero-text {
+            max-width: 760px;
+            margin-top: 24px;
+            color: rgba(255, 255, 255, 0.72);
+            font-size: 1.04rem;
+        }
+
+        .meta {
+            margin-top: 18px;
+            color: rgba(255, 255, 255, 0.48);
+            text-transform: uppercase;
+            letter-spacing: 0.16em;
+            font-size: 0.76rem;
+        }
+
+        main {
+            max-width: 1100px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 280px;
+            gap: 48px;
+            align-items: start;
+        }
+
+        .content section + section {
+            margin-top: 40px;
+            padding-top: 40px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        h2 {
+            font-size: 1.55rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            margin-bottom: 14px;
+        }
+
+        p + p,
+        ul + p,
+        p + ul {
+            margin-top: 16px;
+        }
+
+        ul {
+            padding-left: 22px;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        li + li {
+            margin-top: 10px;
+        }
+
+        p,
+        li {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .sidebar {
+            position: sticky;
+            top: 32px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            padding: 22px;
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .sidebar h3 {
+            font-size: 0.86rem;
+            text-transform: uppercase;
+            letter-spacing: 0.18em;
+            color: rgba(255, 255, 255, 0.48);
+            margin-bottom: 14px;
+        }
+
+        .sidebar ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .sidebar li + li {
+            margin-top: 10px;
+        }
+
+        .sidebar a {
+            color: rgba(255, 255, 255, 0.72);
+        }
+
+        footer {
+            max-width: 1100px;
+            margin: 64px auto 0;
+            padding-top: 28px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+            color: rgba(255, 255, 255, 0.42);
+            font-size: 0.84rem;
+        }
+
+        @media (max-width: 900px) {
+            main {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                position: static;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="shell">
+        <div class="topbar">
+            <a href="/" class="brand">Altare</a>
+            <div class="top-links">
+                <a class="top-link" href="/">Back to Home</a>
+                <a class="top-link" href="/privacy-policy.html">Privacy Policy</a>
+            </div>
+        </div>
+
+        <header class="hero">
+            <p class="eyebrow">Legal</p>
+            <h1>Terms of Service</h1>
+            <p class="hero-text">
+                These Terms of Service govern your use of DreamRoyals, Altare games, the Altare website, and related
+                content, features, and services offered by Altare Studio.
+            </p>
+            <p class="meta">Last updated: April 20, 2026</p>
+        </header>
+
+        <main>
+            <article class="content">
+                <section id="acceptance">
+                    <h2>1. Acceptance</h2>
+                    <p>
+                        By downloading, accessing, browsing, or using our games, website, or related services, you agree
+                        to these Terms. If you do not agree, do not use the services.
+                    </p>
+                </section>
+
+                <section id="eligibility">
+                    <h2>2. Eligibility and Accounts</h2>
+                    <p>
+                        You are responsible for ensuring that your use of the services is permitted under the laws that
+                        apply to you. If you are under the age required to form a binding agreement in your location, you
+                        must use the services only with permission from a parent or legal guardian.
+                    </p>
+                </section>
+
+                <section id="license">
+                    <h2>3. Limited License</h2>
+                    <p>
+                        Altare grants you a limited, non-exclusive, non-transferable, revocable license to use the
+                        services for personal, non-commercial entertainment, subject to these Terms and any platform rules
+                        that apply to your device or storefront.
+                    </p>
+                </section>
+
+                <section id="conduct">
+                    <h2>4. Acceptable Use</h2>
+                    <p>You agree not to:</p>
+                    <ul>
+                        <li>copy, resell, rent, reverse engineer, decompile, modify, or create derivative works from the services, except where law clearly allows it;</li>
+                        <li>use cheats, automation, exploits, bots, unauthorized scripts, or technical abuse to gain unfair advantages;</li>
+                        <li>interfere with servers, ads, in-app purchases, analytics, consent systems, or other product infrastructure;</li>
+                        <li>use the services in a way that violates applicable law, platform policy, or the rights of others.</li>
+                    </ul>
+                </section>
+
+                <section id="content">
+                    <h2>5. Intellectual Property</h2>
+                    <p>
+                        All titles, artwork, code, gameplay systems, branding, audio, visual assets, text, and related
+                        materials in the services are owned by Altare or its licensors and are protected by intellectual
+                        property laws.
+                    </p>
+                </section>
+
+                <section id="purchases">
+                    <h2>6. Purchases, Virtual Items, and Ads</h2>
+                    <p>
+                        Some services may include optional in-app purchases, rewarded ads, store offers, or virtual items.
+                        Purchases are processed by third-party storefronts such as Google Play and are subject to the
+                        terms, billing rules, and refund policies of those storefronts.
+                    </p>
+                    <p>
+                        Unless applicable law requires otherwise, virtual items, currencies, boosts, and rewards have no
+                        cash value, are licensed and not sold to you, and may be modified, removed, or discontinued by
+                        Altare at any time.
+                    </p>
+                </section>
+
+                <section id="updates">
+                    <h2>7. Updates and Availability</h2>
+                    <p>
+                        We may update, rebalance, limit, suspend, or discontinue features, events, content, rewards,
+                        pricing, and technical support at any time. We do not guarantee uninterrupted availability.
+                    </p>
+                </section>
+
+                <section id="termination">
+                    <h2>8. Suspension and Termination</h2>
+                    <p>
+                        We may suspend or terminate access to the services if we believe you violated these Terms,
+                        misused the services, created legal or technical risk, or engaged in fraud or abuse.
+                    </p>
+                </section>
+
+                <section id="disclaimer">
+                    <h2>9. Disclaimer</h2>
+                    <p>
+                        To the maximum extent permitted by law, the services are provided on an “as is” and “as
+                        available” basis, without warranties of any kind, whether express or implied.
+                    </p>
+                </section>
+
+                <section id="liability">
+                    <h2>10. Limitation of Liability</h2>
+                    <p>
+                        To the maximum extent permitted by law, Altare and its affiliates, partners, and licensors will
+                        not be liable for indirect, incidental, special, consequential, or punitive damages, or for any
+                        loss of data, revenue, goodwill, or business opportunities arising from or related to the
+                        services.
+                    </p>
+                </section>
+
+                <section id="changes">
+                    <h2>11. Changes to These Terms</h2>
+                    <p>
+                        We may update these Terms from time to time. Continued use of the services after changes take
+                        effect means you accept the revised Terms.
+                    </p>
+                </section>
+
+                <section id="contact">
+                    <h2>12. Contact</h2>
+                    <p>
+                        For legal, business, or support questions, contact Altare at
+                        <a href="mailto:berkantdogrusoz@gmail.com">berkantdogrusoz@gmail.com</a>.
+                    </p>
+                </section>
+            </article>
+
+            <aside class="sidebar">
+                <h3>On this page</h3>
+                <ul>
+                    <li><a href="#acceptance">Acceptance</a></li>
+                    <li><a href="#license">License</a></li>
+                    <li><a href="#conduct">Acceptable Use</a></li>
+                    <li><a href="#purchases">Purchases and Ads</a></li>
+                    <li><a href="#termination">Termination</a></li>
+                    <li><a href="#liability">Liability</a></li>
+                    <li><a href="#contact">Contact</a></li>
+                </ul>
+            </aside>
+        </main>
+
+        <footer>
+            <span>&copy; 2026 Altare Studio</span>
+            <span><a href="/privacy-policy.html">Privacy Policy</a></span>
+        </footer>
+    </div>
+</body>
+
+</html>

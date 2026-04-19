@@ -546,6 +546,28 @@
             letter-spacing: 0.05em;
         }
 
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 24px;
+            flex-wrap: wrap;
+            margin-top: 16px;
+        }
+
+        .footer-links a {
+            color: rgba(255, 255, 255, 0.55);
+            text-decoration: none;
+            font-size: 0.82rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            transition: color 0.3s ease;
+        }
+
+        .footer-links a:hover {
+            color: #fff;
+        }
+
         /* Mobile */
         @media (max-width: 768px) {
             nav {
@@ -771,6 +793,10 @@
     <!-- Footer -->
     <footer>
         <p data-i18n="footer">&copy; 2025 Altare Mobile Game Studio. All rights reserved.</p>
+        <div class="footer-links">
+            <a href="/privacy-policy.html">Privacy Policy</a>
+            <a href="/terms-of-service.html">Terms of Service</a>
+        </div>
     </footer>
 
     <script>

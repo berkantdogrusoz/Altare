@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description"
+        content="Altare Privacy Policy covering DreamRoyals, Altare games, the Altare website, and related services.">
+    <title>Altare Privacy Policy</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0a0a0a;
+            color: #ffffff;
+            font-family: 'Inter', sans-serif;
+            line-height: 1.7;
+        }
+
+        a {
+            color: #9cd5ff;
+            text-decoration: none;
+        }
+
+        a:hover {
+            color: #ffffff;
+        }
+
+        .shell {
+            min-height: 100vh;
+            padding: 40px 24px 80px;
+        }
+
+        .topbar {
+            max-width: 1100px;
+            margin: 0 auto 48px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .brand {
+            font-size: 1.2rem;
+            font-weight: 900;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: #ffffff;
+        }
+
+        .top-links {
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+
+        .top-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 44px;
+            padding: 0 18px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 8px;
+            color: rgba(255, 255, 255, 0.78);
+            background: rgba(255, 255, 255, 0.03);
+            transition: border-color 0.3s ease, color 0.3s ease, background 0.3s ease;
+        }
+
+        .top-link:hover {
+            color: #ffffff;
+            border-color: rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        .hero {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 48px 0 32px;
+        }
+
+        .eyebrow {
+            color: #a855f7;
+            font-size: 0.82rem;
+            font-weight: 700;
+            letter-spacing: 0.26em;
+            text-transform: uppercase;
+            margin-bottom: 18px;
+        }
+
+        h1 {
+            font-size: clamp(44px, 8vw, 86px);
+            line-height: 0.95;
+            letter-spacing: -0.04em;
+            text-transform: uppercase;
+            font-weight: 900;
+            background: linear-gradient(135deg, #a855f7, #6366f1, #06b6d4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero-text {
+            max-width: 760px;
+            margin-top: 24px;
+            color: rgba(255, 255, 255, 0.72);
+            font-size: 1.04rem;
+        }
+
+        .meta {
+            margin-top: 18px;
+            color: rgba(255, 255, 255, 0.48);
+            text-transform: uppercase;
+            letter-spacing: 0.16em;
+            font-size: 0.76rem;
+        }
+
+        main {
+            max-width: 1100px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 280px;
+            gap: 48px;
+            align-items: start;
+        }
+
+        .content {
+            min-width: 0;
+        }
+
+        .content section + section {
+            margin-top: 40px;
+            padding-top: 40px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        h2 {
+            font-size: 1.55rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            margin-bottom: 14px;
+            color: #ffffff;
+        }
+
+        p + p,
+        ul + p,
+        p + ul {
+            margin-top: 16px;
+        }
+
+        ul {
+            padding-left: 22px;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        li + li {
+            margin-top: 10px;
+        }
+
+        p,
+        li {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .sidebar {
+            position: sticky;
+            top: 32px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            padding: 22px;
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .sidebar h3 {
+            font-size: 0.86rem;
+            text-transform: uppercase;
+            letter-spacing: 0.18em;
+            color: rgba(255, 255, 255, 0.48);
+            margin-bottom: 14px;
+        }
+
+        .sidebar ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .sidebar li + li {
+            margin-top: 10px;
+        }
+
+        .sidebar a {
+            color: rgba(255, 255, 255, 0.72);
+        }
+
+        footer {
+            max-width: 1100px;
+            margin: 64px auto 0;
+            padding-top: 28px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            flex-wrap: wrap;
+            color: rgba(255, 255, 255, 0.42);
+            font-size: 0.84rem;
+        }
+
+        @media (max-width: 900px) {
+            main {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                position: static;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="shell">
+        <div class="topbar">
+            <a href="/" class="brand">Altare</a>
+            <div class="top-links">
+                <a class="top-link" href="/">Back to Home</a>
+                <a class="top-link" href="/terms-of-service.html">Terms of Service</a>
+            </div>
+        </div>
+
+        <header class="hero">
+            <p class="eyebrow">Legal</p>
+            <h1>Privacy Policy</h1>
+            <p class="hero-text">
+                This Privacy Policy explains how Altare collects, uses, stores, shares, and protects personal data when
+                you visit the Altare website, play DreamRoyals, use Altare games, or interact with related services.
+            </p>
+            <p class="meta">Last updated: April 20, 2026</p>
+        </header>
+
+        <main>
+            <article class="content">
+                <section id="scope">
+                    <h2>1. Scope</h2>
+                    <p>
+                        This Privacy Policy applies to Altare Studio, the Altare website, DreamRoyals, and other Altare
+                        digital products and related support, marketing, and publishing activities, unless a product or
+                        service provides a separate privacy notice.
+                    </p>
+                </section>
+
+                <section id="collect">
+                    <h2>2. Information We Collect</h2>
+                    <p>Depending on how you interact with our games or website, we may collect:</p>
+                    <ul>
+                        <li>Account-free gameplay data such as levels started or completed, move usage, booster usage, win or loss states, session length, and progression events.</li>
+                        <li>Device and technical information such as device model, operating system version, app version, language, country or region, IP address, crash reports, and performance diagnostics.</li>
+                        <li>Advertising and monetization data such as rewarded ad engagement, ad impression events, purchase status, refund state, and store transaction metadata supplied by platform partners.</li>
+                        <li>Consent and privacy preference data such as whether analytics or personalized advertising has been accepted, refused, or updated.</li>
+                        <li>Support or business communication data if you contact us by email, social channels, app store messages, or business collaboration requests.</li>
+                    </ul>
+                </section>
+
+                <section id="use">
+                    <h2>3. How We Use Information</h2>
+                    <p>We may use information to:</p>
+                    <ul>
+                        <li>operate, maintain, secure, and improve our games and website;</li>
+                        <li>understand retention, monetization, level difficulty, ad performance, purchase funnels, and technical stability;</li>
+                        <li>personalize ad delivery or ad measurement where consent and applicable law allow;</li>
+                        <li>detect fraud, abuse, cheating, technical misuse, or payment-related issues;</li>
+                        <li>respond to support requests, legal requests, and business communication;</li>
+                        <li>comply with legal, tax, accounting, and regulatory obligations.</li>
+                    </ul>
+                </section>
+
+                <section id="legal-basis">
+                    <h2>4. Legal Bases</h2>
+                    <p>
+                        Where required by applicable law, we process personal data based on one or more of the following:
+                        your consent, the performance of a contract or service request, our legitimate interests in
+                        operating and improving our products, or compliance with legal obligations.
+                    </p>
+                </section>
+
+                <section id="sharing">
+                    <h2>5. Service Providers and Sharing</h2>
+                    <p>
+                        We may share relevant data with service providers that help us operate our games and website.
+                        Depending on the product and configuration, these providers may include:
+                    </p>
+                    <ul>
+                        <li>Google AdMob and Google User Messaging Platform for ad delivery, consent handling, ad measurement, and privacy choices.</li>
+                        <li>Firebase Analytics and related Google services for product analytics, diagnostics, and event measurement.</li>
+                        <li>Google Play and other payment or platform operators for in-app purchases, billing validation, store operations, and refunds.</li>
+                        <li>Hosting or infrastructure providers such as Vercel or other web delivery partners for website availability and performance.</li>
+                    </ul>
+                    <p>
+                        We may also disclose information if required by law, to protect users or our rights, to enforce
+                        our Terms, or in connection with a merger, acquisition, financing, or asset transfer.
+                    </p>
+                </section>
+
+                <section id="choices">
+                    <h2>6. Your Privacy Choices</h2>
+                    <p>
+                        In supported regions or products, we may present in-app consent and privacy controls. You may use
+                        those controls to update analytics or advertising preferences where available.
+                    </p>
+                    <p>
+                        You can also manage certain permissions and ad settings through your device, operating system, or
+                        platform account. Some product features, ad-supported rewards, or personalization features may be
+                        limited if you refuse optional processing.
+                    </p>
+                </section>
+
+                <section id="retention">
+                    <h2>7. Data Retention</h2>
+                    <p>
+                        We keep personal data only for as long as reasonably necessary for the purposes described in this
+                        Policy, including gameplay operations, analytics, fraud prevention, accounting, dispute handling,
+                        and legal compliance. Retention periods may vary by data category and service provider.
+                    </p>
+                </section>
+
+                <section id="transfers">
+                    <h2>8. International Transfers</h2>
+                    <p>
+                        Our service providers may process data in countries other than your own. Where required, we take
+                        reasonable steps to use appropriate safeguards for international data transfers.
+                    </p>
+                </section>
+
+                <section id="children">
+                    <h2>9. Children</h2>
+                    <p>
+                        Our services are not intended to knowingly collect personal data from children in violation of
+                        applicable law. If you believe a child has provided personal data to us improperly, contact us so
+                        we can review and take appropriate action.
+                    </p>
+                </section>
+
+                <section id="rights">
+                    <h2>10. Your Rights</h2>
+                    <p>
+                        Depending on your location, you may have the right to request access, correction, deletion,
+                        restriction, objection, portability, or withdrawal of consent regarding certain personal data.
+                        To make a request, contact us using the details below.
+                    </p>
+                </section>
+
+                <section id="changes">
+                    <h2>11. Changes to This Policy</h2>
+                    <p>
+                        We may update this Privacy Policy from time to time. When we do, we will revise the “Last
+                        updated” date above and may provide additional notice where required.
+                    </p>
+                </section>
+
+                <section id="contact">
+                    <h2>12. Contact</h2>
+                    <p>
+                        If you have a privacy request, complaint, or question, contact Altare at
+                        <a href="mailto:berkantdogrusoz@gmail.com">berkantdogrusoz@gmail.com</a>.
+                    </p>
+                </section>
+            </article>
+
+            <aside class="sidebar">
+                <h3>On this page</h3>
+                <ul>
+                    <li><a href="#scope">Scope</a></li>
+                    <li><a href="#collect">Information We Collect</a></li>
+                    <li><a href="#use">How We Use Information</a></li>
+                    <li><a href="#sharing">Service Providers</a></li>
+                    <li><a href="#choices">Privacy Choices</a></li>
+                    <li><a href="#rights">Your Rights</a></li>
+                    <li><a href="#contact">Contact</a></li>
+                </ul>
+            </aside>
+        </main>
+
+        <footer>
+            <span>&copy; 2026 Altare Studio</span>
+            <span><a href="/terms-of-service.html">Terms of Service</a></span>
+        </footer>
+    </div>
+</body>
+
+</html>
