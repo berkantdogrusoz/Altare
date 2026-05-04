@@ -157,10 +157,29 @@
             text-transform: uppercase;
             letter-spacing: -0.03em;
             line-height: 0.85;
-            background: linear-gradient(135deg, #a855f7, #6366f1, #06b6d4);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            color: #ffffff;
+            display: inline-flex;
+            gap: 0.02em;
+        }
+
+        .hero-title span {
+            display: inline-block;
+            opacity: 0;
+            transform: translateY(0.4em);
+            filter: blur(8px);
+            animation: letterReveal 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        .hero-title span:nth-child(1) { animation-delay: 0.45s; }
+        .hero-title span:nth-child(2) { animation-delay: 0.60s; }
+        .hero-title span:nth-child(3) { animation-delay: 0.75s; }
+        .hero-title span:nth-child(4) { animation-delay: 0.90s; }
+        .hero-title span:nth-child(5) { animation-delay: 1.05s; }
+        .hero-title span:nth-child(6) { animation-delay: 1.20s; }
+
+        @keyframes letterReveal {
+            0% { opacity: 0; transform: translateY(0.4em); filter: blur(8px); }
+            100% { opacity: 1; transform: translateY(0); filter: blur(0); }
         }
 
         .hero-subtitle {
@@ -232,7 +251,7 @@
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.3em;
-            color: #a855f7;
+            color: rgba(255, 255, 255, 0.85);
             margin-bottom: 16px;
         }
 
@@ -301,10 +320,7 @@
         .stat-number {
             font-size: clamp(40px, 5vw, 72px);
             font-weight: 900;
-            background: linear-gradient(135deg, #06b6d4, #a855f7);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+            color: #ffffff;
         }
 
         .stat-label {
@@ -381,7 +397,7 @@
 
         .game-card-genre {
             font-size: 0.8rem;
-            color: #a855f7;
+            color: rgba(255, 255, 255, 0.85);
             text-transform: uppercase;
             letter-spacing: 0.15em;
             margin-top: 6px;
@@ -397,7 +413,7 @@
         }
 
         .game-card:hover .game-card-border {
-            border-color: rgba(168, 85, 247, 0.3);
+            border-color: rgba(255, 255, 255, 0.4);
         }
 
         /* Big Text Marquee */
@@ -471,15 +487,15 @@
         }
 
         .contact-link:hover {
-            border-color: #a855f7;
-            background: rgba(168, 85, 247, 0.08);
+            border-color: rgba(255, 255, 255, 0.5);
+            background: rgba(255, 255, 255, 0.06);
             transform: translateY(-4px);
         }
 
         .contact-link svg {
             width: 22px;
             height: 22px;
-            fill: #a855f7;
+            fill: #ffffff;
         }
 
         /* Language Toggle */
@@ -524,7 +540,7 @@
             left: 2px;
             width: 16px;
             height: 16px;
-            background: linear-gradient(135deg, #a855f7, #6366f1);
+            background: #ffffff;
             border-radius: 50%;
             transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
         }
@@ -629,7 +645,7 @@
         <div class="hero-bg-text top">ALTARE ALTARE ALTARE ALTARE&nbsp;</div>
         <div class="hero-bg-text bottom">MOBILE GAMES MOBILE GAMES&nbsp;</div>
         <div class="hero-content">
-            <h1 class="hero-title">ALTARE</h1>
+            <h1 class="hero-title" aria-label="ALTARE"><span>A</span><span>L</span><span>T</span><span>A</span><span>R</span><span>E</span></h1>
             <p class="hero-subtitle" data-i18n="hero-subtitle">Mobile Game Studio</p>
             <p class="hero-tagline" data-i18n="hero-tagline">We Create Worlds You Can't Put Down</p>
         </div>
@@ -757,7 +773,7 @@
             </p>
         </div>
         <div class="contact-links reveal">
-            <a href="mailto:berkantdogrusoz@gmail.com" class="contact-link">
+            <a href="/cdn-cgi/l/email-protection#462423342d272832222921343335293c06212b272f2a6825292b" class="contact-link">
                 <svg viewBox="0 0 24 24">
                     <path
                         d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
@@ -799,7 +815,7 @@
         </div>
     </footer>
 
-    <script>
+    <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
         // Navbar scroll effect
         const navbar = document.getElementById('navbar');
         window.addEventListener('scroll', () => {
