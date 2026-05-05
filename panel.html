@@ -1,0 +1,1172 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Altare AI Panel</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap"
+        rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0a0a0a;
+            --bg-elev: #111;
+            --bg-card: #161616;
+            --border: rgba(255, 255, 255, 0.08);
+            --border-strong: rgba(255, 255, 255, 0.18);
+            --text: #fff;
+            --text-dim: rgba(255, 255, 255, 0.55);
+            --text-faint: rgba(255, 255, 255, 0.35);
+            --accent: #fff;
+            --green: #4ade80;
+            --red: #f87171;
+            --yellow: #fbbf24;
+            --blue: #60a5fa;
+            --purple: #c084fc;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        /* ===== PANEL ===== */
+        #panel-app { display: block; }
+
+        /* Top bar */
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            background: rgba(10, 10, 10, 0.85);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .topbar-left {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .topbar-logo {
+            font-size: 1.1rem;
+            font-weight: 900;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+        }
+
+        .topbar-tag {
+            font-size: 0.65rem;
+            font-weight: 700;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--text-faint);
+            padding: 4px 8px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+        }
+
+        .game-selector {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 8px 32px 8px 14px;
+            border-radius: 8px;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='white' stroke-width='2' viewBox='0 0 24 24'><path d='M6 9l6 6 6-6'/></svg>");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+        }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .live-pulse {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--green);
+        }
+
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--green);
+            border-radius: 50%;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(1.3); }
+        }
+
+        .user-chip {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 14px 6px 6px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+        }
+
+        .user-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #fff, #999);
+            color: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.8rem;
+        }
+
+        .user-name {
+            font-size: 0.82rem;
+            font-weight: 600;
+        }
+
+        .logout-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            transition: all 0.2s;
+        }
+
+        .logout-btn:hover {
+            color: var(--text);
+            border-color: var(--border-strong);
+        }
+
+        /* Layout */
+        .panel-body {
+            display: grid;
+            grid-template-columns: 240px 1fr;
+            min-height: calc(100vh - 65px);
+        }
+
+        /* Sidebar */
+        .sidebar {
+            border-right: 1px solid var(--border);
+            padding: 32px 0;
+        }
+
+        .sidebar-section {
+            padding: 0 20px;
+            margin-bottom: 28px;
+        }
+
+        .sidebar-label {
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            color: var(--text-faint);
+            margin-bottom: 12px;
+            padding: 0 12px;
+        }
+
+        .nav-tab {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+            background: transparent;
+            border: none;
+            color: var(--text-dim);
+            padding: 10px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.88rem;
+            font-weight: 500;
+            text-align: left;
+            transition: all 0.2s;
+            margin-bottom: 2px;
+        }
+
+        .nav-tab:hover { color: var(--text); background: rgba(255, 255, 255, 0.03); }
+
+        .nav-tab.active {
+            background: rgba(255, 255, 255, 0.06);
+            color: var(--text);
+            font-weight: 600;
+        }
+
+        .nav-tab .dot {
+            width: 6px;
+            height: 6px;
+            background: currentColor;
+            border-radius: 50%;
+            opacity: 0.6;
+        }
+
+        /* Main content */
+        .main {
+            padding: 32px 40px 80px;
+            max-width: 1400px;
+            width: 100%;
+        }
+
+        .page-header {
+            margin-bottom: 28px;
+        }
+
+        .page-title {
+            font-size: 1.8rem;
+            font-weight: 800;
+            letter-spacing: -0.01em;
+            margin-bottom: 6px;
+        }
+
+        .page-sub {
+            font-size: 0.9rem;
+            color: var(--text-dim);
+        }
+
+        .page-sub .mono { color: var(--text-faint); font-size: 0.85rem; }
+
+        /* Tab view */
+        .tab-view { display: none; }
+        .tab-view.active { display: block; animation: fadeIn 0.3s ease; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* KPI Cards */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .kpi-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            transition: border-color 0.2s;
+        }
+
+        .kpi-card:hover { border-color: var(--border-strong); }
+
+        .kpi-label {
+            font-size: 0.72rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: var(--text-faint);
+            margin-bottom: 12px;
+        }
+
+        .kpi-value {
+            font-size: 1.9rem;
+            font-weight: 800;
+            line-height: 1;
+            letter-spacing: -0.02em;
+        }
+
+        .kpi-delta {
+            margin-top: 10px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .kpi-delta.up { color: var(--green); }
+        .kpi-delta.down { color: var(--red); }
+
+        /* Section */
+        .section-block {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+
+        .section-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 18px 22px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .section-head h3 {
+            font-size: 0.95rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+        }
+
+        .section-head .head-meta {
+            font-size: 0.75rem;
+            color: var(--text-faint);
+        }
+
+        .section-content { padding: 22px; }
+
+        /* Live event stream */
+        .event-stream {
+            max-height: 320px;
+            overflow-y: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.82rem;
+            line-height: 1.7;
+        }
+
+        .event-row {
+            display: grid;
+            grid-template-columns: 92px 110px 130px 1fr;
+            gap: 12px;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            color: var(--text-dim);
+        }
+
+        .event-row .ts { color: var(--text-faint); }
+        .event-row .evt { color: var(--blue); font-weight: 600; }
+        .event-row .evt.fail { color: var(--red); }
+        .event-row .evt.win { color: var(--green); }
+        .event-row .evt.iap { color: var(--yellow); }
+        .event-row .evt.crash { color: var(--red); }
+        .event-row .game { color: var(--purple); }
+        .event-row .params { color: var(--text-faint); font-size: 0.78rem; }
+
+        /* Bar list */
+        .bar-list { display: flex; flex-direction: column; gap: 14px; }
+
+        .bar-row {
+            display: grid;
+            grid-template-columns: 90px 1fr 70px;
+            gap: 14px;
+            align-items: center;
+        }
+
+        .bar-row .label { font-size: 0.85rem; font-weight: 600; }
+        .bar-row .label .sub { display: block; font-size: 0.7rem; color: var(--text-faint); margin-top: 2px; font-weight: 500; }
+
+        .bar-track {
+            height: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--red), var(--yellow));
+            border-radius: 4px;
+            animation: barGrow 1s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes barGrow {
+            from { transform: scaleX(0); transform-origin: left; }
+            to { transform: scaleX(1); }
+        }
+
+        .bar-row .pct {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            font-weight: 700;
+            text-align: right;
+        }
+
+        /* Competitor cards */
+        .competitor-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 14px;
+        }
+
+        .comp-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 18px;
+        }
+
+        .comp-name {
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .comp-genre {
+            font-size: 0.72rem;
+            color: var(--text-faint);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 14px;
+        }
+
+        .comp-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .comp-stat .v {
+            font-size: 1.05rem;
+            font-weight: 800;
+        }
+
+        .comp-stat .l {
+            font-size: 0.65rem;
+            color: var(--text-faint);
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            margin-top: 2px;
+        }
+
+        .comp-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .tag {
+            font-size: 0.7rem;
+            padding: 3px 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+            color: var(--text-dim);
+            font-weight: 500;
+        }
+
+        /* AI report */
+        .ai-action-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            gap: 12px;
+        }
+
+        .ai-btn {
+            background: #fff;
+            color: #000;
+            border: none;
+            padding: 12px 22px;
+            border-radius: 10px;
+            font-family: inherit;
+            font-weight: 700;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: opacity 0.2s, transform 0.2s;
+        }
+        .ai-btn:hover { opacity: 0.9; }
+        .ai-btn:active { transform: scale(0.98); }
+        .ai-btn.secondary {
+            background: transparent;
+            color: var(--text);
+            border: 1px solid var(--border-strong);
+        }
+
+        .ai-report {
+            font-size: 0.92rem;
+            line-height: 1.75;
+            color: var(--text-dim);
+        }
+
+        .ai-report h4 {
+            color: var(--text);
+            font-size: 1.05rem;
+            font-weight: 800;
+            margin: 24px 0 10px;
+            letter-spacing: -0.01em;
+        }
+
+        .ai-report h4:first-child { margin-top: 0; }
+
+        .ai-report p { margin-bottom: 10px; }
+
+        .ai-report ul { padding-left: 22px; margin-bottom: 14px; }
+        .ai-report li { margin-bottom: 6px; }
+
+        .ai-report .quote {
+            border-left: 3px solid var(--border-strong);
+            padding: 10px 16px;
+            margin: 14px 0;
+            color: var(--text-dim);
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 0 6px 6px 0;
+        }
+
+        .priority-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 14px 0 4px;
+        }
+
+        .badge {
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .badge.critical { background: rgba(248, 113, 113, 0.15); color: var(--red); border: 1px solid rgba(248, 113, 113, 0.3); }
+        .badge.high { background: rgba(251, 191, 36, 0.13); color: var(--yellow); border: 1px solid rgba(251, 191, 36, 0.3); }
+        .badge.medium { background: rgba(96, 165, 250, 0.13); color: var(--blue); border: 1px solid rgba(96, 165, 250, 0.3); }
+        .badge.low { background: rgba(74, 222, 128, 0.13); color: var(--green); border: 1px solid rgba(74, 222, 128, 0.3); }
+
+        .report-meta {
+            display: flex;
+            gap: 18px;
+            font-size: 0.78rem;
+            color: var(--text-faint);
+            margin-bottom: 18px;
+            padding-bottom: 18px;
+            border-bottom: 1px solid var(--border);
+        }
+        .report-meta .mi { display: inline-flex; align-items: center; gap: 6px; }
+
+        /* Mobile */
+        @media (max-width: 900px) {
+            .panel-body { grid-template-columns: 1fr; }
+            .sidebar { border-right: none; border-bottom: 1px solid var(--border); padding: 12px; display: flex; overflow-x: auto; }
+            .sidebar-section { padding: 0; margin: 0; }
+            .sidebar-label { display: none; }
+            .nav-tab { white-space: nowrap; }
+            .topbar { padding: 14px 16px; flex-wrap: wrap; }
+            .main { padding: 24px 16px 60px; }
+            .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+            .competitor-grid { grid-template-columns: 1fr; }
+            .event-row { grid-template-columns: 1fr; gap: 2px; padding: 8px 0; }
+            .event-row .params { font-size: 0.74rem; }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="panel-app" style="display:block;">
+        <header class="topbar">
+            <div class="topbar-left">
+                <div class="topbar-logo">ALTARE</div>
+                <div class="topbar-tag">AI Panel · v0.1 Demo</div>
+                <select class="game-selector" id="game-selector">
+                    <option value="royal-dreams">Royal Dreams</option>
+                    <option value="crimson-scar">Crimson Scar</option>
+                </select>
+            </div>
+            <div class="topbar-right">
+                <div class="live-pulse"><span class="pulse-dot"></span> Canlı</div>
+                <div class="user-chip">
+                    <div class="user-avatar" id="user-avatar">B</div>
+                    <div class="user-name" id="user-name">Berkant D.</div>
+                </div>
+                <button class="logout-btn" id="logout-btn">Çıkış</button>
+            </div>
+        </header>
+
+        <div class="panel-body">
+            <aside class="sidebar">
+                <div class="sidebar-section">
+                    <div class="sidebar-label">Game Intelligence</div>
+                    <button class="nav-tab active" data-tab="overview"><span class="dot"></span> Genel Bakış</button>
+                    <button class="nav-tab" data-tab="events"><span class="dot"></span> Canlı Event Stream</button>
+                    <button class="nav-tab" data-tab="levels"><span class="dot"></span> Level Intelligence</button>
+                    <button class="nav-tab" data-tab="performance"><span class="dot"></span> Crash & Performance</button>
+                </div>
+                <div class="sidebar-section">
+                    <div class="sidebar-label">Market Intelligence</div>
+                    <button class="nav-tab" data-tab="market"><span class="dot"></span> Pazar Analizi</button>
+                    <button class="nav-tab" data-tab="reviews"><span class="dot"></span> Yorum & Sentiment</button>
+                </div>
+                <div class="sidebar-section">
+                    <div class="sidebar-label">AI</div>
+                    <button class="nav-tab" data-tab="ai-report"><span class="dot"></span> AI Raporu</button>
+                    <button class="nav-tab" data-tab="roadmap"><span class="dot"></span> Roadmap Önerileri</button>
+                </div>
+            </aside>
+
+            <main class="main">
+                <div class="page-header">
+                    <h1 class="page-title" id="page-title">Genel Bakış</h1>
+                    <p class="page-sub">
+                        <span id="game-name-display">Royal Dreams</span> ·
+                        <span class="mono" id="time-range">Son 24 saat</span> ·
+                        <span class="mono" id="current-time">--:--</span>
+                    </p>
+                </div>
+
+                <section class="tab-view active" data-tab="overview">
+                    <div class="kpi-grid">
+                        <div class="kpi-card">
+                            <div class="kpi-label">Aktif Oturum</div>
+                            <div class="kpi-value mono" id="kpi-sessions">1,247</div>
+                            <div class="kpi-delta up">↑ 12.4% · dünden</div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-label">Bugünkü Event</div>
+                            <div class="kpi-value mono">48,392</div>
+                            <div class="kpi-delta up">↑ 8.7%</div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-label">Ortalama Oturum</div>
+                            <div class="kpi-value mono">7m 24s</div>
+                            <div class="kpi-delta up">↑ 0.6%</div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-label">Fail Oranı</div>
+                            <div class="kpi-value mono">23.8%</div>
+                            <div class="kpi-delta down">↓ 1.2%</div>
+                        </div>
+                    </div>
+                    <div class="kpi-grid">
+                        <div class="kpi-card">
+                            <div class="kpi-label">Reklam İzleme (24h)</div>
+                            <div class="kpi-value mono">3,124</div>
+                            <div class="kpi-delta up">↑ 14.2%</div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-label">IAP Geliri (24h)</div>
+                            <div class="kpi-value mono">$284</div>
+                            <div class="kpi-delta up">↑ 22.1%</div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-label">FPS Uyarısı</div>
+                            <div class="kpi-value mono">47</div>
+                            <div class="kpi-delta down">↓ 18%</div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-label">Crash (24h)</div>
+                            <div class="kpi-value mono">3</div>
+                            <div class="kpi-delta down">↓ 60%</div>
+                        </div>
+                    </div>
+                    <div class="section-block">
+                        <div class="section-head">
+                            <h3>Önerilen Aksiyon · AI Tespiti</h3>
+                            <span class="head-meta">5 dakika önce</span>
+                        </div>
+                        <div class="section-content">
+                            <div class="priority-badges">
+                                <span class="badge critical">Kritik</span>
+                                <span class="badge high">Level Tasarımı</span>
+                            </div>
+                            <p style="margin-bottom: 12px;"><strong style="color: var(--text);">Royal Dreams Level 18'de %42 fail rate tespit edildi.</strong> Kategori ortalamasının %18 üstünde. Top 3 rakipten 2'si bu seviyede hint sistemi sunuyor; yorumlarda "yardımsız geçilmiyor" diyenler %23.</p>
+                            <p style="color: var(--text-dim); font-size: 0.88rem;"><strong style="color: var(--text);">Önerilen aksiyon:</strong> Level 18'e tek seferlik hint butonu (5 saniye delay), move sayısı +2.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="tab-view" data-tab="events">
+                    <div class="section-block">
+                        <div class="section-head">
+                            <h3>Canlı Event Stream</h3>
+                            <span class="head-meta"><span class="live-pulse" style="font-size: 0.7rem;"><span class="pulse-dot"></span> Streaming</span></span>
+                        </div>
+                        <div class="section-content">
+                            <div class="event-stream" id="event-stream"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="tab-view" data-tab="levels">
+                    <div class="section-block">
+                        <div class="section-head">
+                            <h3>En Çok Fail Olan Level'lar · Top 5</h3>
+                            <span class="head-meta">Son 7 gün · Royal Dreams</span>
+                        </div>
+                        <div class="section-content">
+                            <div class="bar-list">
+                                <div class="bar-row">
+                                    <div class="label">Level 18 <span class="sub">match-3</span></div>
+                                    <div class="bar-track"><div class="bar-fill" style="width: 84%;"></div></div>
+                                    <div class="pct">42.3%</div>
+                                </div>
+                                <div class="bar-row">
+                                    <div class="label">Level 24 <span class="sub">boss</span></div>
+                                    <div class="bar-track"><div class="bar-fill" style="width: 72%;"></div></div>
+                                    <div class="pct">36.1%</div>
+                                </div>
+                                <div class="bar-row">
+                                    <div class="label">Level 31 <span class="sub">timed</span></div>
+                                    <div class="bar-track"><div class="bar-fill" style="width: 58%;"></div></div>
+                                    <div class="pct">29.0%</div>
+                                </div>
+                                <div class="bar-row">
+                                    <div class="label">Level 42 <span class="sub">match-3</span></div>
+                                    <div class="bar-track"><div class="bar-fill" style="width: 47%;"></div></div>
+                                    <div class="pct">23.4%</div>
+                                </div>
+                                <div class="bar-row">
+                                    <div class="label">Level 9 <span class="sub">tutorial</span></div>
+                                    <div class="bar-track"><div class="bar-fill" style="width: 36%;"></div></div>
+                                    <div class="pct">18.2%</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="section-block">
+                        <div class="section-head">
+                            <h3>Drop-off Analizi</h3>
+                            <span class="head-meta">Funnel · son 7 gün</span>
+                        </div>
+                        <div class="section-content">
+                            <div class="bar-list">
+                                <div class="bar-row">
+                                    <div class="label">Level 1-10 <span class="sub">başlangıç</span></div>
+                                    <div class="bar-track"><div class="bar-fill" style="width: 96%; background: linear-gradient(90deg, #4ade80, #22d3ee);"></div></div>
+                                    <div class="pct">96%</div>
+                                </div>
+                                <div class="bar-row">
+                                    <div class="label">Level 11-20 <span class="sub">orta</span></div>
+                                    <div class="bar-track"><div class="bar-fill" style="width: 71%; background: linear-gradient(90deg, #22d3ee, #fbbf24);"></div></div>
+                                    <div class="pct">71%</div>
+                                </div>
+                                <div class="bar-row">
+                                    <div class="label">Level 21-30 <span class="sub">zor</span></div>
+                                    <div class="bar-track"><div class="bar-fill" style="width: 48%; background: linear-gradient(90deg, #fbbf24, #f87171);"></div></div>
+                                    <div class="pct">48%</div>
+                                </div>
+                                <div class="bar-row">
+                                    <div class="label">Level 31-50 <span class="sub">geç oyun</span></div>
+                                    <div class="bar-track"><div class="bar-fill" style="width: 27%;"></div></div>
+                                    <div class="pct">27%</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="tab-view" data-tab="performance">
+                    <div class="kpi-grid">
+                        <div class="kpi-card">
+                            <div class="kpi-label">Ortalama FPS</div>
+                            <div class="kpi-value mono">58.2</div>
+                            <div class="kpi-delta up">↑ 2.1</div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-label">FPS &lt; 30 Oturum</div>
+                            <div class="kpi-value mono">47</div>
+                            <div class="kpi-delta down">↓ 18%</div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-label">Crash (24h)</div>
+                            <div class="kpi-value mono">3</div>
+                            <div class="kpi-delta down">↓ 60%</div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-label">ANR (24h)</div>
+                            <div class="kpi-value mono">1</div>
+                            <div class="kpi-delta">—</div>
+                        </div>
+                    </div>
+                    <div class="section-block">
+                        <div class="section-head">
+                            <h3>Sorunlu Cihazlar</h3>
+                            <span class="head-meta">Crash + FPS uyarısı</span>
+                        </div>
+                        <div class="section-content">
+                            <div class="bar-list">
+                                <div class="bar-row">
+                                    <div class="label">Samsung A12 <span class="sub">Android 11</span></div>
+                                    <div class="bar-track"><div class="bar-fill" style="width: 78%;"></div></div>
+                                    <div class="pct">14 olay</div>
+                                </div>
+                                <div class="bar-row">
+                                    <div class="label">Xiaomi Redmi 9 <span class="sub">Android 10</span></div>
+                                    <div class="bar-track"><div class="bar-fill" style="width: 62%;"></div></div>
+                                    <div class="pct">11 olay</div>
+                                </div>
+                                <div class="bar-row">
+                                    <div class="label">Oppo A54 <span class="sub">Android 11</span></div>
+                                    <div class="bar-track"><div class="bar-fill" style="width: 41%;"></div></div>
+                                    <div class="pct">7 olay</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="tab-view" data-tab="market">
+                    <div class="section-block">
+                        <div class="section-head">
+                            <h3>Rakip Snapshot · Match Puzzle Kategorisi</h3>
+                            <span class="head-meta">Public Play Store verisi · son güncelleme 2h</span>
+                        </div>
+                        <div class="section-content">
+                            <div class="competitor-grid">
+                                <div class="comp-card">
+                                    <div class="comp-name">Royal Match</div>
+                                    <div class="comp-genre">Match-3 · Decoration</div>
+                                    <div class="comp-stats">
+                                        <div class="comp-stat"><div class="v mono">4.7</div><div class="l">Rating</div></div>
+                                        <div class="comp-stat"><div class="v mono">100M+</div><div class="l">Install</div></div>
+                                        <div class="comp-stat"><div class="v mono">$$$</div><div class="l">IAP</div></div>
+                                    </div>
+                                    <div class="comp-tags">
+                                        <span class="tag">cozy</span>
+                                        <span class="tag">decoration</span>
+                                        <span class="tag">hint system</span>
+                                        <span class="tag">narrative</span>
+                                    </div>
+                                </div>
+                                <div class="comp-card">
+                                    <div class="comp-name">Gardenscapes</div>
+                                    <div class="comp-genre">Match-3 · Garden</div>
+                                    <div class="comp-stats">
+                                        <div class="comp-stat"><div class="v mono">4.3</div><div class="l">Rating</div></div>
+                                        <div class="comp-stat"><div class="v mono">500M+</div><div class="l">Install</div></div>
+                                        <div class="comp-stat"><div class="v mono">$$$</div><div class="l">IAP</div></div>
+                                    </div>
+                                    <div class="comp-tags">
+                                        <span class="tag">narrative</span>
+                                        <span class="tag">decoration</span>
+                                        <span class="tag">live events</span>
+                                    </div>
+                                </div>
+                                <div class="comp-card">
+                                    <div class="comp-name">Block Blast!</div>
+                                    <div class="comp-genre">Block Puzzle</div>
+                                    <div class="comp-stats">
+                                        <div class="comp-stat"><div class="v mono">4.6</div><div class="l">Rating</div></div>
+                                        <div class="comp-stat"><div class="v mono">100M+</div><div class="l">Install</div></div>
+                                        <div class="comp-stat"><div class="v mono">$$</div><div class="l">IAP</div></div>
+                                    </div>
+                                    <div class="comp-tags">
+                                        <span class="tag">classic</span>
+                                        <span class="tag">competitive</span>
+                                        <span class="tag">offline</span>
+                                    </div>
+                                </div>
+                                <div class="comp-card">
+                                    <div class="comp-name">Wood Block Puzzle</div>
+                                    <div class="comp-genre">Block Puzzle</div>
+                                    <div class="comp-stats">
+                                        <div class="comp-stat"><div class="v mono">4.5</div><div class="l">Rating</div></div>
+                                        <div class="comp-stat"><div class="v mono">10M+</div><div class="l">Install</div></div>
+                                        <div class="comp-stat"><div class="v mono">$</div><div class="l">IAP</div></div>
+                                    </div>
+                                    <div class="comp-tags">
+                                        <span class="tag">simple</span>
+                                        <span class="tag">cozy</span>
+                                        <span class="tag">no ads option</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="section-block">
+                        <div class="section-head">
+                            <h3>Trend Sinyalleri</h3>
+                            <span class="head-meta">Son 30 gün · kategori yorumları</span>
+                        </div>
+                        <div class="section-content">
+                            <div class="bar-list">
+                                <div class="bar-row">
+                                    <div class="label">"cozy" <span class="sub">tema</span></div>
+                                    <div class="bar-track"><div class="bar-fill" style="width: 86%; background: linear-gradient(90deg, #4ade80, #22d3ee);"></div></div>
+                                    <div class="pct">+34%</div>
+                                </div>
+                                <div class="bar-row">
+                                    <div class="label">"decoration" <span class="sub">mekanik</span></div>
+                                    <div class="bar-track"><div class="bar-fill" style="width: 71%; background: linear-gradient(90deg, #4ade80, #22d3ee);"></div></div>
+                                    <div class="pct">+28%</div>
+                                </div>
+                                <div class="bar-row">
+                                    <div class="label">"reklam" <span class="sub">şikayet</span></div>
+                                    <div class="bar-track"><div class="bar-fill" style="width: 64%;"></div></div>
+                                    <div class="pct">+22%</div>
+                                </div>
+                                <div class="bar-row">
+                                    <div class="label">"zor" <span class="sub">level</span></div>
+                                    <div class="bar-track"><div class="bar-fill" style="width: 52%;"></div></div>
+                                    <div class="pct">+18%</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="tab-view" data-tab="reviews">
+                    <div class="section-block">
+                        <div class="section-head">
+                            <h3>Yorum Sentiment Karşılaştırma</h3>
+                            <span class="head-meta">Royal Dreams vs kategori top 3</span>
+                        </div>
+                        <div class="section-content">
+                            <div class="bar-list">
+                                <div class="bar-row">
+                                    <div class="label">Pozitif <span class="sub">overprise + grafik</span></div>
+                                    <div class="bar-track"><div class="bar-fill" style="width: 64%; background: linear-gradient(90deg, #4ade80, #22d3ee);"></div></div>
+                                    <div class="pct">64%</div>
+                                </div>
+                                <div class="bar-row">
+                                    <div class="label">Nötr</div>
+                                    <div class="bar-track"><div class="bar-fill" style="width: 18%; background: rgba(255,255,255,0.25);"></div></div>
+                                    <div class="pct">18%</div>
+                                </div>
+                                <div class="bar-row">
+                                    <div class="label">Negatif <span class="sub">zor + reklam</span></div>
+                                    <div class="bar-track"><div class="bar-fill" style="width: 18%;"></div></div>
+                                    <div class="pct">18%</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="section-block">
+                        <div class="section-head">
+                            <h3>Son Yorumlar · Negatif Filtre</h3>
+                            <span class="head-meta">AI sentiment analizi · 12 yorum</span>
+                        </div>
+                        <div class="section-content">
+                            <div class="ai-report">
+                                <div class="quote">"Level 18'i 25 kez denedim, hala geçemedim. Reklam izlemeden imkansız." — <strong>★ 2 · @kullanici1</strong></div>
+                                <div class="quote">"Grafik çok güzel ama hint sistemi yok, çok adaletsiz oluyor." — <strong>★ 3 · @kullanici2</strong></div>
+                                <div class="quote">"Reklam çok sık çıkıyor, oyun keyif vermiyor artık." — <strong>★ 2 · @kullanici3</strong></div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="tab-view" data-tab="ai-report">
+                    <div class="ai-action-bar">
+                        <div>
+                            <button class="ai-btn" id="generate-btn">⚡ Yeni AI Raporu Üret</button>
+                            <button class="ai-btn secondary">Tüm Raporları Göster</button>
+                        </div>
+                        <div class="head-meta" id="last-report">Son rapor: bugün 09:14</div>
+                    </div>
+                    <div class="section-block">
+                        <div class="section-head">
+                            <h3>Royal Dreams · Live-Ops Analiz Raporu</h3>
+                            <span class="head-meta">Otomatik · 30 dk önce</span>
+                        </div>
+                        <div class="section-content">
+                            <div class="report-meta">
+                                <span class="mi">📊 Veri Aralığı: <strong style="color: var(--text-dim);">Son 24 saat</strong></span>
+                                <span class="mi">🤖 Model: <strong style="color: var(--text-dim);">Claude Sonnet 4.6</strong></span>
+                                <span class="mi">📡 Event sayısı: <strong style="color: var(--text-dim);">48,392</strong></span>
+                            </div>
+                            <div class="ai-report">
+                                <h4>1. Genel Sağlık</h4>
+                                <p>Royal Dreams sağlıklı bir akışa sahip; günlük aktif oyuncu artışı +%12.4, ortalama oturum süresi 7 dakika 24 saniye. Reklam ve IAP etkileşimi yükseliyor (sırasıyla +%14 ve +%22). Crash oranı düşük (3 olay, -%60).</p>
+                                <h4>2. Oyuncu Davranışı</h4>
+                                <p>Oyuncuların %96'sı Level 1-10 aralığını tamamlıyor, ancak <strong style="color: var(--text);">Level 11-20</strong> aralığında drop-off %25'e fırlıyor. Bu noktada özellikle <strong style="color: var(--text);">Level 18</strong> ana darboğaz.</p>
+                                <h4>3. Top 3 Sorunlu Level</h4>
+                                <div class="priority-badges">
+                                    <span class="badge critical">Level 18 · %42 fail</span>
+                                    <span class="badge high">Level 24 · %36 fail</span>
+                                    <span class="badge medium">Level 31 · %29 fail</span>
+                                </div>
+                                <h4>4. Pazar Karşılaştırma</h4>
+                                <p><strong style="color: var(--text);">Royal Match</strong> ve <strong style="color: var(--text);">Gardenscapes</strong> Level 18 muadili noktada hint sistemi sunuyor; mağaza yorumlarında <em>"yardımsız geçilmiyor"</em> şikayeti %23 oranında. Bizim oyunumuzda hint sistemi yok — yorumlarda aynı şikayet %18.</p>
+                                <h4>5. Monetizasyon</h4>
+                                <p>IAP geliri 24 saatte $284 (+%22). Booster satışları en yüksek dönüş veren kategori. Ancak negatif yorumlarda <em>"reklam çok"</em> teması artıyor (+%22 kategori bazında). Önerim: rewarded ad'i koruyun, interstitial sıklığını her 3 oyun yerine her 5 oyuna çekin.</p>
+                                <h4>6. Cihaz/Performans</h4>
+                                <p>FPS uyarılarının %62'si Samsung A12 ve Xiaomi Redmi 9 cihazlarından. Düşük RAM (3GB) cihazlarda particle effect dropdown'u önerilir.</p>
+                                <h4>7. Top 5 Acil Aksiyon</h4>
+                                <ol style="padding-left: 22px; color: var(--text-dim); margin-bottom: 14px;">
+                                    <li><strong style="color: var(--text);">Level 18'e hint sistemi</strong> (5 saniye delay, ücretsiz tek seferlik) <span class="badge critical" style="margin-left: 8px;">Kritik</span></li>
+                                    <li><strong style="color: var(--text);">Level 11-20 move sayısı +1-2</strong> <span class="badge high" style="margin-left: 8px;">High</span></li>
+                                    <li><strong style="color: var(--text);">Interstitial sıklığı düşür</strong> (her 5 oyun) <span class="badge high" style="margin-left: 8px;">High</span></li>
+                                    <li><strong style="color: var(--text);">Düşük RAM cihazlar için graphic preset</strong> <span class="badge medium" style="margin-left: 8px;">Medium</span></li>
+                                    <li><strong style="color: var(--text);">Beginner offer 2. günde göster</strong> <span class="badge low" style="margin-left: 8px;">Low</span></li>
+                                </ol>
+                                <h4>8. Sıradaki Update Önerisi</h4>
+                                <p>v1.4 update için: hint sistemi + Level 18-24 yumuşatma + 5 yeni "cozy" temalı level. Tahmini retention etkisi: <strong style="color: var(--green);">+8-12% D7</strong>.</p>
+                                <h4>9. Pre-Marketing Risk</h4>
+                                <p>Mevcut yorum trendi (%64 pozitif, %18 negatif) güçlü. Negatif yorumların %78'i level zorluğu kaynaklı — önerilen aksiyonlar uygulanırsa marketing scale öncesi risk düşer.</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="tab-view" data-tab="roadmap">
+                    <div class="section-block">
+                        <div class="section-head">
+                            <h3>Sıradaki Proje Önerileri · AI Strateji</h3>
+                            <span class="head-meta">Cross-game + market analiz</span>
+                        </div>
+                        <div class="section-content">
+                            <div class="ai-report">
+                                <h4>Öneri 1 · Cozy Match-3 + Decoration Hibrit <span class="badge high" style="margin-left: 8px;">High Potential</span></h4>
+                                <p>Kategori trend sinyalleri "cozy" (+%34) ve "decoration" (+%28) temalarının yorumlarda yükseldiğini gösteriyor. Royal Match'in formülünü takip et ama farklı tema (köy/cottage). Royal Dreams'in match-3 kodunu reuse edebilir.</p>
+                                <div class="quote">Tahmini development: 4-5 ay · Market window: Q3 2026</div>
+                                <h4>Öneri 2 · Crimson Scar Live-Ops <span class="badge medium" style="margin-left: 8px;">Medium</span></h4>
+                                <p>Crimson Scar mid-core dungeon yapısı; mid-core kategoride "PvP arena" yorumlarda parlıyor. Mevcut dungeon engine'in üstüne haftalık event arenası eklenebilir. Düşük efor, retention etkisi yüksek.</p>
+                                <h4>Öneri 3 · Block Puzzle Re-Theme <span class="badge low" style="margin-left: 8px;">Low Effort</span></h4>
+                                <p>Block Blast! yorumlarında "tema sıkıcı" şikayeti (%14). Mevcut block puzzle engine'imiz üzerine 3 farklı tema (woody, neon, ocean) hızlı re-theme yapılabilir.</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        const panelApp = document.getElementById('panel-app');
+        document.getElementById('user-name').textContent = 'Berkant D.';
+        document.getElementById('user-avatar').textContent = 'B';
+        startLiveSimulation();
+
+        document.getElementById('logout-btn').addEventListener('click', () => {
+            window.location.href = '/';
+        });
+
+        const tabTitles = {
+            'overview': 'Genel Bakış',
+            'events': 'Canlı Event Stream',
+            'levels': 'Level Intelligence',
+            'performance': 'Crash & Performance',
+            'market': 'Pazar Analizi',
+            'reviews': 'Yorum & Sentiment',
+            'ai-report': 'AI Raporu',
+            'roadmap': 'Roadmap Önerileri'
+        };
+
+        document.querySelectorAll('.nav-tab').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tab = btn.dataset.tab;
+                document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                document.querySelectorAll('.tab-view').forEach(v => v.classList.remove('active'));
+                document.querySelector(`.tab-view[data-tab="${tab}"]`).classList.add('active');
+                document.getElementById('page-title').textContent = tabTitles[tab] || '';
+            });
+        });
+
+        const gameNames = { 'royal-dreams': 'Royal Dreams', 'crimson-scar': 'Crimson Scar' };
+        document.getElementById('game-selector').addEventListener('change', (e) => {
+            document.getElementById('game-name-display').textContent = gameNames[e.target.value];
+        });
+
+        const eventTemplates = [
+            { evt: 'level_start', cls: 'evt', params: 'level=12' },
+            { evt: 'level_complete', cls: 'evt win', params: 'level=12 score=2840 stars=3' },
+            { evt: 'level_fail', cls: 'evt fail', params: 'level=18 moves_used=24' },
+            { evt: 'level_fail', cls: 'evt fail', params: 'level=18 moves_used=22' },
+            { evt: 'session_start', cls: 'evt', params: 'platform=android' },
+            { evt: 'ad_watched', cls: 'evt iap', params: 'placement=continue level=18' },
+            { evt: 'iap_purchase_success', cls: 'evt iap', params: 'sku=coin_pack_3 amount=$4.99' },
+            { evt: 'booster_used', cls: 'evt', params: 'type=hammer level=24' },
+            { evt: 'fps_warning', cls: 'evt fail', params: 'avg_fps=24 device=Samsung_A12' },
+            { evt: 'level_complete', cls: 'evt win', params: 'level=7 score=1820 stars=2' },
+            { evt: 'rewarded_ad_watched', cls: 'evt iap', params: 'placement=extra_moves' },
+            { evt: 'level_start', cls: 'evt', params: 'level=24' },
+            { evt: 'player_feedback', cls: 'evt', params: 'rating=4 text="grafikler güzel"' },
+            { evt: 'session_end', cls: 'evt', params: 'duration=412s levels=4' },
+            { evt: 'level_complete', cls: 'evt win', params: 'level=15 score=3120 stars=3' },
+            { evt: 'crash_detected', cls: 'evt crash', params: 'device=Redmi_9 stack=Unity.IL2CPP' }
+        ];
+
+        const games = ['royal-dreams', 'crimson-scar'];
+
+        function pad(n) { return n < 10 ? '0' + n : '' + n; }
+        function nowStr() {
+            const d = new Date();
+            return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+        }
+        function shortId() { return 'usr_' + Math.random().toString(36).slice(2, 7); }
+
+        const eventStream = document.getElementById('event-stream');
+        const sessionsKpi = document.getElementById('kpi-sessions');
+        let sessionsValue = 1247;
+        let liveTickInterval = null;
+
+        function tickEvent() {
+            if (!eventStream) return;
+            const tpl = eventTemplates[Math.floor(Math.random() * eventTemplates.length)];
+            const game = games[Math.floor(Math.random() * games.length)];
+            const row = document.createElement('div');
+            row.className = 'event-row';
+            row.innerHTML = `
+                <span class="ts">${nowStr()}</span>
+                <span class="${tpl.cls}">${tpl.evt}</span>
+                <span class="game">${game}</span>
+                <span class="params">${shortId()} · ${tpl.params}</span>
+            `;
+            eventStream.insertBefore(row, eventStream.firstChild);
+            while (eventStream.children.length > 30) eventStream.removeChild(eventStream.lastChild);
+            if (Math.random() > 0.65) {
+                sessionsValue += Math.random() > 0.5 ? 1 : -1;
+                if (sessionsValue < 1100) sessionsValue = 1100;
+                if (sessionsValue > 1400) sessionsValue = 1400;
+                if (sessionsKpi) sessionsKpi.textContent = sessionsValue.toLocaleString('en-US');
+            }
+        }
+
+        function tickClock() {
+            const el = document.getElementById('current-time');
+            if (el) el.textContent = nowStr();
+        }
+
+        function startLiveSimulation() {
+            if (liveTickInterval) return;
+            for (let i = 0; i < 12; i++) tickEvent();
+            liveTickInterval = setInterval(tickEvent, 1800);
+            tickClock();
+            setInterval(tickClock, 1000);
+        }
+
+        document.getElementById('generate-btn').addEventListener('click', function () {
+            this.disabled = true;
+            this.textContent = '🧠 Analiz ediliyor...';
+            setTimeout(() => {
+                this.disabled = false;
+                this.textContent = '⚡ Yeni AI Raporu Üret';
+                document.getElementById('last-report').textContent = 'Son rapor: az önce';
+            }, 2400);
+        });
+    </script>
+</body>
+
+</html>
