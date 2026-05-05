@@ -597,7 +597,7 @@
         <header class="topbar">
             <div class="topbar-left">
                 <div class="topbar-logo">ALTARE</div>
-                <div class="topbar-tag">AI Panel · v0.1 Demo</div>
+                <div class="topbar-tag">AI Panel · v0.1 Demo · Temsili Veri</div>
                 <select class="game-selector" id="game-selector">
                     <option value="royal-dreams">Royal Dreams</option>
                     <option value="crimson-scar">Crimson Scar</option>
@@ -639,7 +639,7 @@
                     <h1 class="page-title" id="page-title">Genel Bakış</h1>
                     <p class="page-sub">
                         <span id="game-name-display">Royal Dreams</span> ·
-                        <span class="mono" id="time-range">Son 24 saat</span> ·
+                        <span class="mono" id="time-range">Son 24 saat · Demo veri</span> ·
                         <span class="mono" id="current-time">--:--</span>
                     </p>
                 </div>
@@ -1053,43 +1053,89 @@
     </div>
 
     <script>
-        const panelApp = document.getElementById('panel-app');
-        document.getElementById('user-name').textContent = 'Berkant D.';
-        document.getElementById('user-avatar').textContent = 'B';
-        startLiveSimulation();
+document.addEventListener('DOMContentLoaded', () => {
+    const userName = document.getElementById('user-name');
+    const userAvatar = document.getElementById('user-avatar');
+    const logoutBtn = document.getElementById('logout-btn');
+    const pageTitle = document.getElementById('page-title');
+    const gameNameDisplay = document.getElementById('game-name-display');
+    const gameSelector = document.getElementById('game-selector');
+    const eventStream = document.getElementById('event-stream');
+    const sessionsKpi = document.getElementById('kpi-sessions');
+    const generateBtn = document.getElementById('generate-btn');
+    const lastReport = document.getElementById('last-report');
+    const currentTime = document.getElementById('current-time');
 
-        document.getElementById('logout-btn').addEventListener('click', () => {
+    if (userName) userName.textContent = 'Berkant D.';
+    if (userAvatar) userAvatar.textContent = 'B';
+
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', () => {
             window.location.href = '/';
         });
+    }
 
-        const tabTitles = {
-            'overview': 'Genel Bakış',
-            'events': 'Canlı Event Stream',
-            'levels': 'Level Intelligence',
-            'performance': 'Crash & Performance',
-            'market': 'Pazar Analizi',
-            'reviews': 'Yorum & Sentiment',
-            'ai-report': 'AI Raporu',
-            'roadmap': 'Roadmap Önerileri'
-        };
+    const tabTitles = {
+        'overview': 'Genel Bakış',
+        'events': 'Canlı Event Stream',
+        'levels': 'Level Intelligence',
+        'performance': 'Crash & Performance',
+        'market': 'Pazar Analizi',
+        'reviews': 'Yorum & Sentiment',
+        'ai-report': 'AI Raporu',
+        'roadmap': 'Roadmap Önerileri'
+    };
 
-        document.querySelectorAll('.nav-tab').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const tab = btn.dataset.tab;
-                document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                document.querySelectorAll('.tab-view').forEach(v => v.classList.remove('active'));
-                document.querySelector(`.tab-view[data-tab="${tab}"]`).classList.add('active');
-                document.getElementById('page-title').textContent = tabTitles[tab] || '';
+    document.querySelectorAll('.nav-tab').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const selectedTab = btn.dataset.tab;
+
+            document.querySelectorAll('.nav-tab').forEach(tabButton => {
+                tabButton.classList.remove('active');
+            });
+
+            btn.classList.add('active');
+
+            document.querySelectorAll('.tab-view').forEach(view => {
+                view.classList.remove('active');
+            });
+
+            const targetView = document.querySelector(`.tab-view[data-tab="${selectedTab}"]`);
+
+            if (targetView) {
+                targetView.classList.add('active');
+            }
+
+            if (pageTitle) {
+                pageTitle.textContent = tabTitles[selectedTab] || 'Altare AI Panel';
+            }
+
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
             });
         });
+    });
 
-        const gameNames = { 'royal-dreams': 'Royal Dreams', 'crimson-scar': 'Crimson Scar' };
-        document.getElementById('game-selector').addEventListener('change', (e) => {
-            document.getElementById('game-name-display').textContent = gameNames[e.target.value];
+    const gameNames = {
+        'royal-dreams': 'Royal Dreams',
+        'crimson-scar': 'Crimson Scar'
+    };
+
+    if (gameSelector) {
+        gameSelector.addEventListener('change', (e) => {
+            const selectedGame = e.target.value;
+
+            if (gameNameDisplay) {
+                gameNameDisplay.textContent = gameNames[selectedGame] || 'Royal Dreams';
+            }
+
+            refreshDemoForGame(selectedGame);
         });
+    }
 
-        const eventTemplates = [
+    const eventTemplatesByGame = {
+        'royal-dreams': [
             { evt: 'level_start', cls: 'evt', params: 'level=12' },
             { evt: 'level_complete', cls: 'evt win', params: 'level=12 score=2840 stars=3' },
             { evt: 'level_fail', cls: 'evt fail', params: 'level=18 moves_used=24' },
@@ -1101,72 +1147,177 @@
             { evt: 'fps_warning', cls: 'evt fail', params: 'avg_fps=24 device=Samsung_A12' },
             { evt: 'level_complete', cls: 'evt win', params: 'level=7 score=1820 stars=2' },
             { evt: 'rewarded_ad_watched', cls: 'evt iap', params: 'placement=extra_moves' },
-            { evt: 'level_start', cls: 'evt', params: 'level=24' },
             { evt: 'player_feedback', cls: 'evt', params: 'rating=4 text="grafikler güzel"' },
             { evt: 'session_end', cls: 'evt', params: 'duration=412s levels=4' },
-            { evt: 'level_complete', cls: 'evt win', params: 'level=15 score=3120 stars=3' },
             { evt: 'crash_detected', cls: 'evt crash', params: 'device=Redmi_9 stack=Unity.IL2CPP' }
-        ];
+        ],
+        'crimson-scar': [
+            { evt: 'dungeon_start', cls: 'evt', params: 'dungeon=crypt_01 difficulty=normal' },
+            { evt: 'enemy_kill', cls: 'evt win', params: 'enemy=skeleton count=8' },
+            { evt: 'boss_fail', cls: 'evt fail', params: 'boss=scar_knight hp_left=18%' },
+            { evt: 'weapon_pickup', cls: 'evt', params: 'weapon=iron_scythe rarity=rare' },
+            { evt: 'session_start', cls: 'evt', params: 'platform=android' },
+            { evt: 'rewarded_ad_watched', cls: 'evt iap', params: 'placement=revive boss=scar_knight' },
+            { evt: 'iap_purchase_success', cls: 'evt iap', params: 'sku=starter_pack amount=$2.99' },
+            { evt: 'fps_warning', cls: 'evt fail', params: 'avg_fps=27 device=Samsung_A12' },
+            { evt: 'crash_detected', cls: 'evt crash', params: 'scene=dungeon_load stack=MemorySpike' },
+            { evt: 'dungeon_complete', cls: 'evt win', params: 'time=326s loot=3' },
+            { evt: 'player_feedback', cls: 'evt', params: 'rating=5 text="combat hissi iyi"' }
+        ]
+    };
 
-        const games = ['royal-dreams', 'crimson-scar'];
+    function pad(n) {
+        return n < 10 ? '0' + n : '' + n;
+    }
 
-        function pad(n) { return n < 10 ? '0' + n : '' + n; }
-        function nowStr() {
-            const d = new Date();
-            return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+    function nowStr() {
+        const d = new Date();
+        return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+    }
+
+    function shortId() {
+        return 'usr_' + Math.random().toString(36).slice(2, 7);
+    }
+
+    let sessionsValue = 1247;
+    let liveTickInterval = null;
+    let clockInterval = null;
+
+    function tickClock() {
+        if (currentTime) {
+            currentTime.textContent = nowStr();
         }
-        function shortId() { return 'usr_' + Math.random().toString(36).slice(2, 7); }
+    }
 
-        const eventStream = document.getElementById('event-stream');
-        const sessionsKpi = document.getElementById('kpi-sessions');
-        let sessionsValue = 1247;
-        let liveTickInterval = null;
+    function getSelectedGame() {
+        return gameSelector ? gameSelector.value : 'royal-dreams';
+    }
 
-        function tickEvent() {
-            if (!eventStream) return;
-            const tpl = eventTemplates[Math.floor(Math.random() * eventTemplates.length)];
-            const game = games[Math.floor(Math.random() * games.length)];
-            const row = document.createElement('div');
-            row.className = 'event-row';
-            row.innerHTML = `
-                <span class="ts">${nowStr()}</span>
-                <span class="${tpl.cls}">${tpl.evt}</span>
-                <span class="game">${game}</span>
-                <span class="params">${shortId()} · ${tpl.params}</span>
-            `;
-            eventStream.insertBefore(row, eventStream.firstChild);
-            while (eventStream.children.length > 30) eventStream.removeChild(eventStream.lastChild);
-            if (Math.random() > 0.65) {
-                sessionsValue += Math.random() > 0.5 ? 1 : -1;
-                if (sessionsValue < 1100) sessionsValue = 1100;
-                if (sessionsValue > 1400) sessionsValue = 1400;
-                if (sessionsKpi) sessionsKpi.textContent = sessionsValue.toLocaleString('en-US');
+    function tickEvent() {
+        if (!eventStream) return;
+
+        const selectedGame = getSelectedGame();
+        const templates = eventTemplatesByGame[selectedGame] || eventTemplatesByGame['royal-dreams'];
+        const tpl = templates[Math.floor(Math.random() * templates.length)];
+
+        const row = document.createElement('div');
+        row.className = 'event-row';
+        row.innerHTML = `
+            <span class="ts">${nowStr()}</span>
+            <span class="${tpl.cls}">${tpl.evt}</span>
+            <span class="game">${selectedGame}</span>
+            <span class="params">${shortId()} · ${tpl.params}</span>
+        `;
+
+        eventStream.insertBefore(row, eventStream.firstChild);
+
+        while (eventStream.children.length > 30) {
+            eventStream.removeChild(eventStream.lastChild);
+        }
+
+        if (Math.random() > 0.65) {
+            sessionsValue += Math.random() > 0.5 ? 1 : -1;
+
+            if (sessionsValue < 300) sessionsValue = 300;
+            if (sessionsValue > 1400) sessionsValue = 1400;
+
+            if (sessionsKpi) {
+                sessionsKpi.textContent = sessionsValue.toLocaleString('en-US');
             }
         }
+    }
 
-        function tickClock() {
-            const el = document.getElementById('current-time');
-            if (el) el.textContent = nowStr();
+    function startLiveSimulation() {
+        if (liveTickInterval) return;
+
+        for (let i = 0; i < 12; i++) {
+            tickEvent();
         }
 
-        function startLiveSimulation() {
-            if (liveTickInterval) return;
-            for (let i = 0; i < 12; i++) tickEvent();
-            liveTickInterval = setInterval(tickEvent, 1800);
-            tickClock();
-            setInterval(tickClock, 1000);
+        liveTickInterval = setInterval(tickEvent, 1800);
+
+        tickClock();
+        clockInterval = setInterval(tickClock, 1000);
+    }
+
+    function refreshDemoForGame(gameId) {
+        if (!eventStream) return;
+
+        eventStream.innerHTML = '';
+
+        if (gameId === 'crimson-scar') {
+            sessionsValue = 384;
+            if (sessionsKpi) sessionsKpi.textContent = '384';
+        } else {
+            sessionsValue = 1247;
+            if (sessionsKpi) sessionsKpi.textContent = '1,247';
         }
 
-        document.getElementById('generate-btn').addEventListener('click', function () {
+        for (let i = 0; i < 10; i++) {
+            tickEvent();
+        }
+
+        showDemoToast(`${gameNames[gameId] || 'Royal Dreams'} demo verisi yüklendi`);
+    }
+
+    if (generateBtn) {
+        generateBtn.addEventListener('click', function () {
             this.disabled = true;
             this.textContent = '🧠 Analiz ediliyor...';
+
             setTimeout(() => {
                 this.disabled = false;
                 this.textContent = '⚡ Yeni AI Raporu Üret';
-                document.getElementById('last-report').textContent = 'Son rapor: az önce';
+
+                if (lastReport) {
+                    lastReport.textContent = 'Son rapor: az önce';
+                }
+
+                showDemoToast('AI raporu güncellendi · Temsili demo çıktı');
             }, 2400);
         });
-    </script>
+    }
+
+    function showDemoToast(message) {
+        const oldToast = document.querySelector('.demo-toast');
+        if (oldToast) oldToast.remove();
+
+        const toast = document.createElement('div');
+        toast.className = 'demo-toast';
+        toast.textContent = message;
+
+        toast.style.position = 'fixed';
+        toast.style.right = '24px';
+        toast.style.bottom = '24px';
+        toast.style.zIndex = '9999';
+        toast.style.background = '#ffffff';
+        toast.style.color = '#000000';
+        toast.style.padding = '12px 16px';
+        toast.style.borderRadius = '10px';
+        toast.style.fontWeight = '700';
+        toast.style.fontSize = '0.85rem';
+        toast.style.boxShadow = '0 12px 30px rgba(0,0,0,0.35)';
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(8px)';
+        toast.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
+
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+            toast.style.opacity = '1';
+            toast.style.transform = 'translateY(0)';
+        });
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateY(8px)';
+            setTimeout(() => toast.remove(), 220);
+        }, 2600);
+    }
+
+    startLiveSimulation();
+});
+</script>
 </body>
 
 </html>
