@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Altare · Panel Giriş</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap"
+        rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0a0a0a;
+            --bg-card: #111;
+            --border: rgba(255, 255, 255, 0.08);
+            --border-strong: rgba(255, 255, 255, 0.18);
+            --text: #fff;
+            --text-dim: rgba(255, 255, 255, 0.55);
+            --text-faint: rgba(255, 255, 255, 0.35);
+            --red: #f87171;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            overflow-x: hidden;
+        }
+
+        .login-bg-text {
+            position: fixed;
+            font-size: clamp(140px, 18vw, 320px);
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: -0.02em;
+            color: transparent;
+            -webkit-text-stroke: 1.5px rgba(255, 255, 255, 0.05);
+            user-select: none;
+            white-space: nowrap;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .login-bg-text.top { top: 4%; left: -10%; }
+        .login-bg-text.bottom { bottom: 4%; right: -10%; }
+
+        .login-card {
+            position: relative;
+            z-index: 2;
+            width: 100%;
+            max-width: 420px;
+            background: rgba(17, 17, 17, 0.85);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 42px 36px;
+        }
+
+        .brand {
+            text-align: center;
+            margin-bottom: 28px;
+        }
+
+        .brand-logo {
+            font-size: 1.4rem;
+            font-weight: 900;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+        }
+
+        .brand-tag {
+            margin-top: 8px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            color: var(--text-faint);
+        }
+
+        h1 {
+            font-size: 1.6rem;
+            font-weight: 800;
+            letter-spacing: -0.01em;
+            margin-bottom: 6px;
+            text-align: center;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: var(--text-dim);
+            font-size: 0.9rem;
+            margin-bottom: 28px;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.18em;
+            color: var(--text-faint);
+            margin-bottom: 8px;
+        }
+
+        input[type="email"],
+        input[type="password"] {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 13px 14px;
+            border-radius: 10px;
+            font-family: inherit;
+            font-size: 0.95rem;
+            transition: border-color 0.2s, background 0.2s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--border-strong);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        button[type="submit"] {
+            margin-top: 6px;
+            background: #fff;
+            color: #000;
+            border: none;
+            padding: 14px;
+            border-radius: 10px;
+            font-family: inherit;
+            font-weight: 700;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.1s;
+        }
+
+        button[type="submit"]:hover:not(:disabled) { opacity: 0.92; }
+        button[type="submit"]:active:not(:disabled) { transform: scale(0.99); }
+        button[type="submit"]:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .err {
+            display: none;
+            margin-top: 6px;
+            padding: 10px 14px;
+            background: rgba(248, 113, 113, 0.1);
+            border: 1px solid rgba(248, 113, 113, 0.3);
+            border-radius: 8px;
+            color: var(--red);
+            font-size: 0.82rem;
+            line-height: 1.5;
+        }
+        .err.show { display: block; }
+
+        .footer-note {
+            margin-top: 26px;
+            text-align: center;
+            font-size: 0.78rem;
+            color: var(--text-faint);
+            line-height: 1.6;
+        }
+
+        .footer-note a {
+            color: var(--text-dim);
+            text-decoration: none;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+        }
+        .footer-note a:hover { color: var(--text); }
+
+        @media (max-width: 480px) {
+            .login-card { padding: 32px 22px; }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="login-bg-text top">ALTARE&nbsp;PANEL</div>
+    <div class="login-bg-text bottom">AI&nbsp;LIVE&nbsp;OPS</div>
+
+    <div class="login-card">
+        <div class="brand">
+            <div class="brand-logo">ALTARE</div>
+            <div class="brand-tag">AI Live Game Intelligence</div>
+        </div>
+
+        <h1>Panel Girişi</h1>
+        <p class="subtitle">Sadece yetkili Altare çalışanları erişebilir.</p>
+
+        <form id="login-form" autocomplete="off">
+            <div>
+                <label for="email">E-posta</label>
+                <input id="email" name="email" type="email" required autocomplete="username" placeholder="you@altarestudio.com.tr" />
+            </div>
+            <div>
+                <label for="password">Şifre</label>
+                <input id="password" name="password" type="password" required autocomplete="current-password" />
+            </div>
+            <div class="err" id="err"></div>
+            <button type="submit" id="submit-btn">Giriş Yap</button>
+        </form>
+
+        <p class="footer-note">
+            Yetkin yoksa bir admin'in hesabını oluşturup <code>admin</code> rolü vermesi gerekir.
+            <br>
+            <a href="/">← Ana siteye dön</a>
+        </p>
+    </div>
+
+    <script type="module">
+        import {
+            signInWithEmailAndPassword,
+            onAuthStateChanged,
+        } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+        import { auth } from "/js/firebase-config.js";
+
+        const form = document.getElementById("login-form");
+        const emailEl = document.getElementById("email");
+        const passEl = document.getElementById("password");
+        const errEl = document.getElementById("err");
+        const btn = document.getElementById("submit-btn");
+
+        const params = new URLSearchParams(window.location.search);
+        const next = params.get("next") || "/panel.html";
+
+        function safeNext(target) {
+            // Only allow same-origin relative paths.
+            if (typeof target !== "string") return "/panel.html";
+            if (!target.startsWith("/") || target.startsWith("//")) return "/panel.html";
+            return target;
+        }
+
+        function showError(msg) {
+            errEl.textContent = msg;
+            errEl.classList.add("show");
+        }
+        function clearError() {
+            errEl.textContent = "";
+            errEl.classList.remove("show");
+        }
+
+        // If already signed in & admin, jump straight to panel.
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) return;
+            try {
+                const tok = await user.getIdTokenResult();
+                if (tok.claims.admin === true) {
+                    window.location.href = safeNext(next);
+                }
+            } catch (_) {/* ignore */}
+        });
+
+        form.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            clearError();
+            btn.disabled = true;
+            btn.textContent = "Giriş yapılıyor…";
+
+            const email = emailEl.value.trim();
+            const password = passEl.value;
+
+            try {
+                const cred = await signInWithEmailAndPassword(auth, email, password);
+                const tok = await cred.user.getIdTokenResult(true);
+                if (tok.claims.admin !== true) {
+                    showError("Bu hesap panele yetkilendirilmemiş. Bir admin'in size 'admin' rolü vermesi gerekir.");
+                    btn.disabled = false;
+                    btn.textContent = "Giriş Yap";
+                    return;
+                }
+                window.location.href = safeNext(next);
+            } catch (err) {
+                console.error(err);
+                showError(prettyAuthError(err));
+                btn.disabled = false;
+                btn.textContent = "Giriş Yap";
+            }
+        });
+
+        function prettyAuthError(err) {
+            const code = err && err.code ? err.code : "";
+            switch (code) {
+                case "auth/invalid-email": return "Geçersiz e-posta adresi.";
+                case "auth/user-disabled": return "Bu hesap devre dışı bırakılmış.";
+                case "auth/user-not-found":
+                case "auth/wrong-password":
+                case "auth/invalid-credential": return "E-posta veya şifre hatalı.";
+                case "auth/too-many-requests": return "Çok fazla başarısız deneme. Bir süre sonra tekrar deneyin.";
+                case "auth/network-request-failed": return "Ağ hatası. İnternet bağlantını kontrol et.";
+                default: return "Giriş başarısız: " + (err.message || code || "bilinmeyen hata");
+            }
+        }
+    </script>
+</body>
+
+</html>

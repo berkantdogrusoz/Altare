@@ -574,6 +574,64 @@
         }
         .report-meta .mi { display: inline-flex; align-items: center; gap: 6px; }
 
+        /* Empty / informational states */
+        .empty-state {
+            padding: 20px 22px;
+            text-align: center;
+            color: var(--text-dim);
+            font-size: 0.88rem;
+            line-height: 1.6;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px dashed var(--border);
+            border-radius: 10px;
+        }
+
+        .info-banner {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            margin-bottom: 18px;
+            background: rgba(96, 165, 250, 0.08);
+            border: 1px solid rgba(96, 165, 250, 0.25);
+            border-radius: 10px;
+            font-size: 0.82rem;
+            color: var(--text-dim);
+            line-height: 1.55;
+        }
+
+        .info-banner::before {
+            content: "i";
+            flex-shrink: 0;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: rgba(96, 165, 250, 0.18);
+            color: var(--blue);
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            font-size: 0.85rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .ai-error {
+            padding: 14px 16px;
+            background: rgba(248, 113, 113, 0.1);
+            border: 1px solid rgba(248, 113, 113, 0.3);
+            border-radius: 10px;
+            color: var(--red);
+            font-size: 0.85rem;
+            line-height: 1.5;
+            margin-bottom: 18px;
+        }
+
+        .ai-btn:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+        }
+
         /* Mobile */
         @media (max-width: 900px) {
             .panel-body { grid-template-columns: 1fr; }
@@ -597,7 +655,7 @@
         <header class="topbar">
             <div class="topbar-left">
                 <div class="topbar-logo">ALTARE</div>
-                <div class="topbar-tag">AI Panel · v0.1 Demo · Temsili Veri</div>
+                <div class="topbar-tag" id="topbar-tag">AI Panel · v1.0 · Live</div>
                 <select class="game-selector" id="game-selector">
                     <option value="royal-dreams">Royal Dreams</option>
                     <option value="crimson-scar">Crimson Scar</option>
@@ -639,7 +697,7 @@
                     <h1 class="page-title" id="page-title">Genel Bakış</h1>
                     <p class="page-sub">
                         <span id="game-name-display">Royal Dreams</span> ·
-                        <span class="mono" id="time-range">Son 24 saat · Demo veri</span> ·
+                        <span class="mono" id="time-range">Son 24 saat</span> ·
                         <span class="mono" id="current-time">--:--</span>
                     </p>
                 </div>
@@ -648,59 +706,54 @@
                     <div class="kpi-grid">
                         <div class="kpi-card">
                             <div class="kpi-label">Aktif Oturum</div>
-                            <div class="kpi-value mono" id="kpi-sessions">1,247</div>
-                            <div class="kpi-delta up">↑ 12.4% · dünden</div>
+                            <div class="kpi-value mono" id="kpi-sessions">—</div>
+                            <div class="kpi-delta" id="kpi-sessions-delta"></div>
                         </div>
                         <div class="kpi-card">
-                            <div class="kpi-label">Bugünkü Event</div>
-                            <div class="kpi-value mono">48,392</div>
-                            <div class="kpi-delta up">↑ 8.7%</div>
+                            <div class="kpi-label">24s Event</div>
+                            <div class="kpi-value mono" id="kpi-events">—</div>
+                            <div class="kpi-delta" id="kpi-events-delta"></div>
                         </div>
                         <div class="kpi-card">
                             <div class="kpi-label">Ortalama Oturum</div>
-                            <div class="kpi-value mono">7m 24s</div>
-                            <div class="kpi-delta up">↑ 0.6%</div>
+                            <div class="kpi-value mono" id="kpi-avg-session">—</div>
+                            <div class="kpi-delta" id="kpi-avg-session-delta"></div>
                         </div>
                         <div class="kpi-card">
                             <div class="kpi-label">Fail Oranı</div>
-                            <div class="kpi-value mono">23.8%</div>
-                            <div class="kpi-delta down">↓ 1.2%</div>
+                            <div class="kpi-value mono" id="kpi-fail-rate">—</div>
+                            <div class="kpi-delta" id="kpi-fail-rate-delta"></div>
                         </div>
                     </div>
                     <div class="kpi-grid">
                         <div class="kpi-card">
                             <div class="kpi-label">Reklam İzleme (24h)</div>
-                            <div class="kpi-value mono">3,124</div>
-                            <div class="kpi-delta up">↑ 14.2%</div>
+                            <div class="kpi-value mono" id="kpi-ads">—</div>
+                            <div class="kpi-delta" id="kpi-ads-delta"></div>
                         </div>
                         <div class="kpi-card">
                             <div class="kpi-label">IAP Geliri (24h)</div>
-                            <div class="kpi-value mono">$284</div>
-                            <div class="kpi-delta up">↑ 22.1%</div>
+                            <div class="kpi-value mono" id="kpi-iap">—</div>
+                            <div class="kpi-delta" id="kpi-iap-delta"></div>
                         </div>
                         <div class="kpi-card">
                             <div class="kpi-label">FPS Uyarısı</div>
-                            <div class="kpi-value mono">47</div>
-                            <div class="kpi-delta down">↓ 18%</div>
+                            <div class="kpi-value mono" id="kpi-fps">—</div>
+                            <div class="kpi-delta" id="kpi-fps-delta"></div>
                         </div>
                         <div class="kpi-card">
                             <div class="kpi-label">Crash (24h)</div>
-                            <div class="kpi-value mono">3</div>
-                            <div class="kpi-delta down">↓ 60%</div>
+                            <div class="kpi-value mono" id="kpi-crash">—</div>
+                            <div class="kpi-delta" id="kpi-crash-delta"></div>
                         </div>
                     </div>
                     <div class="section-block">
                         <div class="section-head">
                             <h3>Önerilen Aksiyon · AI Tespiti</h3>
-                            <span class="head-meta">5 dakika önce</span>
+                            <span class="head-meta" id="overview-action-meta">—</span>
                         </div>
-                        <div class="section-content">
-                            <div class="priority-badges">
-                                <span class="badge critical">Kritik</span>
-                                <span class="badge high">Level Tasarımı</span>
-                            </div>
-                            <p style="margin-bottom: 12px;"><strong style="color: var(--text);">Royal Dreams Level 18'de %42 fail rate tespit edildi.</strong> Kategori ortalamasının %18 üstünde. Top 3 rakipten 2'si bu seviyede hint sistemi sunuyor; yorumlarda "yardımsız geçilmiyor" diyenler %23.</p>
-                            <p style="color: var(--text-dim); font-size: 0.88rem;"><strong style="color: var(--text);">Önerilen aksiyon:</strong> Level 18'e tek seferlik hint butonu (5 saniye delay), move sayısı +2.</p>
+                        <div class="section-content" id="overview-action-content">
+                            <p style="color: var(--text-dim); font-size: 0.9rem;">Henüz AI analizi yapılmadı. <strong style="color: var(--text);">AI Raporu</strong> sekmesinden ilk raporu üretebilirsin.</p>
                         </div>
                     </div>
                 </section>
@@ -721,65 +774,22 @@
                     <div class="section-block">
                         <div class="section-head">
                             <h3>En Çok Fail Olan Level'lar · Top 5</h3>
-                            <span class="head-meta">Son 7 gün · Royal Dreams</span>
+                            <span class="head-meta" id="levels-meta">Son 24 saat</span>
                         </div>
                         <div class="section-content">
-                            <div class="bar-list">
-                                <div class="bar-row">
-                                    <div class="label">Level 18 <span class="sub">match-3</span></div>
-                                    <div class="bar-track"><div class="bar-fill" style="width: 84%;"></div></div>
-                                    <div class="pct">42.3%</div>
-                                </div>
-                                <div class="bar-row">
-                                    <div class="label">Level 24 <span class="sub">boss</span></div>
-                                    <div class="bar-track"><div class="bar-fill" style="width: 72%;"></div></div>
-                                    <div class="pct">36.1%</div>
-                                </div>
-                                <div class="bar-row">
-                                    <div class="label">Level 31 <span class="sub">timed</span></div>
-                                    <div class="bar-track"><div class="bar-fill" style="width: 58%;"></div></div>
-                                    <div class="pct">29.0%</div>
-                                </div>
-                                <div class="bar-row">
-                                    <div class="label">Level 42 <span class="sub">match-3</span></div>
-                                    <div class="bar-track"><div class="bar-fill" style="width: 47%;"></div></div>
-                                    <div class="pct">23.4%</div>
-                                </div>
-                                <div class="bar-row">
-                                    <div class="label">Level 9 <span class="sub">tutorial</span></div>
-                                    <div class="bar-track"><div class="bar-fill" style="width: 36%;"></div></div>
-                                    <div class="pct">18.2%</div>
-                                </div>
+                            <div class="bar-list" id="top-problem-levels">
+                                <div class="empty-state">Veri toplandığında en çok fail olan 5 level burada listelenecek.</div>
                             </div>
                         </div>
                     </div>
                     <div class="section-block">
                         <div class="section-head">
-                            <h3>Drop-off Analizi</h3>
-                            <span class="head-meta">Funnel · son 7 gün</span>
+                            <h3>Level Aralık Dağılımı</h3>
+                            <span class="head-meta">Funnel · son 24 saat</span>
                         </div>
                         <div class="section-content">
-                            <div class="bar-list">
-                                <div class="bar-row">
-                                    <div class="label">Level 1-10 <span class="sub">başlangıç</span></div>
-                                    <div class="bar-track"><div class="bar-fill" style="width: 96%; background: linear-gradient(90deg, #4ade80, #22d3ee);"></div></div>
-                                    <div class="pct">96%</div>
-                                </div>
-                                <div class="bar-row">
-                                    <div class="label">Level 11-20 <span class="sub">orta</span></div>
-                                    <div class="bar-track"><div class="bar-fill" style="width: 71%; background: linear-gradient(90deg, #22d3ee, #fbbf24);"></div></div>
-                                    <div class="pct">71%</div>
-                                </div>
-                                <div class="bar-row">
-                                    <div class="label">Level 21-30 <span class="sub">zor</span></div>
-                                    <div class="bar-track"><div class="bar-fill" style="width: 48%; background: linear-gradient(90deg, #fbbf24, #f87171);"></div></div>
-                                    <div class="pct">48%</div>
-                                </div>
-                                <div class="bar-row">
-                                    <div class="label">Level 31-50 <span class="sub">geç oyun</span></div>
-                                    <div class="bar-track"><div class="bar-fill" style="width: 27%;"></div></div>
-                                    <div class="pct">27%</div>
-                                </div>
+                            <div class="bar-list" id="level-funnel">
+                                <div class="empty-state">Level event'leri toplandığında aralık bazlı tamamlama oranı burada görünecek.</div>
                             </div>
                         </div>
                     </div>
@@ -788,54 +798,43 @@
                 <section class="tab-view" data-tab="performance">
                     <div class="kpi-grid">
                         <div class="kpi-card">
-                            <div class="kpi-label">Ortalama FPS</div>
-                            <div class="kpi-value mono">58.2</div>
-                            <div class="kpi-delta up">↑ 2.1</div>
-                        </div>
-                        <div class="kpi-card">
-                            <div class="kpi-label">FPS &lt; 30 Oturum</div>
-                            <div class="kpi-value mono">47</div>
-                            <div class="kpi-delta down">↓ 18%</div>
+                            <div class="kpi-label">FPS Uyarısı (24h)</div>
+                            <div class="kpi-value mono" id="perf-fps-warnings">—</div>
+                            <div class="kpi-delta" id="perf-fps-warnings-delta"></div>
                         </div>
                         <div class="kpi-card">
                             <div class="kpi-label">Crash (24h)</div>
-                            <div class="kpi-value mono">3</div>
-                            <div class="kpi-delta down">↓ 60%</div>
+                            <div class="kpi-value mono" id="perf-crashes">—</div>
+                            <div class="kpi-delta" id="perf-crashes-delta"></div>
                         </div>
                         <div class="kpi-card">
-                            <div class="kpi-label">ANR (24h)</div>
-                            <div class="kpi-value mono">1</div>
-                            <div class="kpi-delta">—</div>
+                            <div class="kpi-label">Etkilenen Oyuncu</div>
+                            <div class="kpi-value mono" id="perf-affected-players">—</div>
+                            <div class="kpi-delta" id="perf-affected-players-delta"></div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-label">Toplam Oturum</div>
+                            <div class="kpi-value mono" id="perf-sessions">—</div>
+                            <div class="kpi-delta" id="perf-sessions-delta"></div>
                         </div>
                     </div>
                     <div class="section-block">
                         <div class="section-head">
-                            <h3>Sorunlu Cihazlar</h3>
-                            <span class="head-meta">Crash + FPS uyarısı</span>
+                            <h3>En Aktif Cihazlar</h3>
+                            <span class="head-meta">Top 5 · son 24 saat</span>
                         </div>
                         <div class="section-content">
-                            <div class="bar-list">
-                                <div class="bar-row">
-                                    <div class="label">Samsung A12 <span class="sub">Android 11</span></div>
-                                    <div class="bar-track"><div class="bar-fill" style="width: 78%;"></div></div>
-                                    <div class="pct">14 olay</div>
-                                </div>
-                                <div class="bar-row">
-                                    <div class="label">Xiaomi Redmi 9 <span class="sub">Android 10</span></div>
-                                    <div class="bar-track"><div class="bar-fill" style="width: 62%;"></div></div>
-                                    <div class="pct">11 olay</div>
-                                </div>
-                                <div class="bar-row">
-                                    <div class="label">Oppo A54 <span class="sub">Android 11</span></div>
-                                    <div class="bar-track"><div class="bar-fill" style="width: 41%;"></div></div>
-                                    <div class="pct">7 olay</div>
-                                </div>
+                            <div class="bar-list" id="top-devices">
+                                <div class="empty-state">Cihaz bilgisi içeren event'ler toplandığında en aktif cihazlar burada listelenecek.</div>
                             </div>
                         </div>
                     </div>
                 </section>
 
                 <section class="tab-view" data-tab="market">
+                    <div class="info-banner">
+                        Pazar verisi şu an demo. <strong>Market scraper</strong> entegre edildiğinde gerçek Play Store verisine geçecek.
+                    </div>
                     <div class="section-block">
                         <div class="section-head">
                             <h3>Rakip Snapshot · Match Puzzle Kategorisi</h3>
@@ -936,6 +935,9 @@
                 </section>
 
                 <section class="tab-view" data-tab="reviews">
+                    <div class="info-banner">
+                        Yorum sentiment'ı şu an demo. Google Play Review API entegre edildiğinde gerçek yorumlar buraya akacak.
+                    </div>
                     <div class="section-block">
                         <div class="section-head">
                             <h3>Yorum Sentiment Karşılaştırma</h3>
@@ -980,56 +982,29 @@
                     <div class="ai-action-bar">
                         <div>
                             <button class="ai-btn" id="generate-btn">⚡ Yeni AI Raporu Üret</button>
-                            <button class="ai-btn secondary">Tüm Raporları Göster</button>
+                            <select class="game-selector" id="report-range-selector" style="margin-left: 6px;">
+                                <option value="last_24h" selected>Son 24 saat</option>
+                                <option value="last_7d">Son 7 gün</option>
+                            </select>
                         </div>
-                        <div class="head-meta" id="last-report">Son rapor: bugün 09:14</div>
+                        <div class="head-meta" id="last-report">Henüz rapor yok</div>
                     </div>
-                    <div class="section-block">
-                        <div class="section-head">
-                            <h3>Royal Dreams · Live-Ops Analiz Raporu</h3>
-                            <span class="head-meta">Otomatik · 30 dk önce</span>
-                        </div>
-                        <div class="section-content">
-                            <div class="report-meta">
-                                <span class="mi">📊 Veri Aralığı: <strong style="color: var(--text-dim);">Son 24 saat</strong></span>
-                                <span class="mi">🤖 Model: <strong style="color: var(--text-dim);">Claude Sonnet 4.6</strong></span>
-                                <span class="mi">📡 Event sayısı: <strong style="color: var(--text-dim);">48,392</strong></span>
-                            </div>
-                            <div class="ai-report">
-                                <h4>1. Genel Sağlık</h4>
-                                <p>Royal Dreams sağlıklı bir akışa sahip; günlük aktif oyuncu artışı +%12.4, ortalama oturum süresi 7 dakika 24 saniye. Reklam ve IAP etkileşimi yükseliyor (sırasıyla +%14 ve +%22). Crash oranı düşük (3 olay, -%60).</p>
-                                <h4>2. Oyuncu Davranışı</h4>
-                                <p>Oyuncuların %96'sı Level 1-10 aralığını tamamlıyor, ancak <strong style="color: var(--text);">Level 11-20</strong> aralığında drop-off %25'e fırlıyor. Bu noktada özellikle <strong style="color: var(--text);">Level 18</strong> ana darboğaz.</p>
-                                <h4>3. Top 3 Sorunlu Level</h4>
-                                <div class="priority-badges">
-                                    <span class="badge critical">Level 18 · %42 fail</span>
-                                    <span class="badge high">Level 24 · %36 fail</span>
-                                    <span class="badge medium">Level 31 · %29 fail</span>
+                    <div id="ai-report-container">
+                        <div class="section-block">
+                            <div class="section-content">
+                                <div class="empty-state">
+                                    <strong style="color: var(--text); display: block; margin-bottom: 6px;">Henüz AI raporu üretilmedi.</strong>
+                                    Yukarıdaki <em>Yeni AI Raporu Üret</em> butonuna basarak ilk raporu üretebilirsin. Cloud Function event verilerini analiz edip Claude'a gönderir, sonucu burada görürsün.
                                 </div>
-                                <h4>4. Pazar Karşılaştırma</h4>
-                                <p><strong style="color: var(--text);">Royal Match</strong> ve <strong style="color: var(--text);">Gardenscapes</strong> Level 18 muadili noktada hint sistemi sunuyor; mağaza yorumlarında <em>"yardımsız geçilmiyor"</em> şikayeti %23 oranında. Bizim oyunumuzda hint sistemi yok — yorumlarda aynı şikayet %18.</p>
-                                <h4>5. Monetizasyon</h4>
-                                <p>IAP geliri 24 saatte $284 (+%22). Booster satışları en yüksek dönüş veren kategori. Ancak negatif yorumlarda <em>"reklam çok"</em> teması artıyor (+%22 kategori bazında). Önerim: rewarded ad'i koruyun, interstitial sıklığını her 3 oyun yerine her 5 oyuna çekin.</p>
-                                <h4>6. Cihaz/Performans</h4>
-                                <p>FPS uyarılarının %62'si Samsung A12 ve Xiaomi Redmi 9 cihazlarından. Düşük RAM (3GB) cihazlarda particle effect dropdown'u önerilir.</p>
-                                <h4>7. Top 5 Acil Aksiyon</h4>
-                                <ol style="padding-left: 22px; color: var(--text-dim); margin-bottom: 14px;">
-                                    <li><strong style="color: var(--text);">Level 18'e hint sistemi</strong> (5 saniye delay, ücretsiz tek seferlik) <span class="badge critical" style="margin-left: 8px;">Kritik</span></li>
-                                    <li><strong style="color: var(--text);">Level 11-20 move sayısı +1-2</strong> <span class="badge high" style="margin-left: 8px;">High</span></li>
-                                    <li><strong style="color: var(--text);">Interstitial sıklığı düşür</strong> (her 5 oyun) <span class="badge high" style="margin-left: 8px;">High</span></li>
-                                    <li><strong style="color: var(--text);">Düşük RAM cihazlar için graphic preset</strong> <span class="badge medium" style="margin-left: 8px;">Medium</span></li>
-                                    <li><strong style="color: var(--text);">Beginner offer 2. günde göster</strong> <span class="badge low" style="margin-left: 8px;">Low</span></li>
-                                </ol>
-                                <h4>8. Sıradaki Update Önerisi</h4>
-                                <p>v1.4 update için: hint sistemi + Level 18-24 yumuşatma + 5 yeni "cozy" temalı level. Tahmini retention etkisi: <strong style="color: var(--green);">+8-12% D7</strong>.</p>
-                                <h4>9. Pre-Marketing Risk</h4>
-                                <p>Mevcut yorum trendi (%64 pozitif, %18 negatif) güçlü. Negatif yorumların %78'i level zorluğu kaynaklı — önerilen aksiyonlar uygulanırsa marketing scale öncesi risk düşer.</p>
                             </div>
                         </div>
                     </div>
                 </section>
 
                 <section class="tab-view" data-tab="roadmap">
+                    <div class="info-banner">
+                        Roadmap önerileri Market Analyst rolüyle birlikte çalışıyor; market scraper bağlandığında AI gerçek pazardan üretmeye başlayacak.
+                    </div>
                     <div class="section-block">
                         <div class="section-head">
                             <h3>Sıradaki Proje Önerileri · AI Strateji</h3>
@@ -1052,272 +1027,497 @@
         </div>
     </div>
 
-    <script>
-document.addEventListener('DOMContentLoaded', () => {
-    const userName = document.getElementById('user-name');
-    const userAvatar = document.getElementById('user-avatar');
-    const logoutBtn = document.getElementById('logout-btn');
-    const pageTitle = document.getElementById('page-title');
-    const gameNameDisplay = document.getElementById('game-name-display');
-    const gameSelector = document.getElementById('game-selector');
-    const eventStream = document.getElementById('event-stream');
-    const sessionsKpi = document.getElementById('kpi-sessions');
-    const generateBtn = document.getElementById('generate-btn');
-    const lastReport = document.getElementById('last-report');
-    const currentTime = document.getElementById('current-time');
+    <script type="module">
+        import {
+            collection,
+            doc,
+            query,
+            orderBy,
+            limit,
+            onSnapshot,
+        } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+        import { httpsCallable } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-functions.js";
 
-    if (userName) userName.textContent = 'Berkant D.';
-    if (userAvatar) userAvatar.textContent = 'B';
+        import { db, functions } from "/js/firebase-config.js";
+        import { requireAdmin, altareSignOut } from "/js/auth.js";
 
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', () => {
-            window.location.href = '/';
+        // ----- Constants -----
+        const TAB_TITLES = {
+            'overview': 'Genel Bakış',
+            'events': 'Canlı Event Stream',
+            'levels': 'Level Intelligence',
+            'performance': 'Crash & Performance',
+            'market': 'Pazar Analizi',
+            'reviews': 'Yorum & Sentiment',
+            'ai-report': 'AI Raporu',
+            'roadmap': 'Roadmap Önerileri',
+        };
+
+        const GAME_NAMES = {
+            'royal-dreams': 'Royal Dreams',
+            'crimson-scar': 'Crimson Scar',
+        };
+
+        const $ = (id) => document.getElementById(id);
+
+        // ----- State -----
+        let currentGame = 'royal-dreams';
+        let unsubEvents = null;
+        let unsubStats = null;
+        let unsubReport = null;
+
+        // ----- Auth gate -----
+        requireAdmin({
+            loginPath: '/login.html',
+            onReady: bootstrap,
         });
-    }
 
-    const tabTitles = {
-        'overview': 'Genel Bakış',
-        'events': 'Canlı Event Stream',
-        'levels': 'Level Intelligence',
-        'performance': 'Crash & Performance',
-        'market': 'Pazar Analizi',
-        'reviews': 'Yorum & Sentiment',
-        'ai-report': 'AI Raporu',
-        'roadmap': 'Roadmap Önerileri'
-    };
+        function bootstrap(user, _claims) {
+            wireUserChip(user);
+            wireLogout();
+            wireTabs();
+            wireGameSelector();
+            wireGenerateButton();
+            startClock();
+            subscribeToGame(currentGame);
+        }
 
-    document.querySelectorAll('.nav-tab').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const selectedTab = btn.dataset.tab;
+        function wireUserChip(user) {
+            const display = user.displayName || user.email || 'Admin';
+            const initial = (display.charAt(0) || 'A').toUpperCase();
+            const nameEl = $('user-name');
+            const avatarEl = $('user-avatar');
+            if (nameEl) nameEl.textContent = display;
+            if (avatarEl) avatarEl.textContent = initial;
+        }
 
-            document.querySelectorAll('.nav-tab').forEach(tabButton => {
-                tabButton.classList.remove('active');
+        function wireLogout() {
+            const btn = $('logout-btn');
+            if (btn) btn.addEventListener('click', () => altareSignOut('/login.html'));
+        }
+
+        function wireTabs() {
+            const pageTitle = $('page-title');
+            document.querySelectorAll('.nav-tab').forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    const tab = btn.dataset.tab;
+                    document.querySelectorAll('.nav-tab').forEach((b) => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    document.querySelectorAll('.tab-view').forEach((v) => v.classList.remove('active'));
+                    const target = document.querySelector(`.tab-view[data-tab="${tab}"]`);
+                    if (target) target.classList.add('active');
+                    if (pageTitle) pageTitle.textContent = TAB_TITLES[tab] || 'Altare AI Panel';
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                });
+            });
+        }
+
+        function wireGameSelector() {
+            const sel = $('game-selector');
+            const display = $('game-name-display');
+            if (!sel) return;
+            sel.addEventListener('change', (e) => {
+                currentGame = e.target.value;
+                if (display) display.textContent = GAME_NAMES[currentGame] || currentGame;
+                subscribeToGame(currentGame);
+            });
+        }
+
+        function startClock() {
+            const el = $('current-time');
+            if (!el) return;
+            const tick = () => {
+                const d = new Date();
+                el.textContent =
+                    String(d.getHours()).padStart(2, '0') + ':' +
+                    String(d.getMinutes()).padStart(2, '0') + ':' +
+                    String(d.getSeconds()).padStart(2, '0');
+            };
+            tick();
+            setInterval(tick, 1000);
+        }
+
+        function subscribeToGame(gameId) {
+            if (unsubEvents) { unsubEvents(); unsubEvents = null; }
+            if (unsubStats) { unsubStats(); unsubStats = null; }
+            if (unsubReport) { unsubReport(); unsubReport = null; }
+
+            const eventsQ = query(
+                collection(db, 'games', gameId, 'events'),
+                orderBy('timestamp', 'desc'),
+                limit(40)
+            );
+            unsubEvents = onSnapshot(eventsQ, renderEventStream, (err) => {
+                console.error('events listener:', err);
+                renderEventStreamError(err);
             });
 
-            btn.classList.add('active');
-
-            document.querySelectorAll('.tab-view').forEach(view => {
-                view.classList.remove('active');
-            });
-
-            const targetView = document.querySelector(`.tab-view[data-tab="${selectedTab}"]`);
-
-            if (targetView) {
-                targetView.classList.add('active');
-            }
-
-            if (pageTitle) {
-                pageTitle.textContent = tabTitles[selectedTab] || 'Altare AI Panel';
-            }
-
-            window.scrollTo({
-                top: 0,
-                behavior: 'smooth'
-            });
-        });
-    });
-
-    const gameNames = {
-        'royal-dreams': 'Royal Dreams',
-        'crimson-scar': 'Crimson Scar'
-    };
-
-    if (gameSelector) {
-        gameSelector.addEventListener('change', (e) => {
-            const selectedGame = e.target.value;
-
-            if (gameNameDisplay) {
-                gameNameDisplay.textContent = gameNames[selectedGame] || 'Royal Dreams';
-            }
-
-            refreshDemoForGame(selectedGame);
-        });
-    }
-
-    const eventTemplatesByGame = {
-        'royal-dreams': [
-            { evt: 'level_start', cls: 'evt', params: 'level=12' },
-            { evt: 'level_complete', cls: 'evt win', params: 'level=12 score=2840 stars=3' },
-            { evt: 'level_fail', cls: 'evt fail', params: 'level=18 moves_used=24' },
-            { evt: 'level_fail', cls: 'evt fail', params: 'level=18 moves_used=22' },
-            { evt: 'session_start', cls: 'evt', params: 'platform=android' },
-            { evt: 'ad_watched', cls: 'evt iap', params: 'placement=continue level=18' },
-            { evt: 'iap_purchase_success', cls: 'evt iap', params: 'sku=coin_pack_3 amount=$4.99' },
-            { evt: 'booster_used', cls: 'evt', params: 'type=hammer level=24' },
-            { evt: 'fps_warning', cls: 'evt fail', params: 'avg_fps=24 device=Samsung_A12' },
-            { evt: 'level_complete', cls: 'evt win', params: 'level=7 score=1820 stars=2' },
-            { evt: 'rewarded_ad_watched', cls: 'evt iap', params: 'placement=extra_moves' },
-            { evt: 'player_feedback', cls: 'evt', params: 'rating=4 text="grafikler güzel"' },
-            { evt: 'session_end', cls: 'evt', params: 'duration=412s levels=4' },
-            { evt: 'crash_detected', cls: 'evt crash', params: 'device=Redmi_9 stack=Unity.IL2CPP' }
-        ],
-        'crimson-scar': [
-            { evt: 'dungeon_start', cls: 'evt', params: 'dungeon=crypt_01 difficulty=normal' },
-            { evt: 'enemy_kill', cls: 'evt win', params: 'enemy=skeleton count=8' },
-            { evt: 'boss_fail', cls: 'evt fail', params: 'boss=scar_knight hp_left=18%' },
-            { evt: 'weapon_pickup', cls: 'evt', params: 'weapon=iron_scythe rarity=rare' },
-            { evt: 'session_start', cls: 'evt', params: 'platform=android' },
-            { evt: 'rewarded_ad_watched', cls: 'evt iap', params: 'placement=revive boss=scar_knight' },
-            { evt: 'iap_purchase_success', cls: 'evt iap', params: 'sku=starter_pack amount=$2.99' },
-            { evt: 'fps_warning', cls: 'evt fail', params: 'avg_fps=27 device=Samsung_A12' },
-            { evt: 'crash_detected', cls: 'evt crash', params: 'scene=dungeon_load stack=MemorySpike' },
-            { evt: 'dungeon_complete', cls: 'evt win', params: 'time=326s loot=3' },
-            { evt: 'player_feedback', cls: 'evt', params: 'rating=5 text="combat hissi iyi"' }
-        ]
-    };
-
-    function pad(n) {
-        return n < 10 ? '0' + n : '' + n;
-    }
-
-    function nowStr() {
-        const d = new Date();
-        return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
-    }
-
-    function shortId() {
-        return 'usr_' + Math.random().toString(36).slice(2, 7);
-    }
-
-    let sessionsValue = 1247;
-    let liveTickInterval = null;
-    let clockInterval = null;
-
-    function tickClock() {
-        if (currentTime) {
-            currentTime.textContent = nowStr();
-        }
-    }
-
-    function getSelectedGame() {
-        return gameSelector ? gameSelector.value : 'royal-dreams';
-    }
-
-    function tickEvent() {
-        if (!eventStream) return;
-
-        const selectedGame = getSelectedGame();
-        const templates = eventTemplatesByGame[selectedGame] || eventTemplatesByGame['royal-dreams'];
-        const tpl = templates[Math.floor(Math.random() * templates.length)];
-
-        const row = document.createElement('div');
-        row.className = 'event-row';
-        row.innerHTML = `
-            <span class="ts">${nowStr()}</span>
-            <span class="${tpl.cls}">${tpl.evt}</span>
-            <span class="game">${selectedGame}</span>
-            <span class="params">${shortId()} · ${tpl.params}</span>
-        `;
-
-        eventStream.insertBefore(row, eventStream.firstChild);
-
-        while (eventStream.children.length > 30) {
-            eventStream.removeChild(eventStream.lastChild);
-        }
-
-        if (Math.random() > 0.65) {
-            sessionsValue += Math.random() > 0.5 ? 1 : -1;
-
-            if (sessionsValue < 300) sessionsValue = 300;
-            if (sessionsValue > 1400) sessionsValue = 1400;
-
-            if (sessionsKpi) {
-                sessionsKpi.textContent = sessionsValue.toLocaleString('en-US');
-            }
-        }
-    }
-
-    function startLiveSimulation() {
-        if (liveTickInterval) return;
-
-        for (let i = 0; i < 12; i++) {
-            tickEvent();
-        }
-
-        liveTickInterval = setInterval(tickEvent, 1800);
-
-        tickClock();
-        clockInterval = setInterval(tickClock, 1000);
-    }
-
-    function refreshDemoForGame(gameId) {
-        if (!eventStream) return;
-
-        eventStream.innerHTML = '';
-
-        if (gameId === 'crimson-scar') {
-            sessionsValue = 384;
-            if (sessionsKpi) sessionsKpi.textContent = '384';
-        } else {
-            sessionsValue = 1247;
-            if (sessionsKpi) sessionsKpi.textContent = '1,247';
-        }
-
-        for (let i = 0; i < 10; i++) {
-            tickEvent();
-        }
-
-        showDemoToast(`${gameNames[gameId] || 'Royal Dreams'} demo verisi yüklendi`);
-    }
-
-    if (generateBtn) {
-        generateBtn.addEventListener('click', function () {
-            this.disabled = true;
-            this.textContent = '🧠 Analiz ediliyor...';
-
-            setTimeout(() => {
-                this.disabled = false;
-                this.textContent = '⚡ Yeni AI Raporu Üret';
-
-                if (lastReport) {
-                    lastReport.textContent = 'Son rapor: az önce';
+            const todayKey = new Date().toISOString().slice(0, 10);
+            unsubStats = onSnapshot(
+                doc(db, 'games', gameId, 'stats', todayKey),
+                (snap) => renderStats(snap.exists() ? snap.data() : null),
+                (err) => {
+                    console.error('stats listener:', err);
+                    renderStats(null);
                 }
+            );
 
-                showDemoToast('AI raporu güncellendi · Temsili demo çıktı');
-            }, 2400);
-        });
-    }
+            const reportsQ = query(
+                collection(db, 'games', gameId, 'ai_reports'),
+                orderBy('createdAt', 'desc'),
+                limit(1)
+            );
+            unsubReport = onSnapshot(reportsQ, (snap) => {
+                if (snap.empty) {
+                    renderReportEmpty();
+                    return;
+                }
+                const docSnap = snap.docs[0];
+                renderReport(docSnap.id, docSnap.data());
+            }, (err) => {
+                console.error('reports listener:', err);
+                renderReportEmpty();
+            });
+        }
 
-    function showDemoToast(message) {
-        const oldToast = document.querySelector('.demo-toast');
-        if (oldToast) oldToast.remove();
+        function renderEventStream(snap) {
+            const root = $('event-stream');
+            if (!root) return;
+            root.innerHTML = '';
+            if (snap.empty) {
+                root.innerHTML = `
+                    <div class="empty-state">
+                        Bu oyundan henüz event yok. <strong style="color: var(--text);">Unity SDK</strong>
+                        oyuna entegre edildiğinde buraya canlı akış başlayacak.
+                    </div>`;
+                return;
+            }
+            snap.forEach((docSnap) => {
+                root.appendChild(renderEventRow(docSnap.data()));
+            });
+        }
 
-        const toast = document.createElement('div');
-        toast.className = 'demo-toast';
-        toast.textContent = message;
+        function renderEventStreamError(err) {
+            const root = $('event-stream');
+            if (!root) return;
+            root.innerHTML = `<div class="ai-error">Event akışı yüklenemedi: ${escapeHtml(err.message || String(err))}</div>`;
+        }
 
-        toast.style.position = 'fixed';
-        toast.style.right = '24px';
-        toast.style.bottom = '24px';
-        toast.style.zIndex = '9999';
-        toast.style.background = '#ffffff';
-        toast.style.color = '#000000';
-        toast.style.padding = '12px 16px';
-        toast.style.borderRadius = '10px';
-        toast.style.fontWeight = '700';
-        toast.style.fontSize = '0.85rem';
-        toast.style.boxShadow = '0 12px 30px rgba(0,0,0,0.35)';
-        toast.style.opacity = '0';
-        toast.style.transform = 'translateY(8px)';
-        toast.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
+        const EVENT_CLS = {
+            level_fail: 'fail',
+            crash_detected: 'crash',
+            level_complete: 'win',
+            dungeon_complete: 'win',
+            iap_purchase_success: 'iap',
+            ad_watched: 'iap',
+            rewarded_ad_watched: 'iap',
+            fps_warning: 'fail',
+        };
 
-        document.body.appendChild(toast);
+        function renderEventRow(e) {
+            const row = document.createElement('div');
+            row.className = 'event-row';
+            const cls = EVENT_CLS[e.eventName] || '';
+            const ts = formatTime(e.timestamp);
+            const player = (e.playerAnonId || '').slice(0, 12);
+            const params = formatParams(e.eventParams);
+            row.innerHTML =
+                '<span class="ts">' + escapeHtml(ts) + '</span>' +
+                '<span class="evt ' + cls + '">' + escapeHtml(e.eventName || '?') + '</span>' +
+                '<span class="game">' + escapeHtml(e.gameId || '') + '</span>' +
+                '<span class="params">' +
+                    (player ? escapeHtml(player) + ' · ' : '') +
+                    escapeHtml(params) +
+                '</span>';
+            return row;
+        }
 
-        requestAnimationFrame(() => {
-            toast.style.opacity = '1';
-            toast.style.transform = 'translateY(0)';
-        });
+        function formatTime(ts) {
+            if (!ts) return '--:--:--';
+            const d = ts.toDate ? ts.toDate() : new Date(ts);
+            return String(d.getHours()).padStart(2, '0') + ':' +
+                   String(d.getMinutes()).padStart(2, '0') + ':' +
+                   String(d.getSeconds()).padStart(2, '0');
+        }
 
-        setTimeout(() => {
-            toast.style.opacity = '0';
-            toast.style.transform = 'translateY(8px)';
-            setTimeout(() => toast.remove(), 220);
-        }, 2600);
-    }
+        function formatParams(p) {
+            if (!p || typeof p !== 'object') return '';
+            return Object.entries(p)
+                .slice(0, 4)
+                .map(([k, v]) => k + '=' + (typeof v === 'string' ? v : JSON.stringify(v)))
+                .join(' ');
+        }
 
-    startLiveSimulation();
-});
-</script>
+        function renderStats(stats) {
+            setKpi('kpi-sessions', stats ? formatInt(stats.uniqueSessions || 0) : '—');
+            setKpi('kpi-events', stats ? formatInt(stats.totalEvents || 0) : '—');
+            setKpi('kpi-avg-session', stats ? formatDuration(stats.avgSessionSeconds || 0) : '—');
+            setKpi('kpi-fail-rate', stats ? formatFailRate(stats) : '—');
+
+            setKpi('kpi-ads', stats ? formatInt((stats.adWatches || 0) + (stats.rewardedAdWatches || 0)) : '—');
+            setKpi('kpi-iap', stats ? formatUsd(stats.purchaseRevenueUsd || 0) : '—');
+            setKpi('kpi-fps', stats ? formatInt(stats.fpsWarnings || 0) : '—');
+            setKpi('kpi-crash', stats ? formatInt(stats.crashes || 0) : '—');
+
+            setKpi('perf-fps-warnings', stats ? formatInt(stats.fpsWarnings || 0) : '—');
+            setKpi('perf-crashes', stats ? formatInt(stats.crashes || 0) : '—');
+            setKpi('perf-affected-players', stats ? formatInt(stats.uniquePlayers || 0) : '—');
+            setKpi('perf-sessions', stats ? formatInt(stats.uniqueSessions || 0) : '—');
+
+            renderTopProblemLevels(stats && stats.topProblemLevels);
+            renderTopDevices(stats && stats.topDevices);
+        }
+
+        function setKpi(id, value) {
+            const el = $(id);
+            if (el) el.textContent = value;
+        }
+
+        function formatInt(n) { return Number(n || 0).toLocaleString('en-US'); }
+        function formatDuration(seconds) {
+            const s = Math.max(0, Math.floor(seconds || 0));
+            return Math.floor(s / 60) + 'm ' + (s % 60) + 's';
+        }
+        function formatUsd(n) {
+            return '$' + Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 0 });
+        }
+        function formatFailRate(stats) {
+            const fails = (stats.eventCounts && stats.eventCounts.level_fail) || 0;
+            const completes = (stats.eventCounts && stats.eventCounts.level_complete) || 0;
+            const denom = fails + completes;
+            if (denom === 0) return '—';
+            return ((fails / denom) * 100).toFixed(1) + '%';
+        }
+
+        function renderTopProblemLevels(levels) {
+            const root = $('top-problem-levels');
+            if (!root) return;
+            if (!levels || !levels.length) {
+                root.innerHTML = '<div class="empty-state">Veri toplandığında en çok fail olan 5 level burada listelenecek.</div>';
+                return;
+            }
+            const max = Math.max(...levels.map((l) => l.failRate || 0), 0.001);
+            root.innerHTML = levels.map((l) => {
+                const pct = ((l.failRate || 0) * 100).toFixed(1);
+                const width = Math.min(100, ((l.failRate || 0) / max) * 100);
+                return `
+                    <div class="bar-row">
+                        <div class="label">Level ${escapeHtml(String(l.level))}<span class="sub">${escapeHtml(formatInt(l.attempts || 0))} deneme</span></div>
+                        <div class="bar-track"><div class="bar-fill" style="width: ${width}%;"></div></div>
+                        <div class="pct">${pct}%</div>
+                    </div>`;
+            }).join('');
+        }
+
+        function renderTopDevices(devices) {
+            const root = $('top-devices');
+            if (!root) return;
+            if (!devices || !devices.length) {
+                root.innerHTML = '<div class="empty-state">Cihaz bilgisi içeren event\'ler toplandığında en aktif cihazlar burada listelenecek.</div>';
+                return;
+            }
+            const max = Math.max(...devices.map((d) => d.count || 0), 1);
+            root.innerHTML = devices.map((d) => {
+                const width = Math.min(100, ((d.count || 0) / max) * 100);
+                return `
+                    <div class="bar-row">
+                        <div class="label">${escapeHtml(d.device || '?')}</div>
+                        <div class="bar-track"><div class="bar-fill" style="width: ${width}%; background: linear-gradient(90deg, var(--blue), var(--purple));"></div></div>
+                        <div class="pct">${formatInt(d.count || 0)}</div>
+                    </div>`;
+            }).join('');
+        }
+
+        function renderReportEmpty() {
+            const root = $('ai-report-container');
+            const lastEl = $('last-report');
+            if (lastEl) lastEl.textContent = 'Henüz rapor yok';
+            if (root) {
+                root.innerHTML = `
+                    <div class="section-block">
+                        <div class="section-content">
+                            <div class="empty-state">
+                                <strong style="color: var(--text); display: block; margin-bottom: 6px;">Henüz AI raporu üretilmedi.</strong>
+                                Yukarıdaki <em>Yeni AI Raporu Üret</em> butonuna basarak ilk raporu üretebilirsin. Cloud Function event verilerini analiz edip Claude'a gönderir, sonucu burada görürsün.
+                            </div>
+                        </div>
+                    </div>`;
+            }
+            const meta = $('overview-action-meta');
+            const content = $('overview-action-content');
+            if (meta) meta.textContent = '—';
+            if (content) content.innerHTML = `<p style="color: var(--text-dim); font-size: 0.9rem;">Henüz AI analizi yapılmadı. <strong style="color: var(--text);">AI Raporu</strong> sekmesinden ilk raporu üretebilirsin.</p>`;
+        }
+
+        function renderReport(_reportId, data) {
+            const root = $('ai-report-container');
+            const lastEl = $('last-report');
+            const r = data.report || {};
+            const created = data.createdAt && data.createdAt.toDate ? data.createdAt.toDate() : null;
+            const createdStr = created ? formatRelative(created) : 'şimdi';
+
+            if (lastEl) lastEl.textContent = 'Son rapor: ' + createdStr;
+            if (!root) return;
+
+            if (r.raw && !r.summary) {
+                root.innerHTML = `
+                    <div class="section-block">
+                        <div class="section-head"><h3>${escapeHtml(data.gameName || 'Oyun')} · Live-Ops Raporu</h3>
+                            <span class="head-meta">${escapeHtml(data.timeRange || '—')} · ${escapeHtml(createdStr)}</span></div>
+                        <div class="section-content">
+                            <div class="report-meta">
+                                <span class="mi">📊 Veri: <strong style="color: var(--text-dim);">${escapeHtml(formatInt((data.summaryData && data.summaryData.totalEvents) || 0))} event</strong></span>
+                                <span class="mi">🤖 Model: <strong style="color: var(--text-dim);">${escapeHtml(data.model || 'claude')}</strong></span>
+                            </div>
+                            <pre style="white-space:pre-wrap;font-family:'JetBrains Mono',monospace;font-size:0.82rem;color:var(--text-dim);">${escapeHtml(r.raw)}</pre>
+                        </div>
+                    </div>`;
+                return;
+            }
+
+            const sections = [
+                ['1. Genel Sağlık', r.overall_health],
+                ['2. Oyuncu Davranışı', r.player_behavior],
+                ['3. Level Zorluk & Drop-off', r.level_difficulty],
+                ['4. Monetizasyon', r.monetization],
+                ['5. Performans', r.performance],
+                ['6. Oyuncu Geri Bildirimi', r.feedback_summary],
+                ['7. Pre-Marketing Risk', r.pre_marketing_risk],
+                ['8. Sıradaki Update', r.next_update],
+            ];
+
+            const topLevelsHtml = (r.top_problem_levels || [])
+                .map((l) => `<span class="badge ${escapeHtml(failBadgeClass(l.fail_rate))}">Level ${escapeHtml(String(l.level))} · %${(Number(l.fail_rate || 0) * 100).toFixed(1)}</span>`)
+                .join(' ');
+
+            const actionsHtml = (r.immediate_actions || [])
+                .map((a) => `<li><strong style="color: var(--text);">${escapeHtml(a.title || '')}</strong> <span class="badge ${escapeHtml(a.priority || 'medium')}" style="margin-left: 8px;">${escapeHtml((a.priority || 'medium').toUpperCase())}</span><div style="color: var(--text-dim); font-size: 0.85rem; margin-top: 4px;">${escapeHtml(a.rationale || '')}</div></li>`)
+                .join('');
+
+            root.innerHTML = `
+                <div class="section-block">
+                    <div class="section-head">
+                        <h3>${escapeHtml(data.gameName || 'Oyun')} · Live-Ops Analiz Raporu</h3>
+                        <span class="head-meta">${escapeHtml(data.timeRange || '—')} · ${escapeHtml(createdStr)}</span>
+                    </div>
+                    <div class="section-content">
+                        <div class="report-meta">
+                            <span class="mi">📊 Veri: <strong style="color: var(--text-dim);">${escapeHtml(formatInt((data.summaryData && data.summaryData.totalEvents) || 0))} event</strong></span>
+                            <span class="mi">🤖 Model: <strong style="color: var(--text-dim);">${escapeHtml(data.model || 'claude')}</strong></span>
+                            <span class="mi">⏱ Aralık: <strong style="color: var(--text-dim);">${escapeHtml(data.timeRange || '—')}</strong></span>
+                        </div>
+                        <div class="ai-report">
+                            ${r.summary ? `<div class="quote">${escapeHtml(r.summary)}</div>` : ''}
+                            ${sections.map(([title, body]) => body
+                                ? `<h4>${escapeHtml(title)}</h4><p>${escapeHtml(body)}</p>`
+                                : ''
+                            ).join('')}
+                            ${(r.top_problem_levels || []).length ? `<h4>Sorunlu Level'lar</h4><div class="priority-badges">${topLevelsHtml}</div>` : ''}
+                            ${actionsHtml ? `<h4>Acil Aksiyonlar</h4><ol style="padding-left: 22px; color: var(--text-dim); margin-bottom: 14px;">${actionsHtml}</ol>` : ''}
+                        </div>
+                    </div>
+                </div>`;
+
+            const meta = $('overview-action-meta');
+            const content = $('overview-action-content');
+            if (meta) meta.textContent = createdStr;
+            if (content) {
+                const firstAction = (r.immediate_actions || [])[0];
+                content.innerHTML = `
+                    ${firstAction ? `<div class="priority-badges"><span class="badge ${escapeHtml(firstAction.priority || 'medium')}">${escapeHtml((firstAction.priority || 'medium').toUpperCase())}</span></div>` : ''}
+                    ${r.summary ? `<p style="margin-bottom: 12px;">${escapeHtml(r.summary)}</p>` : ''}
+                    ${firstAction
+                        ? `<p style="color: var(--text-dim); font-size: 0.88rem;"><strong style="color: var(--text);">Önerilen aksiyon:</strong> ${escapeHtml(firstAction.title || '')} — ${escapeHtml(firstAction.rationale || '')}</p>`
+                        : ''}`;
+            }
+        }
+
+        function failBadgeClass(rate) {
+            const r = Number(rate || 0);
+            if (r >= 0.4) return 'critical';
+            if (r >= 0.25) return 'high';
+            if (r >= 0.15) return 'medium';
+            return 'low';
+        }
+
+        function formatRelative(date) {
+            const diffMs = Date.now() - date.getTime();
+            const min = Math.floor(diffMs / 60000);
+            if (min < 1) return 'az önce';
+            if (min < 60) return min + ' dk önce';
+            const h = Math.floor(min / 60);
+            if (h < 24) return h + ' saat önce';
+            const d = Math.floor(h / 24);
+            if (d < 7) return d + ' gün önce';
+            return date.toLocaleDateString('tr-TR');
+        }
+
+        function wireGenerateButton() {
+            const btn = $('generate-btn');
+            const rangeSel = $('report-range-selector');
+            if (!btn) return;
+
+            btn.addEventListener('click', async () => {
+                const original = btn.textContent;
+                btn.disabled = true;
+                btn.textContent = '🧠 Analiz ediliyor…';
+                try {
+                    const callable = httpsCallable(functions, 'generateAIReport');
+                    const res = await callable({
+                        gameId: currentGame,
+                        gameName: GAME_NAMES[currentGame] || currentGame,
+                        timeRange: rangeSel ? rangeSel.value : 'last_24h',
+                    });
+                    showToast('AI raporu güncellendi · ' + ((res.data && res.data.eventCount) || 0) + ' event analiz edildi');
+                } catch (err) {
+                    console.error('generateAIReport failed:', err);
+                    const msg = err && err.message ? err.message : 'Bilinmeyen hata';
+                    showError($('ai-report-container'), 'AI raporu üretilemedi: ' + msg);
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = original;
+                }
+            });
+        }
+
+        function showError(container, message) {
+            if (!container) return;
+            const div = document.createElement('div');
+            div.className = 'ai-error';
+            div.textContent = message;
+            container.insertBefore(div, container.firstChild);
+            setTimeout(() => div.remove(), 6500);
+        }
+
+        function showToast(message) {
+            const old = document.querySelector('.altare-toast');
+            if (old) old.remove();
+            const t = document.createElement('div');
+            t.className = 'altare-toast';
+            t.textContent = message;
+            Object.assign(t.style, {
+                position: 'fixed', right: '24px', bottom: '24px', zIndex: 9999,
+                background: '#fff', color: '#000', padding: '12px 16px',
+                borderRadius: '10px', fontWeight: 700, fontSize: '0.85rem',
+                boxShadow: '0 12px 30px rgba(0,0,0,0.35)',
+                opacity: 0, transform: 'translateY(8px)',
+                transition: 'opacity 0.2s ease, transform 0.2s ease',
+            });
+            document.body.appendChild(t);
+            requestAnimationFrame(() => { t.style.opacity = 1; t.style.transform = 'translateY(0)'; });
+            setTimeout(() => {
+                t.style.opacity = 0; t.style.transform = 'translateY(8px)';
+                setTimeout(() => t.remove(), 220);
+            }, 2800);
+        }
+
+        function escapeHtml(s) {
+            return String(s == null ? '' : s).replace(/[&<>"']/g, (c) =>
+                ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])
+            );
+        }
+    </script>
+
 </body>
 
 </html>
