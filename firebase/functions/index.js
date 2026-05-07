@@ -169,6 +169,236 @@ exports.aggregateDailyStats = onSchedule(
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
+// createGame — callable, herhangi bir signed-in kullanici kendi oyununu yaratabilir
+// Self-service B2B onboarding: musteri panele girer, "Yeni Oyun Ekle" der.
+// ─────────────────────────────────────────────────────────────────────────────
+
+exports.createGame = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Sign-in required.");
+  }
+
+  const { gameName, gameType, platforms } = request.data || {};
+  if (!gameName || typeof gameName !== "string" || gameName.trim().length < 2) {
+    throw new HttpsError("invalid-argument", "Oyun adi en az 2 karakter olmali.");
+  }
+  if (gameName.length > 60) {
+    throw new HttpsError("invalid-argument", "Oyun adi en fazla 60 karakter olmali.");
+  }
+
+  const uid = request.auth.uid;
+  const slug = slugify(gameName);
+  if (!slug) {
+    throw new HttpsError("invalid-argument", "Oyun adi gecerli karakter icermiyor.");
+  }
+
+  // Developer profili var mi? Yoksa otomatik bir minimum profil olustur.
+  const devRef = db.collection("developers").doc(uid);
+  const devSnap = await devRef.get();
+  const studioSlug = devSnap.exists
+    ? slugify(devSnap.data().studioName || devSnap.data().displayName || "studio") || "studio"
+    : "studio";
+  if (!devSnap.exists) {
+    const claims = (request.auth.token || {});
+    await devRef.set({
+      uid,
+      email: claims.email || null,
+      displayName: claims.name || claims.email || null,
+      studioName: claims.name || "Studio",
+      tier: claims.admin ? "enterprise" : "indie",
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  }
+
+  // gameId: studioSlug.gameSlug (uniqueness icin gerekirse suffix)
+  const baseId = `${studioSlug}.${slug}`;
+  const gameId = await reserveUniqueGameId(baseId);
+
+  const apiKey = generateApiKey();
+
+  const platformsArr = Array.isArray(platforms) && platforms.length
+    ? platforms.filter((p) => typeof p === "string").slice(0, 4)
+    : ["Android"];
+
+  await db.collection("games").doc(gameId).set({
+    gameId,
+    developerId: uid,
+    gameName: gameName.trim(),
+    gameType: typeof gameType === "string" ? gameType : "unknown",
+    platforms: platformsArr,
+    apiKey,
+    status: "active",
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  // Developer'in gameIds dizisini guncelle
+  await devRef.set(
+    {
+      gameIds: admin.firestore.FieldValue.arrayUnion(gameId),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+
+  logger.info("game created", { gameId, uid });
+  return { success: true, gameId, apiKey };
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// listMyGames — callable, kullanicinin kendi oyunlarini listeler
+// ─────────────────────────────────────────────────────────────────────────────
+
+exports.listMyGames = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Sign-in required.");
+  }
+  const uid = request.auth.uid;
+
+  const snap = await db.collection("games").where("developerId", "==", uid).get();
+  const games = snap.docs.map((d) => {
+    const data = d.data();
+    return {
+      gameId: data.gameId || d.id,
+      gameName: data.gameName,
+      gameType: data.gameType,
+      platforms: data.platforms || [],
+      status: data.status || "active",
+      apiKey: data.apiKey,
+      createdAt: data.createdAt ? data.createdAt.toMillis() : null,
+    };
+  });
+
+  // Admin ise: tum oyunlari da listele (ek bilgi olarak)
+  let allGames = null;
+  if (request.auth.token.admin === true) {
+    const allSnap = await db.collection("games").get();
+    allGames = allSnap.docs.map((d) => {
+      const data = d.data();
+      return {
+        gameId: data.gameId || d.id,
+        gameName: data.gameName || d.id,
+        developerId: data.developerId || null,
+      };
+    });
+  }
+
+  return { success: true, games, allGames };
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// deleteGame — callable, sahibi VEYA admin silebilir
+// ─────────────────────────────────────────────────────────────────────────────
+
+exports.deleteGame = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Sign-in required.");
+  }
+  const { gameId } = request.data || {};
+  if (!gameId || typeof gameId !== "string") {
+    throw new HttpsError("invalid-argument", "gameId is required.");
+  }
+
+  const gameRef = db.collection("games").doc(gameId);
+  const gameSnap = await gameRef.get();
+  if (!gameSnap.exists) {
+    throw new HttpsError("not-found", "Oyun bulunamadi.");
+  }
+
+  const data = gameSnap.data();
+  const isOwner = data.developerId === request.auth.uid;
+  const isAdminClaim = request.auth.token.admin === true;
+  if (!isOwner && !isAdminClaim) {
+    throw new HttpsError("permission-denied", "Bu oyunu silme yetkin yok.");
+  }
+
+  await deleteCollectionRecursive(gameRef.collection("events"), 200);
+  await deleteCollectionRecursive(gameRef.collection("feedback"), 200);
+  await deleteCollectionRecursive(gameRef.collection("ai_reports"), 100);
+  await deleteCollectionRecursive(gameRef.collection("stats"), 100);
+  await gameRef.delete();
+
+  if (data.developerId) {
+    await db.collection("developers").doc(data.developerId).set(
+      {
+        gameIds: admin.firestore.FieldValue.arrayRemove(gameId),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+  }
+
+  logger.info("game deleted", { gameId, by: request.auth.uid });
+  return { success: true, gameId };
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// createCustomer — admin-only, B2B sozlesme sonrasi musteri olusturur
+// ─────────────────────────────────────────────────────────────────────────────
+
+exports.createCustomer = onCall(async (request) => {
+  assertAdmin(request);
+
+  const { email, displayName, studioName, tier } = request.data || {};
+  if (!email || typeof email !== "string") {
+    throw new HttpsError("invalid-argument", "Email gerekli.");
+  }
+
+  let user;
+  try {
+    user = await admin.auth().getUserByEmail(email);
+  } catch (e) {
+    // Kullanici yoksa olustur
+    const tempPassword = generateApiKey().slice(0, 16) + "Aa1!";
+    user = await admin.auth().createUser({
+      email,
+      emailVerified: false,
+      displayName: displayName || studioName || email,
+      password: tempPassword,
+    });
+
+    // Password reset link uret (musteri ilk login'de kendi sifresini koyar)
+    const resetLink = await admin.auth().generatePasswordResetLink(email);
+    logger.info("customer created", { email, uid: user.uid });
+
+    // developers/{uid} olustur
+    await db.collection("developers").doc(user.uid).set({
+      uid: user.uid,
+      email,
+      displayName: displayName || studioName || email,
+      studioName: studioName || "",
+      tier: tier || "indie",
+      gameIds: [],
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdBy: request.auth.uid,
+    });
+
+    return {
+      success: true,
+      uid: user.uid,
+      email,
+      resetLink,
+      tempPassword, // admin gosterip musteriye iletecek (TODO: email automation)
+      isNewUser: true,
+    };
+  }
+
+  // Mevcut kullanici — sadece developer profilini garanti et
+  await db.collection("developers").doc(user.uid).set(
+    {
+      uid: user.uid,
+      email,
+      displayName: displayName || user.displayName || email,
+      studioName: studioName || "",
+      tier: tier || "indie",
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+
+  return { success: true, uid: user.uid, email, isNewUser: false };
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // setAdminRole — callable, admin-only
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -352,5 +582,53 @@ async function callAnthropic(apiKey, systemPrompt, userPrompt) {
   } catch (e) {
     logger.warn("AI response not pure JSON, returning as raw", { sample: cleaned.slice(0, 200) });
     return { raw: cleaned };
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Multi-tenant helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+function slugify(s) {
+  if (typeof s !== "string") return "";
+  return s
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40);
+}
+
+function generateApiKey() {
+  const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let out = "altr_";
+  for (let i = 0; i < 32; i++) {
+    out += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return out;
+}
+
+async function reserveUniqueGameId(baseId) {
+  const base = baseId.slice(0, 50);
+  let candidate = base;
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const ref = db.collection("games").doc(candidate);
+    const snap = await ref.get();
+    if (!snap.exists) return candidate;
+    candidate = `${base}-${Math.floor(Math.random() * 9999).toString().padStart(4, "0")}`;
+  }
+  // Fallback: random suffix
+  return `${base}-${Date.now().toString(36)}`;
+}
+
+async function deleteCollectionRecursive(collectionRef, batchSize) {
+  while (true) {
+    const snap = await collectionRef.limit(batchSize).get();
+    if (snap.empty) return;
+    const batch = db.batch();
+    snap.docs.forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+    if (snap.size < batchSize) return;
   }
 }

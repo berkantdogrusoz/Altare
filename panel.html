@@ -646,6 +646,182 @@
             .event-row { grid-template-columns: 1fr; gap: 2px; padding: 8px 0; }
             .event-row .params { font-size: 0.74rem; }
         }
+
+        /* ─── Self-Service Portal: my-games / customers / integration ─── */
+        .empty {
+            color: var(--muted);
+            padding: 16px 0;
+            font-size: 0.92rem;
+        }
+        .primary-btn {
+            background: var(--accent);
+            color: var(--accent-fg, #0c0d10);
+            border: none;
+            padding: 9px 18px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: filter 0.15s;
+        }
+        .primary-btn:hover { filter: brightness(1.1); }
+        .primary-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .btn-link {
+            background: transparent;
+            color: var(--muted);
+            border: 1px solid var(--border);
+            padding: 5px 11px;
+            border-radius: 6px;
+            font-size: 0.82rem;
+            cursor: pointer;
+            margin: 0 2px;
+        }
+        .btn-link:hover { color: var(--fg, #fff); border-color: var(--accent); }
+        .btn-link.danger:hover { color: #ff6262; border-color: #ff6262; }
+
+        .games-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.88rem;
+        }
+        .games-table th, .games-table td {
+            padding: 11px 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        .games-table th {
+            color: var(--muted);
+            font-weight: 500;
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .games-table code {
+            background: rgba(255,255,255,0.04);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.82rem;
+        }
+        .games-table .row-actions { white-space: nowrap; }
+
+        .form-inline {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .form-inline input, .form-inline select {
+            padding: 9px 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: rgba(0,0,0,0.2);
+            color: var(--fg, #fff);
+            font-size: 0.9rem;
+            min-width: 180px;
+        }
+        .form-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        .form-stack label {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .form-stack label > span {
+            font-size: 0.8rem;
+            color: var(--muted);
+        }
+        .form-stack input, .form-stack select {
+            padding: 9px 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: rgba(0,0,0,0.2);
+            color: var(--fg, #fff);
+            font-size: 0.92rem;
+        }
+        .form-stack fieldset {
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 10px 14px;
+        }
+        .form-stack fieldset legend {
+            color: var(--muted);
+            font-size: 0.78rem;
+            padding: 0 6px;
+        }
+        .form-stack .checkbox {
+            flex-direction: row;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.88rem;
+            margin: 4px 12px 4px 0;
+            display: inline-flex;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 999;
+            padding: 24px;
+        }
+        .modal-card {
+            background: var(--bg-elev, #16181d);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            max-width: 560px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 24px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+        }
+        .modal-card h3 { margin-top: 0; }
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 18px;
+        }
+
+        .kv { display: flex; flex-direction: column; gap: 6px; }
+        .kv-row { display: flex; align-items: center; gap: 12px; }
+        .kv-key { color: var(--muted); font-size: 0.82rem; min-width: 100px; }
+        .kv-val { background: rgba(255,255,255,0.04); padding: 5px 9px; border-radius: 4px; font-size: 0.85rem; word-break: break-all; }
+
+        .code-block {
+            background: rgba(0,0,0,0.4);
+            border: 1px solid var(--border);
+            padding: 12px 14px;
+            border-radius: 6px;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            white-space: pre;
+            color: #c5d6f5;
+            line-height: 1.5;
+        }
+
+        .success-box {
+            background: rgba(50, 200, 100, 0.08);
+            border: 1px solid rgba(50, 200, 100, 0.3);
+            border-radius: 8px;
+            padding: 14px 16px;
+        }
+        .success-box h4 { margin: 0 0 8px; color: #5dd9a0; }
+        .error-box {
+            background: rgba(220, 60, 60, 0.08);
+            border: 1px solid rgba(220, 60, 60, 0.3);
+            border-radius: 8px;
+            padding: 12px 14px;
+            color: #ff8b8b;
+        }
     </style>
 </head>
 
@@ -673,6 +849,12 @@
 
         <div class="panel-body">
             <aside class="sidebar">
+                <div class="sidebar-section">
+                    <div class="sidebar-label">Studio</div>
+                    <button class="nav-tab" data-tab="my-games"><span class="dot"></span> Oyunlarım</button>
+                    <button class="nav-tab admin-only" data-tab="customers" hidden><span class="dot"></span> Müşteri Yönetimi</button>
+                    <button class="nav-tab" data-tab="integration"><span class="dot"></span> Entegrasyon Rehberi</button>
+                </div>
                 <div class="sidebar-section">
                     <div class="sidebar-label">Game Intelligence</div>
                     <button class="nav-tab active" data-tab="overview"><span class="dot"></span> Genel Bakış</button>
@@ -1001,6 +1183,121 @@
                     </div>
                 </section>
 
+                <section class="tab-view" data-tab="my-games">
+                    <div class="info-banner">
+                        Bu sekmede kendi oyunlarını görüyorsun. <strong>"Yeni Oyun Ekle"</strong> ile bir Unity projesi için tracking başlatabilirsin — sistem otomatik <code>gameId</code> üretir, SDK'yı senin için hazırlar.
+                    </div>
+                    <div class="section-block">
+                        <div class="section-head">
+                            <h3>Oyunlarım</h3>
+                            <button class="primary-btn" id="btn-new-game">+ Yeni Oyun Ekle</button>
+                        </div>
+                        <div class="section-content" id="my-games-list">
+                            <div class="empty">Yükleniyor...</div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="tab-view" data-tab="customers">
+                    <div class="info-banner">
+                        <strong>Admin paneli</strong> · B2B sözleşme imzalanan müşterileri buradan oluşturursun. Sistem otomatik olarak Firebase Auth user + developers profili oluşturur, password reset linki üretir.
+                    </div>
+                    <div class="section-block">
+                        <div class="section-head">
+                            <h3>Müşteri Ekle</h3>
+                        </div>
+                        <div class="section-content">
+                            <form id="form-new-customer" class="form-inline">
+                                <input type="email" id="customer-email" placeholder="Email" required>
+                                <input type="text" id="customer-studio" placeholder="Studio adı" required>
+                                <select id="customer-tier">
+                                    <option value="indie">Indie ($0)</option>
+                                    <option value="studio">Studio ($49/ay)</option>
+                                    <option value="enterprise" selected>Enterprise (custom)</option>
+                                </select>
+                                <button type="submit" class="primary-btn">Müşteri Oluştur</button>
+                            </form>
+                            <div id="new-customer-result"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="tab-view" data-tab="integration">
+                    <div class="info-banner">
+                        Royal Dreams + Crimson Scar dahil her oyunda kullanılabilen <strong>drop-in Unity SDK</strong>. Aşağıdaki adımları sırayla takip et — 5 dakikada veri akmaya başlar.
+                    </div>
+                    <div class="section-block">
+                        <div class="section-head">
+                            <h3>1. SDK'yı Projene Ekle</h3>
+                        </div>
+                        <div class="section-content">
+                            <p>Oyun ekledikten sonra <strong>"Oyunlarım"</strong> sekmesinde her oyunun yanında <em>"SDK İndir"</em> butonu çıkar. İndirdiğin zip içinde:</p>
+                            <ul>
+                                <li><code>AltareAnalytics.cs</code> — Unity drop-in script</li>
+                                <li><code>AltareConfig.json</code> — gameId pre-filled</li>
+                                <li><code>INTEGRATION_GUIDE.pdf</code> — adım adım rehber</li>
+                                <li><code>SAMPLE_USAGE.cs</code> — örnek event çağrıları</li>
+                            </ul>
+                            <p><strong>Firebase Unity SDK gerekli:</strong> Authentication + Firestore modüllerini <a href="https://firebase.google.com/download/unity" target="_blank" rel="noopener">resmi siteden</a> indir, Unity'e import et.</p>
+                        </div>
+                    </div>
+                    <div class="section-block">
+                        <div class="section-head">
+                            <h3>2. Bootstrap — Tek Satırlık Initialize</h3>
+                        </div>
+                        <div class="section-content">
+                            <pre class="code-block">using Altare.Analytics;
+
+// Bootstrap script (sahnenin en üst MonoBehaviour'ında)
+void Start() {
+    AltareAnalytics.Initialize("YOUR_GAME_ID", "Your Game Name");
+}</pre>
+                            <p><code>YOUR_GAME_ID</code> — Oyunlarım sekmesinde sistemin sana verdiği değer (örn: <code>altare.royal-dreams</code>).</p>
+                        </div>
+                    </div>
+                    <div class="section-block">
+                        <div class="section-head">
+                            <h3>3. Event Çağrıları — Standart Taxonomy</h3>
+                        </div>
+                        <div class="section-content">
+                            <pre class="code-block">// Level olayları
+AltareAnalytics.LogEvent("level_start",    new() { { "level", level } });
+AltareAnalytics.LogEvent("level_complete", new() { { "level", level }, { "score", score } });
+AltareAnalytics.LogEvent("level_fail",     new() { { "level", level }, { "moves_used", moves } });
+
+// Reklam + IAP
+AltareAnalytics.LogEvent("ad_watched",     new() { { "placement", "continue" } });
+AltareAnalytics.LogEvent("rewarded_ad_watched", new() { { "placement", "extra_lives" } });
+AltareAnalytics.LogEvent("iap_purchase_success", new() { { "sku", sku }, { "amount_usd", price } });
+
+// Player feedback
+AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
+                            <p>SDK <code>session_start</code>, <code>session_end</code>, <code>fps_warning</code>, <code>crash_detected</code> event'lerini <strong>otomatik</strong> yazar — manuel çağırmana gerek yok.</p>
+                        </div>
+                    </div>
+                    <div class="section-block">
+                        <div class="section-head">
+                            <h3>4. Firebase Setup (her oyun için bir kere)</h3>
+                        </div>
+                        <div class="section-content">
+                            <ul>
+                                <li>Firebase Console → projeye Android app ekle (paket adı eşleşmeli)</li>
+                                <li><code>google-services.json</code> dosyasını <code>Assets/</code> köküne koy</li>
+                                <li>Authentication → <strong>Anonymous Provider</strong>'ı Enable yap</li>
+                                <li>Build → telefona kur → ilk açılışta event akmaya başlar</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="section-block">
+                        <div class="section-head">
+                            <h3>5. Doğrulama</h3>
+                        </div>
+                        <div class="section-content">
+                            <p>Oyunda 1-2 dakika oyna, <strong>"Canlı Event Stream"</strong> sekmesinde <code>session_start</code> + <code>level_start</code> event'leri akmaya başlamalı. <em>"AI Raporu"</em> sekmesinde 24 saat veri biriktikten sonra ilk raporunu üretebilirsin.</p>
+                        </div>
+                    </div>
+                </section>
+
                 <section class="tab-view" data-tab="roadmap">
                     <div class="info-banner">
                         Roadmap önerileri Market Analyst rolüyle birlikte çalışıyor; market scraper bağlandığında AI gerçek pazardan üretmeye başlayacak.
@@ -1043,6 +1340,9 @@
 
         // ----- Constants -----
         const TAB_TITLES = {
+            'my-games': 'Oyunlarım',
+            'customers': 'Müşteri Yönetimi',
+            'integration': 'Entegrasyon Rehberi',
             'overview': 'Genel Bakış',
             'events': 'Canlı Event Stream',
             'levels': 'Level Intelligence',
@@ -1517,6 +1817,8 @@
             );
         }
     </script>
+
+    <script type="module" src="/js/games.js"></script>
 
 </body>
 
