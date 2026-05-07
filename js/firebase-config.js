@@ -19,13 +19,13 @@ import { getFirestore } from "https://www.gstatic.com/firebasejs/11.0.2/firebase
 import { getFunctions } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-functions.js";
 
 export const firebaseConfig = {
-  // ⚠️  FILL THESE FROM Firebase Console → Project settings → Your apps → Web app
-  apiKey: "REPLACE_WITH_WEB_API_KEY",
+  apiKey: "AIzaSyDxHVD9iGm0WzPVDHvC0zRpvLBwhmVPdXs",
   authDomain: "altare-312a1.firebaseapp.com",
   projectId: "altare-312a1",
-  storageBucket: "altare-312a1.appspot.com",
+  storageBucket: "altare-312a1.firebasestorage.app",
   messagingSenderId: "525350962277",
-  appId: "REPLACE_WITH_WEB_APP_ID",
+  appId: "1:525350962277:web:8afd370efeafb936f4328c",
+  measurementId: "G-6DTMKRWRGK",
 };
 
 export const FUNCTIONS_REGION = "europe-west1";
