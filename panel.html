@@ -822,6 +822,116 @@
             padding: 12px 14px;
             color: #ff8b8b;
         }
+
+        /* ─── Executive Briefing — BLUF (Bottom Line Up Front) ─── */
+        .exec-briefing {
+            background: linear-gradient(135deg, rgba(251, 191, 36, 0.06), rgba(220, 70, 70, 0.05));
+            border: 1px solid rgba(251, 191, 36, 0.28);
+            border-left: 4px solid #fbbf24;
+            border-radius: 14px;
+            padding: 24px 26px;
+            margin-bottom: 22px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+        }
+        .exec-briefing-head { margin-bottom: 18px; }
+        .exec-briefing-eyebrow {
+            display: inline-block;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 1.4px;
+            color: #fbbf24;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+        .exec-briefing-headline {
+            margin: 0 0 10px;
+            font-size: 1.45rem;
+            font-weight: 700;
+            line-height: 1.3;
+            color: #fff;
+            letter-spacing: -0.3px;
+        }
+        .exec-briefing-value {
+            margin: 0;
+            color: var(--text-dim, #b0b6c2);
+            font-size: 0.98rem;
+            line-height: 1.55;
+        }
+        .exec-block {
+            margin-top: 18px;
+            padding-top: 16px;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .exec-block-title {
+            font-size: 0.74rem;
+            font-weight: 700;
+            letter-spacing: 1.3px;
+            color: var(--muted, #8a92a2);
+            text-transform: uppercase;
+            margin-bottom: 12px;
+        }
+        .exec-actions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 12px;
+        }
+        .exec-action-card {
+            background: rgba(0, 0, 0, 0.28);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 14px 16px;
+            transition: transform 0.15s, border-color 0.15s;
+        }
+        .exec-action-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+        .exec-action-card-critical { border-left: 3px solid #ef4444; }
+        .exec-action-card-high     { border-left: 3px solid #f97316; }
+        .exec-action-card-medium   { border-left: 3px solid #fbbf24; }
+        .exec-action-card-low      { border-left: 3px solid #60a5fa; }
+
+        .exec-action-head {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+        .exec-action-impact {
+            font-size: 0.74rem;
+            color: var(--muted);
+        }
+        .exec-action-impact strong { color: var(--text, #fff); }
+        .exec-action-timeline {
+            font-size: 0.74rem;
+            color: var(--muted);
+            margin-left: auto;
+        }
+        .exec-action-title {
+            font-weight: 600;
+            font-size: 1.02rem;
+            color: var(--text, #fff);
+            margin-bottom: 6px;
+            line-height: 1.35;
+        }
+        .exec-action-metric {
+            font-size: 0.82rem;
+            color: #5dd9a0;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        .exec-action-rationale {
+            font-size: 0.86rem;
+            color: var(--text-dim, #b0b6c2);
+            line-height: 1.5;
+        }
+
+        @media (max-width: 720px) {
+            .exec-briefing { padding: 18px 18px; }
+            .exec-briefing-headline { font-size: 1.18rem; }
+            .exec-actions-grid { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
 
@@ -1712,10 +1822,42 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
                 .map((a) => `<li><strong style="color: var(--text);">${escapeHtml(a.title || '')}</strong> <span class="badge ${escapeHtml(a.priority || 'medium')}" style="margin-left: 8px;">${escapeHtml((a.priority || 'medium').toUpperCase())}</span><div style="color: var(--text-dim); font-size: 0.85rem; margin-top: 4px;">${escapeHtml(a.rationale || '')}</div></li>`)
                 .join('');
 
+            // Executive Briefing — BLUF (Bottom Line Up Front)
+            const eb = r.executive_briefing || {};
+            const critActionsHtml = (eb.critical_actions || [])
+                .map((a) => renderActionCard(a, true))
+                .join('');
+            const oppHtml = (eb.opportunities || [])
+                .map((a) => renderActionCard(a, false))
+                .join('');
+
+            const executiveBriefingHtml = (eb.headline || eb.value_summary || critActionsHtml || oppHtml) ? `
+                <div class="exec-briefing">
+                    <div class="exec-briefing-head">
+                        <span class="exec-briefing-eyebrow">🚨 EXECUTIVE BRIEFING · BU HAFTA NE YAPILMALI</span>
+                        ${eb.headline ? `<h2 class="exec-briefing-headline">${escapeHtml(eb.headline)}</h2>` : ''}
+                        ${eb.value_summary ? `<p class="exec-briefing-value">${escapeHtml(eb.value_summary)}</p>` : ''}
+                    </div>
+                    ${critActionsHtml ? `
+                        <div class="exec-block">
+                            <div class="exec-block-title">⏱️ KRİTİK AKSİYONLAR</div>
+                            <div class="exec-actions-grid">${critActionsHtml}</div>
+                        </div>
+                    ` : ''}
+                    ${oppHtml ? `
+                        <div class="exec-block">
+                            <div class="exec-block-title">💡 FIRSATLAR</div>
+                            <div class="exec-actions-grid">${oppHtml}</div>
+                        </div>
+                    ` : ''}
+                </div>
+            ` : '';
+
             root.innerHTML = `
+                ${executiveBriefingHtml}
                 <div class="section-block">
                     <div class="section-head">
-                        <h3>${escapeHtml(data.gameName || 'Oyun')} · Live-Ops Analiz Raporu</h3>
+                        <h3>${escapeHtml(data.gameName || 'Oyun')} · Detaylı Analiz</h3>
                         <span class="head-meta">${escapeHtml(data.timeRange || '—')} · ${escapeHtml(createdStr)}</span>
                     </div>
                     <div class="section-content">
@@ -1740,14 +1882,50 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
             const content = $('overview-action-content');
             if (meta) meta.textContent = createdStr;
             if (content) {
-                const firstAction = (r.immediate_actions || [])[0];
-                content.innerHTML = `
-                    ${firstAction ? `<div class="priority-badges"><span class="badge ${escapeHtml(firstAction.priority || 'medium')}">${escapeHtml((firstAction.priority || 'medium').toUpperCase())}</span></div>` : ''}
-                    ${r.summary ? `<p style="margin-bottom: 12px;">${escapeHtml(r.summary)}</p>` : ''}
-                    ${firstAction
-                        ? `<p style="color: var(--text-dim); font-size: 0.88rem;"><strong style="color: var(--text);">Önerilen aksiyon:</strong> ${escapeHtml(firstAction.title || '')} — ${escapeHtml(firstAction.rationale || '')}</p>`
-                        : ''}`;
+                // Overview'da executive briefing'i daha kompakt göster
+                const ebTop = r.executive_briefing || {};
+                const firstCritical = (ebTop.critical_actions || [])[0]
+                    || (r.immediate_actions || [])[0];
+
+                if (ebTop.headline || ebTop.value_summary || firstCritical) {
+                    content.innerHTML = `
+                        ${ebTop.headline ? `<h4 style="margin: 0 0 8px; color: var(--text); font-size: 1.05rem;">${escapeHtml(ebTop.headline)}</h4>` : ''}
+                        ${ebTop.value_summary ? `<p style="margin-bottom: 14px; color: var(--text-dim); font-size: 0.92rem;">${escapeHtml(ebTop.value_summary)}</p>` : (r.summary ? `<p style="margin-bottom: 14px;">${escapeHtml(r.summary)}</p>` : '')}
+                        ${firstCritical ? `
+                            <div class="exec-action-card exec-action-card-${escapeHtml((firstCritical.urgency || firstCritical.priority || 'medium').toLowerCase())}" style="margin-top: 4px;">
+                                <div class="exec-action-head">
+                                    <span class="badge ${escapeHtml((firstCritical.urgency || firstCritical.priority || 'medium').toLowerCase())}">${escapeHtml((firstCritical.urgency || firstCritical.priority || 'MEDIUM').toUpperCase())}</span>
+                                    ${firstCritical.timeline ? `<span class="exec-action-timeline">⏱ ${escapeHtml(firstCritical.timeline)}</span>` : ''}
+                                </div>
+                                <div class="exec-action-title">${escapeHtml(firstCritical.title || '')}</div>
+                                ${firstCritical.expected_metric ? `<div class="exec-action-metric">📈 Beklenen: ${escapeHtml(firstCritical.expected_metric)}</div>` : ''}
+                                <div class="exec-action-rationale">${escapeHtml(firstCritical.rationale || '')}</div>
+                            </div>
+                        ` : ''}
+                    `;
+                } else {
+                    content.innerHTML = r.summary ? `<p>${escapeHtml(r.summary)}</p>` : '';
+                }
             }
+        }
+
+        function renderActionCard(a, isCritical) {
+            const urgency = (a.urgency || 'medium').toLowerCase();
+            const impact = (a.impact || 'medium').toLowerCase();
+            const timeline = a.timeline || '';
+            const expected = a.expected_metric || '';
+            return `
+                <div class="exec-action-card exec-action-card-${escapeHtml(urgency)}">
+                    <div class="exec-action-head">
+                        <span class="badge ${escapeHtml(urgency)}">${escapeHtml(urgency.toUpperCase())}</span>
+                        <span class="exec-action-impact" title="İş etkisi">Impact: <strong>${escapeHtml(impact.toUpperCase())}</strong></span>
+                        ${timeline ? `<span class="exec-action-timeline">⏱ ${escapeHtml(timeline)}</span>` : ''}
+                    </div>
+                    <div class="exec-action-title">${escapeHtml(a.title || '')}</div>
+                    ${expected ? `<div class="exec-action-metric">📈 Beklenen: ${escapeHtml(expected)}</div>` : ''}
+                    <div class="exec-action-rationale">${escapeHtml(a.rationale || '')}</div>
+                </div>
+            `;
         }
 
         function failBadgeClass(rate) {
