@@ -1014,16 +1014,34 @@
                 </section>
 
                 <section class="tab-view" data-tab="market">
-                    <div class="info-banner">
-                        Pazar verisi şu an demo. <strong>Market scraper</strong> entegre edildiğinde gerçek Play Store verisine geçecek.
+                    <div class="info-banner" id="market-info-banner">
+                        Google Play canlı verisi · <strong>"Pazar Verisini Yenile"</strong> ile son rakip + yorum snapshot'unu çek.
                     </div>
                     <div class="section-block">
                         <div class="section-head">
-                            <h3>Rakip Snapshot · Match Puzzle Kategorisi</h3>
-                            <span class="head-meta">Public Play Store verisi · son güncelleme 2h</span>
+                            <h3>Rakip Snapshot · Play Store</h3>
+                            <span class="head-meta">
+                                <select id="market-gametype" style="background: rgba(0,0,0,0.3); color: var(--fg, #fff); border: 1px solid var(--border); padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; margin-right: 6px;">
+                                    <option value="puzzle">Puzzle</option>
+                                    <option value="match3">Match-3</option>
+                                    <option value="midcore">Mid-Core</option>
+                                    <option value="action">Action</option>
+                                    <option value="strategy">Strategy</option>
+                                    <option value="simulation">Simulation</option>
+                                </select>
+                                <select id="market-country" style="background: rgba(0,0,0,0.3); color: var(--fg, #fff); border: 1px solid var(--border); padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; margin-right: 6px;">
+                                    <option value="tr">Türkiye</option>
+                                    <option value="us">USA</option>
+                                    <option value="de">Germany</option>
+                                    <option value="jp">Japan</option>
+                                </select>
+                                <button class="primary-btn" id="market-refresh-btn" style="padding: 5px 12px; font-size: 0.8rem;">↻ Yenile</button>
+                            </span>
                         </div>
                         <div class="section-content">
-                            <div class="competitor-grid">
+                            <div id="market-status" style="font-size: 0.84rem; color: var(--muted); margin-bottom: 12px;"></div>
+                            <div class="competitor-grid" id="competitor-grid-live"></div>
+                            <div class="competitor-grid" id="competitor-grid-fallback">
                                 <div class="comp-card">
                                     <div class="comp-name">Royal Match</div>
                                     <div class="comp-genre">Match-3 · Decoration</div>
@@ -1819,6 +1837,7 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
     </script>
 
     <script type="module" src="/js/games.js"></script>
+    <script type="module" src="/js/market.js"></script>
 
 </body>
 

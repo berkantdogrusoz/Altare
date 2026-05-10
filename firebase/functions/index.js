@@ -30,7 +30,7 @@ const db = admin.firestore();
 setGlobalOptions({ region: "europe-west1", maxInstances: 10 });
 
 const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
-const ANTHROPIC_MODEL = "claude-sonnet-4-6";
+const ANTHROPIC_MODEL = "claude-sonnet-4-5"; // Anthropic Sonnet 4.5 (latest stable)
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -82,55 +82,80 @@ OUTPUT JSON SHAPE
 exports.generateAIReport = onCall(
   { secrets: [ANTHROPIC_API_KEY], timeoutSeconds: 120 },
   async (request) => {
-    assertAdmin(request);
+    try {
+      assertAdmin(request);
 
-    const { gameId, gameName, timeRange = "last_24h" } = request.data || {};
-    if (!gameId || typeof gameId !== "string") {
-      throw new HttpsError("invalid-argument", "gameId is required.");
-    }
+      const { gameId, gameName, timeRange = "last_24h" } = request.data || {};
+      if (!gameId || typeof gameId !== "string") {
+        throw new HttpsError("invalid-argument", "gameId is required.");
+      }
 
-    const windowMs = timeRange === "last_7d" ? 7 * 24 * 3600e3 : 24 * 3600e3;
-    const since = admin.firestore.Timestamp.fromMillis(Date.now() - windowMs);
+      logger.info("generateAIReport start", { gameId, gameName, timeRange, uid: request.auth.uid });
 
-    const summary = await buildSummaryData(gameId, since);
+      const windowMs = timeRange === "last_7d" ? 7 * 24 * 3600e3 : 24 * 3600e3;
+      const since = admin.firestore.Timestamp.fromMillis(Date.now() - windowMs);
 
-    if (summary.totalEvents === 0) {
+      const summary = await buildSummaryData(gameId, since);
+      logger.info("summary built", { gameId, totalEvents: summary.totalEvents });
+
+      if (summary.totalEvents === 0) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Bu zaman aralığında oyundan hiç event yok. AI raporu üretmek için önce veri akışı gerekli."
+        );
+      }
+
+      const userPrompt = buildUserPrompt(gameId, gameName, timeRange, summary);
+
+      const aiJson = await callAnthropic(
+        ANTHROPIC_API_KEY.value(),
+        LIVE_OPS_SYSTEM_PROMPT,
+        userPrompt
+      );
+
+      logger.info("anthropic ok", { gameId, keys: Object.keys(aiJson || {}).length });
+
+      const reportRef = await db
+        .collection("games")
+        .doc(gameId)
+        .collection("ai_reports")
+        .add({
+          gameId,
+          gameName: gameName || gameId,
+          timeRange,
+          provider: "anthropic",
+          model: ANTHROPIC_MODEL,
+          report: aiJson,
+          summaryData: summary,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          createdBy: request.auth.uid,
+        });
+
+      logger.info("report saved", { gameId, reportId: reportRef.id });
+
+      return {
+        success: true,
+        reportId: reportRef.id,
+        report: aiJson,
+        eventCount: summary.totalEvents,
+      };
+    } catch (err) {
+      // HttpsError'ı olduğu gibi geçir (istemciye dogru mesaj gitsin)
+      if (err instanceof HttpsError) {
+        logger.warn("generateAIReport HttpsError", { code: err.code, message: err.message });
+        throw err;
+      }
+      // Beklenmedik hatayı detaylı logla, kullanıcıya açıklayıcı mesaj at
+      logger.error("generateAIReport unhandled", {
+        message: err?.message || String(err),
+        stack: err?.stack,
+        name: err?.name,
+      });
       throw new HttpsError(
-        "failed-precondition",
-        "Bu zaman aralığında oyundan hiç event yok. AI raporu üretmek için önce veri akışı gerekli."
+        "internal",
+        `AI raporu uretilemedi: ${err?.message || "bilinmeyen hata"}`
       );
     }
-
-    const userPrompt = buildUserPrompt(gameId, gameName, timeRange, summary);
-
-    const aiJson = await callAnthropic(
-      ANTHROPIC_API_KEY.value(),
-      LIVE_OPS_SYSTEM_PROMPT,
-      userPrompt
-    );
-
-    const reportRef = await db
-      .collection("games")
-      .doc(gameId)
-      .collection("ai_reports")
-      .add({
-        gameId,
-        gameName: gameName || gameId,
-        timeRange,
-        provider: "anthropic",
-        model: ANTHROPIC_MODEL,
-        report: aiJson,
-        summaryData: summary,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        createdBy: request.auth.uid,
-      });
-
-    return {
-      success: true,
-      reportId: reportRef.id,
-      report: aiJson,
-      eventCount: summary.totalEvents,
-    };
   }
 );
 
@@ -399,6 +424,135 @@ exports.createCustomer = onCall(async (request) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// fetchMarketIntel — callable, Play Store'dan canli rakip+yorum verisi ceker
+// google-play-scraper ile public verileri kullanir (ToS uyumlu).
+// Sonuclar Firestore'da market_intel/{collectionId} altina cache lenir.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const PLAY_STORE_CATEGORIES = {
+  "puzzle": "GAME_PUZZLE",
+  "match3": "GAME_PUZZLE",
+  "midcore": "GAME_ROLE_PLAYING",
+  "rpg": "GAME_ROLE_PLAYING",
+  "action": "GAME_ACTION",
+  "strategy": "GAME_STRATEGY",
+  "simulation": "GAME_SIMULATION",
+  "casino": "GAME_CASINO",
+};
+
+exports.fetchMarketIntel = onCall(
+  { timeoutSeconds: 90, memory: "512MiB" },
+  async (request) => {
+    try {
+      assertAdmin(request);
+
+      const { gameType = "puzzle", country = "tr", topN = 10 } = request.data || {};
+      const playCategory = PLAY_STORE_CATEGORIES[gameType] || "GAME_PUZZLE";
+
+      logger.info("fetchMarketIntel start", { gameType, playCategory, country, topN });
+
+      const gplay = require("google-play-scraper");
+      const gpModule = gplay && gplay.default ? gplay.default : gplay;
+
+      // Top N free oyunlari kategoride cek
+      const topResults = await gpModule.list({
+        category: playCategory,
+        collection: "TOP_FREE",
+        country,
+        num: Math.min(Math.max(topN, 5), 30),
+      });
+
+      const competitors = [];
+      for (const app of topResults) {
+        try {
+          const detail = await gpModule.app({ appId: app.appId, country });
+          const reviewSnap = await gpModule.reviews({
+            appId: app.appId,
+            country,
+            sort: gpModule.sort?.HELPFULNESS || 2,
+            num: 5,
+          });
+          const reviews = (reviewSnap?.data || []).map((r) => ({
+            score: r.score,
+            text: typeof r.text === "string" ? r.text.slice(0, 280) : "",
+            date: r.date || null,
+          }));
+          competitors.push({
+            appId: app.appId,
+            title: detail.title,
+            developer: detail.developer,
+            icon: detail.icon,
+            score: detail.score,
+            installs: detail.installs,
+            minInstalls: detail.minInstalls,
+            ratings: detail.ratings,
+            free: detail.free,
+            price: detail.price,
+            currency: detail.currency,
+            adSupported: detail.adSupported,
+            offersIAP: detail.offersIAP,
+            inAppPurchaseRange: detail.inAppProductPrice,
+            genre: detail.genre,
+            url: detail.url,
+            description: typeof detail.description === "string"
+              ? detail.description.slice(0, 600)
+              : "",
+            topReviews: reviews,
+            scrapedAt: admin.firestore.Timestamp.now(),
+          });
+        } catch (e) {
+          logger.warn("competitor detail failed", { appId: app.appId, err: e?.message });
+        }
+      }
+
+      const collectionId = `${gameType}-${country}`;
+      const docRef = db.collection("market_intel").doc(collectionId);
+      await docRef.set({
+        gameType,
+        country,
+        playCategory,
+        competitorCount: competitors.length,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedBy: request.auth.uid,
+      }, { merge: true });
+
+      const compCollection = docRef.collection("competitors");
+      // Eski rakipleri batch sil (yenisini yazacaz)
+      const oldSnap = await compCollection.limit(50).get();
+      if (!oldSnap.empty) {
+        const batch = db.batch();
+        oldSnap.docs.forEach((d) => batch.delete(d.ref));
+        await batch.commit();
+      }
+      // Yeni rakipleri yaz
+      const writeBatch = db.batch();
+      competitors.forEach((c) => {
+        writeBatch.set(compCollection.doc(c.appId), c);
+      });
+      await writeBatch.commit();
+
+      logger.info("fetchMarketIntel done", {
+        gameType, country, competitorCount: competitors.length,
+      });
+
+      return {
+        success: true,
+        gameType,
+        country,
+        competitorCount: competitors.length,
+        competitors: competitors.slice(0, 30),
+      };
+    } catch (err) {
+      if (err instanceof HttpsError) throw err;
+      logger.error("fetchMarketIntel unhandled", {
+        message: err?.message, stack: err?.stack,
+      });
+      throw new HttpsError("internal", `Pazar verisi cekilemedi: ${err?.message || "hata"}`);
+    }
+  }
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
 // setAdminRole — callable, admin-only
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -564,8 +718,16 @@ async function callAnthropic(apiKey, systemPrompt, userPrompt) {
 
   if (!res.ok) {
     const errBody = await res.text();
-    logger.error("anthropic error", { status: res.status, body: errBody });
-    throw new HttpsError("internal", `Anthropic API ${res.status}`);
+    logger.error("anthropic error", { status: res.status, body: errBody, model: ANTHROPIC_MODEL });
+    let detail = `Anthropic API ${res.status}`;
+    try {
+      const parsed = JSON.parse(errBody);
+      if (parsed?.error?.message) detail += ` — ${parsed.error.message}`;
+    } catch (_) {
+      // body parse edilemedi, raw bir snippet ekle
+      if (errBody && errBody.length < 200) detail += ` — ${errBody.slice(0, 200)}`;
+    }
+    throw new HttpsError("internal", detail);
   }
 
   const data = await res.json();
