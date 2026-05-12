@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Altare Discover · Bedava Pazar Keşfi + AI Fikirleri</title>
+    <meta name="description"
+        content="Altare AI ile Google Play Store'dan canlı rakip oyun analizleri ve yapay zeka önerileri. Ücretsiz.">
+    <meta property="og:title" content="Altare Discover — Bedava Mobil Oyun Pazar Keşfi">
+    <meta property="og:description" content="Rakip oyunları gör, canlı yorum analizi, AI farklılaşma önerileri. Ücretsiz.">
+    <meta property="og:type" content="website">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0a0c;
+            --bg-elev: #14151a;
+            --border: rgba(255, 255, 255, 0.08);
+            --text: #ffffff;
+            --text-dim: #a8aebb;
+            --muted: #6b7280;
+            --accent: #fbbf24;
+            --accent-2: #f97316;
+            --success: #5dd9a0;
+            --danger: #ff6262;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            line-height: 1.5;
+            min-height: 100vh;
+        }
+
+        /* Navbar */
+        nav {
+            position: fixed;
+            top: 0; left: 0; width: 100%;
+            z-index: 100;
+            padding: 18px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(10, 10, 12, 0.85);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border);
+        }
+        .nav-logo {
+            font-weight: 800;
+            font-size: 1.2rem;
+            letter-spacing: 1px;
+            text-decoration: none;
+            color: var(--text);
+        }
+        .nav-logo .accent { background: linear-gradient(135deg, #fbbf24, #f97316); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .nav-links { display: flex; gap: 28px; align-items: center; }
+        .nav-links a {
+            color: var(--text-dim);
+            text-decoration: none;
+            font-size: 0.92rem;
+            transition: color 0.15s;
+        }
+        .nav-links a:hover { color: var(--text); }
+        .nav-cta {
+            background: linear-gradient(135deg, #fbbf24, #f97316);
+            color: #0a0a0c !important;
+            padding: 8px 18px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.88rem !important;
+        }
+
+        /* Hero */
+        .hero {
+            padding: 130px 32px 60px;
+            text-align: center;
+            max-width: 980px;
+            margin: 0 auto;
+        }
+        .hero-eyebrow {
+            display: inline-block;
+            font-size: 0.78rem;
+            font-weight: 600;
+            letter-spacing: 1.6px;
+            color: var(--accent);
+            text-transform: uppercase;
+            padding: 6px 14px;
+            background: rgba(251, 191, 36, 0.08);
+            border: 1px solid rgba(251, 191, 36, 0.22);
+            border-radius: 999px;
+            margin-bottom: 22px;
+        }
+        .hero h1 {
+            font-size: clamp(2rem, 5vw, 3.4rem);
+            font-weight: 800;
+            line-height: 1.15;
+            letter-spacing: -1px;
+            margin-bottom: 18px;
+        }
+        .hero h1 .grad { background: linear-gradient(135deg, #fbbf24, #f97316); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .hero p {
+            font-size: clamp(1rem, 1.4vw, 1.15rem);
+            color: var(--text-dim);
+            margin-bottom: 28px;
+            max-width: 720px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        /* Filters */
+        .filters {
+            max-width: 1100px;
+            margin: 0 auto 24px;
+            padding: 0 24px;
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .filters select, .filters button {
+            padding: 11px 16px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: var(--bg-elev);
+            color: var(--text);
+            font-family: inherit;
+            font-size: 0.92rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: border-color 0.15s;
+        }
+        .filters select:hover, .filters button:hover { border-color: rgba(255, 255, 255, 0.18); }
+        .filters .primary-btn {
+            background: linear-gradient(135deg, #fbbf24, #f97316);
+            color: #0a0a0c;
+            font-weight: 700;
+            border: none;
+        }
+        .filters .primary-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* Status */
+        .status {
+            text-align: center;
+            color: var(--muted);
+            font-size: 0.88rem;
+            padding: 10px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .status.error { color: var(--danger); }
+        .status.success { color: var(--success); }
+
+        /* Grid */
+        .grid {
+            max-width: 1280px;
+            margin: 30px auto 80px;
+            padding: 0 24px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 18px;
+        }
+        .card {
+            background: var(--bg-elev);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 18px;
+            cursor: pointer;
+            transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+        }
+        .card:hover {
+            transform: translateY(-3px);
+            border-color: rgba(251, 191, 36, 0.32);
+            box-shadow: 0 12px 30px rgba(0,0,0,0.5);
+        }
+        .card-head { display: flex; gap: 14px; align-items: center; margin-bottom: 12px; }
+        .card-icon {
+            width: 56px; height: 56px;
+            border-radius: 12px;
+            background: var(--bg);
+            flex-shrink: 0;
+        }
+        .card-title-block { flex: 1; min-width: 0; }
+        .card-title {
+            font-weight: 700;
+            font-size: 1rem;
+            margin-bottom: 3px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .card-dev {
+            font-size: 0.78rem;
+            color: var(--muted);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .card-stats {
+            display: flex;
+            gap: 14px;
+            font-size: 0.82rem;
+            color: var(--text-dim);
+            padding-top: 12px;
+            border-top: 1px solid var(--border);
+        }
+        .card-stats .stat strong { color: var(--text); font-family: 'JetBrains Mono', monospace; }
+        .card-tags { margin-top: 10px; display: flex; gap: 6px; flex-wrap: wrap; }
+        .tag {
+            font-size: 0.7rem;
+            padding: 3px 9px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+        }
+        .tag.ad { color: #93c5fd; border-color: rgba(147, 197, 253, 0.3); }
+        .tag.iap { color: #fbbf24; border-color: rgba(251, 191, 36, 0.3); }
+        .tag.free { color: var(--success); border-color: rgba(93, 217, 160, 0.3); }
+
+        .empty-grid {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--muted);
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.78);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 24px;
+        }
+        .modal {
+            background: var(--bg-elev);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            max-width: 720px;
+            width: 100%;
+            max-height: 88vh;
+            overflow-y: auto;
+            padding: 28px;
+            position: relative;
+        }
+        .modal-close {
+            position: absolute;
+            top: 16px; right: 16px;
+            background: rgba(255,255,255,0.06);
+            border: none;
+            color: var(--text);
+            width: 32px; height: 32px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.1rem;
+        }
+        .modal h2 { margin-bottom: 10px; font-size: 1.4rem; }
+        .modal .game-meta { color: var(--text-dim); font-size: 0.92rem; margin-bottom: 18px; }
+
+        .insight-box {
+            background: linear-gradient(135deg, rgba(251, 191, 36, 0.06), rgba(220, 70, 70, 0.04));
+            border: 1px solid rgba(251, 191, 36, 0.28);
+            border-left: 4px solid #fbbf24;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 18px 0;
+        }
+        .insight-eyebrow {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: #fbbf24;
+            text-transform: uppercase;
+            letter-spacing: 1.4px;
+            margin-bottom: 10px;
+        }
+        .insight-headline { font-size: 1.18rem; font-weight: 700; margin-bottom: 8px; }
+        .insight-value { color: var(--text-dim); font-size: 0.94rem; margin-bottom: 14px; }
+
+        .insight-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            margin-top: 14px;
+        }
+        .insight-block {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid var(--border);
+            padding: 12px;
+            border-radius: 10px;
+        }
+        .insight-block h4 {
+            font-size: 0.76rem;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 8px;
+            letter-spacing: 1px;
+        }
+        .insight-block ul { padding-left: 18px; font-size: 0.86rem; color: var(--text-dim); }
+        .insight-block ul li { margin-bottom: 5px; }
+
+        .suggestion {
+            background: rgba(0,0,0,0.32);
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--accent);
+            border-radius: 10px;
+            padding: 14px 16px;
+            margin-bottom: 10px;
+        }
+        .suggestion .s-title { font-weight: 600; margin-bottom: 6px; font-size: 1rem; }
+        .suggestion .s-rationale { font-size: 0.86rem; color: var(--text-dim); margin-bottom: 6px; }
+        .suggestion .s-diff { font-size: 0.82rem; color: var(--success); font-style: italic; }
+
+        .cta-block {
+            margin-top: 18px;
+            padding: 18px;
+            background: linear-gradient(135deg, rgba(251,191,36,0.08), rgba(249,115,22,0.04));
+            border: 1px solid rgba(251,191,36,0.22);
+            border-radius: 12px;
+            text-align: center;
+        }
+        .cta-block .cta-btn {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 11px 24px;
+            background: linear-gradient(135deg, #fbbf24, #f97316);
+            color: #0a0a0c;
+            font-weight: 700;
+            border-radius: 10px;
+            text-decoration: none;
+            transition: filter 0.15s;
+        }
+        .cta-block .cta-btn:hover { filter: brightness(1.08); }
+
+        .loading {
+            text-align: center;
+            color: var(--muted);
+            padding: 30px;
+        }
+        .spinner {
+            display: inline-block;
+            width: 24px; height: 24px;
+            border: 3px solid rgba(255,255,255,0.08);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .ai-btn {
+            margin-top: 14px;
+            width: 100%;
+            padding: 12px 18px;
+            background: linear-gradient(135deg, #fbbf24, #f97316);
+            color: #0a0a0c;
+            font-weight: 700;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            transition: filter 0.15s;
+        }
+        .ai-btn:hover { filter: brightness(1.08); }
+        .ai-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        @media (max-width: 720px) {
+            nav { padding: 14px 20px; }
+            .nav-links { gap: 14px; }
+            .nav-links a:not(.nav-cta) { display: none; }
+            .insight-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+
+<body>
+    <nav>
+        <a href="/index.html" class="nav-logo">ALT<span class="accent">ARE</span></a>
+        <div class="nav-links">
+            <a href="/index.html">Studio</a>
+            <a href="/discover.html">Discover</a>
+            <a href="/login.html" class="nav-cta">Panel'e Giriş</a>
+        </div>
+    </nav>
+
+    <section class="hero">
+        <div class="hero-eyebrow">🚀 Altare AI · Live Game Intelligence</div>
+        <h1>Pazar Analizini <span class="grad">Bedava Keşfet</span></h1>
+        <p>
+            Google Play Store'dan canlı rakip verisi, gerçek oyuncu yorumları ve
+            AI'ın senin için ürettiği <strong style="color: var(--text);">farklılaşma stratejileri</strong> —
+            ücretsiz, üyelik gerektirmez.
+        </p>
+    </section>
+
+    <div class="filters">
+        <select id="category">
+            <option value="puzzle">🧩 Puzzle / Casual</option>
+            <option value="match3">💎 Match-3</option>
+            <option value="midcore">⚔️ Mid-Core</option>
+            <option value="rpg">🛡️ RPG</option>
+            <option value="action">🎯 Action</option>
+            <option value="strategy">♟️ Strategy</option>
+            <option value="simulation">🏗️ Simulation</option>
+            <option value="casino">🎰 Casino</option>
+        </select>
+        <select id="country">
+            <option value="tr">🇹🇷 Türkiye</option>
+            <option value="us">🇺🇸 USA</option>
+            <option value="de">🇩🇪 Germany</option>
+            <option value="jp">🇯🇵 Japan</option>
+            <option value="gb">🇬🇧 UK</option>
+        </select>
+        <button id="searchBtn" class="primary-btn">↻ Rakipleri Bul</button>
+    </div>
+    <div class="status" id="status">Bir kategori seç ve "Rakipleri Bul" tıkla.</div>
+
+    <div class="grid" id="grid"></div>
+
+    <div id="modal-root"></div>
+
+    <script>
+        const ENDPOINTS = {
+            search: 'https://europe-west1-altare-312a1.cloudfunctions.net/publicMarketSearch',
+            insight: 'https://europe-west1-altare-312a1.cloudfunctions.net/publicGameInsight',
+        };
+
+        const $ = id => document.getElementById(id);
+        const statusEl = $('status');
+        const gridEl = $('grid');
+
+        $('searchBtn').addEventListener('click', runSearch);
+
+        async function runSearch() {
+            const category = $('category').value;
+            const country = $('country').value;
+            const btn = $('searchBtn');
+            btn.disabled = true;
+            statusEl.textContent = '';
+            statusEl.className = 'status';
+            gridEl.innerHTML = '<div class="loading"><span class="spinner"></span>Play Store\'dan canlı veri çekiliyor...</div>';
+
+            try {
+                const url = `${ENDPOINTS.search}?category=${encodeURIComponent(category)}&country=${encodeURIComponent(country)}&limit=12`;
+                const res = await fetch(url);
+                if (!res.ok) {
+                    const txt = await res.text();
+                    throw new Error(`${res.status}: ${txt.slice(0, 200)}`);
+                }
+                const data = await res.json();
+                renderResults(data);
+            } catch (err) {
+                statusEl.className = 'status error';
+                statusEl.textContent = 'Hata: ' + (err.message || err);
+                gridEl.innerHTML = '';
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        function renderResults(data) {
+            const results = data.results || [];
+            if (results.length === 0) {
+                gridEl.innerHTML = '<div class="empty-grid">Sonuç bulunamadı.</div>';
+                return;
+            }
+            const sourceLabel = data.source === 'cache' ? `📦 Önbellek (${data.ageMinutes}dk önce)` : '🔴 Canlı';
+            statusEl.className = 'status success';
+            statusEl.innerHTML = `${results.length} rakip oyun · ${sourceLabel} · ${$('country').value.toUpperCase()}`;
+
+            gridEl.innerHTML = results.map(g => cardHtml(g)).join('');
+            gridEl.querySelectorAll('.card').forEach(card => {
+                card.addEventListener('click', () => openGameDetail(card.dataset.appId, results));
+            });
+        }
+
+        function cardHtml(g) {
+            const score = g.score ? g.score.toFixed(1) : '—';
+            const installs = formatInstalls(g.minInstalls);
+            const tags = [
+                g.free ? '<span class="tag free">Free</span>' : '',
+                g.offersIAP ? '<span class="tag iap">IAP</span>' : '',
+                g.adSupported ? '<span class="tag ad">Ads</span>' : '',
+            ].filter(Boolean).join('');
+            return `
+                <div class="card" data-app-id="${escapeAttr(g.appId)}">
+                    <div class="card-head">
+                        <img src="${escapeAttr(g.icon || '')}" class="card-icon" alt="" loading="lazy">
+                        <div class="card-title-block">
+                            <div class="card-title">${escapeHtml(g.title)}</div>
+                            <div class="card-dev">${escapeHtml(g.developer || '—')}</div>
+                        </div>
+                    </div>
+                    <div class="card-stats">
+                        <div class="stat">⭐ <strong>${score}</strong></div>
+                        <div class="stat">📥 <strong>${installs}</strong></div>
+                        <div class="stat">📊 <strong>${formatInt(g.ratings)}</strong> oy</div>
+                    </div>
+                    <div class="card-tags">${tags}</div>
+                </div>
+            `;
+        }
+
+        function openGameDetail(appId, results) {
+            const game = results.find(r => r.appId === appId);
+            if (!game) return;
+
+            const root = $('modal-root');
+            const score = game.score ? game.score.toFixed(1) : '—';
+            root.innerHTML = `
+                <div class="modal-overlay" id="modal-overlay">
+                    <div class="modal">
+                        <button class="modal-close" id="modal-close">✕</button>
+                        <div style="display: flex; gap: 16px; margin-bottom: 18px;">
+                            <img src="${escapeAttr(game.icon || '')}" style="width: 72px; height: 72px; border-radius: 14px;" alt="">
+                            <div>
+                                <h2>${escapeHtml(game.title)}</h2>
+                                <div class="game-meta">${escapeHtml(game.developer || '')} · ⭐ ${score} · 📥 ${formatInstalls(game.minInstalls)}</div>
+                            </div>
+                        </div>
+                        ${game.summary ? `<p style="color: var(--text-dim); font-size: 0.92rem; margin-bottom: 16px;">${escapeHtml(game.summary)}</p>` : ''}
+
+                        <button class="ai-btn" id="ai-btn">🤖 AI Farklılaşma Önerileri Üret · Bedava</button>
+                        <div id="insight-container"></div>
+                    </div>
+                </div>
+            `;
+            $('modal-close').addEventListener('click', closeModal);
+            $('modal-overlay').addEventListener('click', e => {
+                if (e.target.id === 'modal-overlay') closeModal();
+            });
+            $('ai-btn').addEventListener('click', () => fetchInsight(appId));
+        }
+
+        function closeModal() {
+            $('modal-root').innerHTML = '';
+        }
+
+        async function fetchInsight(appId) {
+            const country = $('country').value;
+            const btn = $('ai-btn');
+            const container = $('insight-container');
+            btn.disabled = true;
+            btn.textContent = '🤖 AI analizi yapıyor (15-30sn)...';
+            container.innerHTML = '<div class="loading"><span class="spinner"></span>Claude rakibi inceliyor ve farklılaşma önerileri üretiyor...</div>';
+
+            try {
+                const res = await fetch(ENDPOINTS.insight, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ appId, country }),
+                });
+                if (!res.ok) {
+                    const txt = await res.text();
+                    throw new Error(`${res.status}: ${txt.slice(0, 200)}`);
+                }
+                const data = await res.json();
+                renderInsight(data, container);
+            } catch (err) {
+                container.innerHTML = `<div class="insight-box" style="border-color: rgba(220,60,60,0.3); border-left-color: var(--danger);">Hata: ${escapeHtml(err.message || String(err))}</div>`;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🤖 Tekrar Üret';
+            }
+        }
+
+        function renderInsight(data, container) {
+            const insight = data.insight || {};
+            const sourceLabel = data.source === 'cache' ? `📦 Önbellek (${data.ageMinutes}dk önce)` : '🔴 Yeni AI üretimi';
+
+            const suggestionsHtml = (insight.suggestions || []).map(s => `
+                <div class="suggestion">
+                    <div class="s-title">${escapeHtml(s.title || '')}</div>
+                    <div class="s-rationale">${escapeHtml(s.rationale || '')}</div>
+                    ${s.differentiation ? `<div class="s-diff">💡 ${escapeHtml(s.differentiation)}</div>` : ''}
+                </div>
+            `).join('');
+
+            container.innerHTML = `
+                <div class="insight-box">
+                    <div class="insight-eyebrow">🚨 Altare AI Tespiti · ${sourceLabel}</div>
+                    ${insight.headline ? `<div class="insight-headline">${escapeHtml(insight.headline)}</div>` : ''}
+                    ${insight.value_summary ? `<div class="insight-value">${escapeHtml(insight.value_summary)}</div>` : ''}
+
+                    <div class="insight-grid">
+                        <div class="insight-block">
+                            <h4>✓ Rakibin Güçlü Yönleri</h4>
+                            <ul>${(insight.strengths || []).map(s => `<li>${escapeHtml(s)}</li>`).join('')}</ul>
+                        </div>
+                        <div class="insight-block">
+                            <h4>✗ Rakibin Eksikleri</h4>
+                            <ul>${(insight.weaknesses || []).map(s => `<li>${escapeHtml(s)}</li>`).join('')}</ul>
+                        </div>
+                    </div>
+
+                    <h4 style="margin-top: 18px; margin-bottom: 10px; font-size: 0.76rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1.2px;">💡 3 Farklılaşma Önerisi</h4>
+                    ${suggestionsHtml}
+                </div>
+                <div class="cta-block">
+                    <strong>Detaylı pazar raporu mu istiyorsun?</strong>
+                    <p style="color: var(--text-dim); font-size: 0.88rem; margin-top: 6px;">Altare panelinde kendi oyununun canlı telemetrisini ve haftalık AI raporlarını al.</p>
+                    <a href="/login.html" class="cta-btn">Altare Panel'e Ücretsiz Kayıt Ol →</a>
+                </div>
+            `;
+        }
+
+        function formatInstalls(n) {
+            if (!n) return '—';
+            if (n >= 1e9) return (n / 1e9).toFixed(1).replace(/\.0$/, '') + 'B+';
+            if (n >= 1e6) return Math.floor(n / 1e6) + 'M+';
+            if (n >= 1e3) return Math.floor(n / 1e3) + 'K+';
+            return String(n);
+        }
+
+        function formatInt(n) {
+            if (!n) return '—';
+            return new Intl.NumberFormat('tr-TR').format(n);
+        }
+
+        function escapeHtml(s) {
+            if (s == null) return '';
+            return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+
+        function escapeAttr(s) { return escapeHtml(s); }
+    </script>
+</body>
+
+</html>

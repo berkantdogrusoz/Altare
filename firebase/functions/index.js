@@ -17,12 +17,13 @@
  *   - ANTHROPIC_API_KEY
  */
 
-const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { defineSecret } = require("firebase-functions/params");
 const { setGlobalOptions } = require("firebase-functions/v2");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
+const crypto = require("crypto");
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -834,3 +835,254 @@ async function deleteCollectionRecursive(collectionRef, batchSize) {
     if (snap.size < batchSize) return;
   }
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PUBLIC ENDPOINTS — Altare Discover (login gerektirmez)
+// ═══════════════════════════════════════════════════════════════════════════
+
+const PUBLIC_CORS_ORIGINS = [
+  "https://altarestudio.com.tr",
+  "https://www.altarestudio.com.tr",
+  "http://localhost:3000",
+  "http://localhost:5500",
+  "http://127.0.0.1:5500",
+  "http://localhost:8080",
+];
+
+const PUBLIC_CACHE_TTL_MS = 24 * 60 * 60 * 1000;       // 24h
+const PUBLIC_RATE_LIMIT_PER_HOUR = 30;                  // IP basina
+
+function applyCors(req, res) {
+  const origin = req.headers.origin || "";
+  const allowed = PUBLIC_CORS_ORIGINS.includes(origin) ? origin : PUBLIC_CORS_ORIGINS[0];
+  res.set("Access-Control-Allow-Origin", allowed);
+  res.set("Vary", "Origin");
+  res.set("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
+  res.set("Access-Control-Allow-Headers", "Content-Type");
+  if (req.method === "OPTIONS") {
+    res.status(204).send("");
+    return true;
+  }
+  return false;
+}
+
+function ipHash(req) {
+  const raw = req.headers["x-forwarded-for"] || req.headers["x-real-ip"] || req.ip || "unknown";
+  const first = String(raw).split(",")[0].trim();
+  return crypto.createHash("sha256").update(first).digest("hex").slice(0, 24);
+}
+
+async function checkAndIncrementRate(req, key) {
+  const hourKey = new Date().toISOString().slice(0, 13);
+  const docId = `${ipHash(req)}_${hourKey}_${key}`;
+  const ref = db.collection("public_rate_limit").doc(docId);
+  try {
+    const snap = await ref.get();
+    const current = snap.exists ? (snap.data().count || 0) : 0;
+    if (current >= PUBLIC_RATE_LIMIT_PER_HOUR) return false;
+    await ref.set({
+      count: current + 1,
+      hourKey,
+      expiresAt: admin.firestore.Timestamp.fromMillis(Date.now() + 2 * 60 * 60 * 1000),
+    }, { merge: true });
+    return true;
+  } catch (e) {
+    logger.warn("rate limit check failed", { err: e.message });
+    return true;
+  }
+}
+
+// ─── publicMarketSearch ─────────────────────────────────────────────────
+exports.publicMarketSearch = onRequest(
+  { timeoutSeconds: 80, memory: "512MiB", cors: false },
+  async (req, res) => {
+    if (applyCors(req, res)) return;
+    try {
+      const params = req.method === "POST" ? (req.body || {}) : (req.query || {});
+      const category = String(params.category || "puzzle").toLowerCase();
+      const country = String(params.country || "tr").toLowerCase();
+      const limit = Math.min(Math.max(parseInt(params.limit || "12", 10), 4), 24);
+
+      if (!(await checkAndIncrementRate(req, "search"))) {
+        res.status(429).json({ error: "rate_limit", message: "Saatlik istek limiti doldu. Kayit olunca limit kalkar." });
+        return;
+      }
+
+      const cacheKey = `${category}-${country}-${limit}`;
+      const cacheRef = db.collection("public_market_cache").doc(cacheKey);
+      const cacheSnap = await cacheRef.get();
+      if (cacheSnap.exists) {
+        const data = cacheSnap.data();
+        const age = Date.now() - (data.cachedAt?.toMillis() || 0);
+        if (age < PUBLIC_CACHE_TTL_MS && Array.isArray(data.results)) {
+          res.json({ source: "cache", ageMinutes: Math.round(age / 60000), category, country, limit, results: data.results });
+          return;
+        }
+      }
+
+      const playCategory = PLAY_STORE_CATEGORIES[category] || "GAME_PUZZLE";
+      const gplay = require("google-play-scraper");
+      const gpModule = gplay && gplay.default ? gplay.default : gplay;
+
+      const list = await gpModule.list({
+        category: playCategory,
+        collection: "TOP_FREE",
+        country,
+        num: limit,
+      });
+
+      const results = [];
+      for (const app of list) {
+        try {
+          const detail = await gpModule.app({ appId: app.appId, country });
+          results.push({
+            appId: detail.appId,
+            title: detail.title,
+            developer: detail.developer,
+            icon: detail.icon,
+            screenshots: (detail.screenshots || []).slice(0, 4),
+            score: detail.score,
+            ratings: detail.ratings,
+            installs: detail.installs,
+            minInstalls: detail.minInstalls,
+            free: detail.free,
+            adSupported: detail.adSupported,
+            offersIAP: detail.offersIAP,
+            inAppProductPrice: detail.inAppProductPrice,
+            genre: detail.genre,
+            summary: typeof detail.summary === "string" ? detail.summary.slice(0, 240) : "",
+            url: detail.url,
+          });
+        } catch (e) {
+          logger.warn("public detail failed", { appId: app.appId, err: e?.message });
+        }
+      }
+
+      await cacheRef.set({
+        category, country, limit,
+        results,
+        cachedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      res.json({ source: "live", category, country, limit, results });
+    } catch (err) {
+      logger.error("publicMarketSearch unhandled", { message: err?.message });
+      res.status(500).json({ error: "internal", message: err?.message || "hata" });
+    }
+  }
+);
+
+// ─── publicGameInsight ──────────────────────────────────────────────────
+const PUBLIC_INSIGHT_PROMPT = "Sen Altare AI Live Game Intelligence'in halka acik 'Pazar Kasif' rolusun.\n" +
+  "Sana bir mobil oyunun bilgileri ve top yorumlari verilir. Indie gelistirici icin 3 spesifik, veri-odakli farklilasma onerisi uretirsin.\n\n" +
+  "KATI KURALLAR\n" +
+  "- Asla genel tavsiye yok. Her oneri yorumdaki bir kalibi/sikayeti veya install trendini referans alir.\n" +
+  "- Tum metinler TR. JSON sema bozulmaz.\n" +
+  "- Sadece JSON dondur, once/sonra metin yazma.\n\n" +
+  "OUTPUT JSON\n" +
+  "{\n" +
+  "  \"headline\": string,\n" +
+  "  \"value_summary\": string,\n" +
+  "  \"strengths\": [string],\n" +
+  "  \"weaknesses\": [string],\n" +
+  "  \"suggestions\": [\n" +
+  "    { \"title\": string, \"rationale\": string, \"differentiation\": string }\n" +
+  "  ]\n" +
+  "}";
+
+exports.publicGameInsight = onRequest(
+  { timeoutSeconds: 90, memory: "512MiB", cors: false, secrets: [ANTHROPIC_API_KEY] },
+  async (req, res) => {
+    if (applyCors(req, res)) return;
+    try {
+      const params = req.method === "POST" ? (req.body || {}) : (req.query || {});
+      const appId = String(params.appId || "").trim();
+      const country = String(params.country || "tr").toLowerCase();
+      if (!appId) {
+        res.status(400).json({ error: "missing_appId" });
+        return;
+      }
+
+      if (!(await checkAndIncrementRate(req, "insight"))) {
+        res.status(429).json({ error: "rate_limit", message: "Saatlik AI insight limiti doldu." });
+        return;
+      }
+
+      const cacheRef = db.collection("public_game_insights").doc(`${appId}_${country}`);
+      const cacheSnap = await cacheRef.get();
+      if (cacheSnap.exists) {
+        const data = cacheSnap.data();
+        const age = Date.now() - (data.cachedAt?.toMillis() || 0);
+        if (age < PUBLIC_CACHE_TTL_MS && data.insight) {
+          res.json({
+            source: "cache",
+            ageMinutes: Math.round(age / 60000),
+            appId, country,
+            gameData: data.gameData,
+            insight: data.insight,
+          });
+          return;
+        }
+      }
+
+      const gplay = require("google-play-scraper");
+      const gpModule = gplay && gplay.default ? gplay.default : gplay;
+
+      const detail = await gpModule.app({ appId, country });
+      const reviewSnap = await gpModule.reviews({
+        appId, country,
+        sort: gpModule.sort?.HELPFULNESS || 2,
+        num: 8,
+      });
+      const reviews = (reviewSnap?.data || []).map((r) => ({
+        score: r.score,
+        text: typeof r.text === "string" ? r.text.slice(0, 280) : "",
+      }));
+
+      const userPromptParts = [
+        "OYUN: " + detail.title,
+        "Gelistirici: " + (detail.developer || "?"),
+        "Kategori: " + (detail.genre || "—"),
+        "Rating: " + (detail.score || "?") + " (" + (detail.ratings || 0) + " oy)",
+        "Indirme: " + (detail.installs || "?"),
+        "Monetizasyon: " + (detail.offersIAP ? "IAP " : "") + (detail.adSupported ? "Ads " : "") + (detail.free ? "Free" : "Paid"),
+        "Aciklama: " + (typeof detail.description === "string" ? detail.description.slice(0, 500) : ""),
+        "",
+        "EN COK YARDIMCI YORUMLAR:",
+        JSON.stringify(reviews, null, 2),
+        "",
+        "Yukaridaki gercek veriye dayanarak 3 farklilasma onerisi uret. Sadece JSON.",
+      ];
+
+      const aiJson = await callAnthropic(
+        ANTHROPIC_API_KEY.value(),
+        PUBLIC_INSIGHT_PROMPT,
+        userPromptParts.join("\n")
+      );
+
+      const gameData = {
+        title: detail.title,
+        developer: detail.developer,
+        score: detail.score,
+        ratings: detail.ratings,
+        installs: detail.installs,
+        icon: detail.icon,
+        url: detail.url,
+        genre: detail.genre,
+      };
+
+      await cacheRef.set({
+        appId, country,
+        title: detail.title,
+        gameData,
+        insight: aiJson,
+        cachedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      res.json({ source: "live", appId, country, gameData, insight: aiJson });
+    } catch (err) {
+      logger.error("publicGameInsight unhandled", { message: err?.message });
+      res.status(500).json({ error: "internal", message: err?.message || "hata" });
+    }
+  }
+);

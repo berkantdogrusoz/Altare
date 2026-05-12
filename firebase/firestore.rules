@@ -118,6 +118,18 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // ---------- Public Discover (login gerektirmez) ----------
+    // Cloud Functions (admin SDK) writes; clients NEVER write here directly.
+    match /public_market_cache/{cacheId} {
+      allow read, write: if false;     // sadece Cloud Functions yazar/okur
+    }
+    match /public_game_insights/{insightId} {
+      allow read, write: if false;
+    }
+    match /public_rate_limit/{rateId} {
+      allow read, write: if false;
+    }
+
     // ---------- Default deny ----------
     match /{document=**} {
       allow read, write: if false;
