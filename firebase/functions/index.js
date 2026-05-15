@@ -27,6 +27,11 @@ const crypto = require("crypto");
 
 admin.initializeApp();
 const db = admin.firestore();
+// HARD GUARANTEE: never throw "Cannot use undefined as a Firestore value".
+// google-play-scraper and external APIs frequently return undefined for
+// optional fields (inAppProductPrice, minInstalls, adSupported, ...).
+// Setting this once means every db.set/.add/.update silently drops undefineds.
+db.settings({ ignoreUndefinedProperties: true });
 
 setGlobalOptions({ region: "europe-west1", maxInstances: 10 });
 
