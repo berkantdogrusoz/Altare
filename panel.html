@@ -1967,13 +1967,33 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
                     showToast('AI raporu güncellendi · ' + ((res.data && res.data.eventCount) || 0) + ' event analiz edildi');
                 } catch (err) {
                     console.error('generateAIReport failed:', err);
-                    const msg = err && err.message ? err.message : 'Bilinmeyen hata';
-                    showError($('ai-report-container'), 'AI raporu üretilemedi: ' + msg);
+                    showError($('ai-report-container'), 'AI raporu üretilemedi: ' + formatCallableError(err));
                 } finally {
                     btn.disabled = false;
                     btn.textContent = original;
                 }
             });
+        }
+
+        function formatCallableError(err) {
+            if (!err) return 'Bilinmeyen hata';
+            const parts = [];
+            // Firebase callable: err.code = "functions/internal", err.message, err.details
+            const code = (err.code || '').replace(/^functions\//, '');
+            const msg = err.message && err.message !== code ? err.message : '';
+            const details = err.details && typeof err.details === 'object' ? err.details : null;
+            if (msg) {
+                parts.push(msg);
+            } else if (code) {
+                parts.push(code);
+            }
+            if (details && details.detail && !msg.includes(details.detail)) {
+                parts.push('(' + details.detail + ')');
+            }
+            if (details && details.httpStatus) {
+                parts.push('[HTTP ' + details.httpStatus + ']');
+            }
+            return parts.join(' ') || 'Bilinmeyen hata';
         }
 
         function showError(container, message) {

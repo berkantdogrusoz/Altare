@@ -48,6 +48,35 @@ function assertAdmin(request) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Firestore safety: strip `undefined` recursively so .set()/.add() never throws
+// "Cannot use undefined as a Firestore value". Arrays preserve indices, objects
+// drop the key entirely. Functions / symbols are dropped too.
+// ─────────────────────────────────────────────────────────────────────────────
+function sanitizeForFirestore(value) {
+  if (value === undefined) return null;
+  if (value === null) return null;
+  const t = typeof value;
+  if (t === "function" || t === "symbol") return null;
+  if (t !== "object") return value;
+  if (value instanceof Date) return value;
+  // Firestore native types (Timestamp, GeoPoint, DocumentReference, FieldValue)
+  // expose internal `_delegate`/`_methodName` etc. Treat any object that isn't
+  // a plain object/array as opaque and pass it through.
+  if (Array.isArray(value)) {
+    return value.map(sanitizeForFirestore);
+  }
+  const proto = Object.getPrototypeOf(value);
+  const isPlain = proto === Object.prototype || proto === null;
+  if (!isPlain) return value;
+  const out = {};
+  for (const [k, v] of Object.entries(value)) {
+    if (v === undefined) continue;
+    out[k] = sanitizeForFirestore(v);
+  }
+  return out;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // AI prompts
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -192,9 +221,11 @@ exports.generateAIReport = onCall(
         stack: err?.stack,
         name: err?.name,
       });
+      const detailMsg = (err && err.message) ? err.message : "bilinmeyen hata";
       throw new HttpsError(
         "internal",
-        `AI raporu uretilemedi: ${err?.message || "bilinmeyen hata"}`
+        `AI raporu uretilemedi: ${detailMsg}`,
+        { reason: err?.name || "Error", detail: detailMsg }
       );
     }
   }
@@ -568,7 +599,7 @@ exports.fetchMarketIntel = onCall(
       // Yeni rakipleri yaz
       const writeBatch = db.batch();
       competitors.forEach((c) => {
-        writeBatch.set(compCollection.doc(c.appId), c);
+        writeBatch.set(compCollection.doc(c.appId), sanitizeForFirestore(c));
       });
       await writeBatch.commit();
 
@@ -586,9 +617,13 @@ exports.fetchMarketIntel = onCall(
     } catch (err) {
       if (err instanceof HttpsError) throw err;
       logger.error("fetchMarketIntel unhandled", {
-        message: err?.message, stack: err?.stack,
+        message: err?.message, stack: err?.stack, name: err?.name,
       });
-      throw new HttpsError("internal", `Pazar verisi cekilemedi: ${err?.message || "hata"}`);
+      throw new HttpsError(
+        "internal",
+        `Pazar verisi cekilemedi: ${err?.message || "hata"}`,
+        { reason: err?.name || "Error", detail: err?.message || "" }
+      );
     }
   }
 );
@@ -742,20 +777,37 @@ function buildUserPrompt(gameId, gameName, timeRange, summary) {
 }
 
 async function callAnthropic(apiKey, systemPrompt, userPrompt) {
-  const res = await fetch(ANTHROPIC_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model: ANTHROPIC_MODEL,
-      max_tokens: 4096,
-      system: systemPrompt,
-      messages: [{ role: "user", content: userPrompt }],
-    }),
-  });
+  if (!apiKey || typeof apiKey !== "string" || apiKey.length < 20) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Anthropic API key Cloud Functions secret'inde tanimli degil. " +
+      "`firebase functions:secrets:set ANTHROPIC_API_KEY` ile ekleyip functions'i redeploy et."
+    );
+  }
+
+  let res;
+  try {
+    res = await fetch(ANTHROPIC_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: ANTHROPIC_MODEL,
+        max_tokens: 4096,
+        system: systemPrompt,
+        messages: [{ role: "user", content: userPrompt }],
+      }),
+    });
+  } catch (netErr) {
+    logger.error("anthropic network error", { message: netErr?.message, name: netErr?.name });
+    throw new HttpsError(
+      "unavailable",
+      `Anthropic'e baglanilamadi: ${netErr?.message || "ag hatasi"}`
+    );
+  }
 
   if (!res.ok) {
     const errBody = await res.text();
@@ -765,10 +817,17 @@ async function callAnthropic(apiKey, systemPrompt, userPrompt) {
       const parsed = JSON.parse(errBody);
       if (parsed?.error?.message) detail += ` — ${parsed.error.message}`;
     } catch (_) {
-      // body parse edilemedi, raw bir snippet ekle
       if (errBody && errBody.length < 200) detail += ` — ${errBody.slice(0, 200)}`;
     }
-    throw new HttpsError("internal", detail);
+    // 401/403 → key sorunu, 404 → model not found, 429 → rate limit
+    const code = res.status === 401 || res.status === 403
+      ? "permission-denied"
+      : res.status === 404
+        ? "failed-precondition"
+        : res.status === 429
+          ? "resource-exhausted"
+          : "internal";
+    throw new HttpsError(code, detail, { httpStatus: res.status, model: ANTHROPIC_MODEL });
   }
 
   const data = await res.json();
@@ -958,15 +1017,17 @@ exports.publicMarketSearch = onRequest(
         }
       }
 
+      const cleanResults = sanitizeForFirestore(results);
+
       await cacheRef.set({
         category, country, limit,
-        results,
+        results: cleanResults,
         cachedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
 
-      res.json({ source: "live", category, country, limit, results });
+      res.json({ source: "live", category, country, limit, results: cleanResults });
     } catch (err) {
-      logger.error("publicMarketSearch unhandled", { message: err?.message });
+      logger.error("publicMarketSearch unhandled", { message: err?.message, stack: err?.stack });
       res.status(500).json({ error: "internal", message: err?.message || "hata" });
     }
   }
@@ -1071,13 +1132,13 @@ exports.publicGameInsight = onRequest(
         genre: detail.genre,
       };
 
-      await cacheRef.set({
+      await cacheRef.set(sanitizeForFirestore({
         appId, country,
         title: detail.title,
         gameData,
         insight: aiJson,
         cachedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
+      }));
 
       res.json({ source: "live", appId, country, gameData, insight: aiJson });
     } catch (err) {
