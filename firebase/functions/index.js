@@ -151,6 +151,80 @@ OUTPUT JSON SHAPE (kati)
 }`;
 
 // ─────────────────────────────────────────────────────────────────────────────
+// GAME_CONCEPT_SYSTEM_PROMPT — yeni oyun fikri uretici (Market Analyst rolu)
+// Gercek Play Store rakip + yorum verisinden, indie/midcore studio icin
+// 3 spesifik oyun konsepti uretir. Mekanik, ilerleyiş, monetizasyon, risk dahil.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const GAME_CONCEPT_SYSTEM_PROMPT = `Sen Altare AI'in Market Strategist rolusun.
+Gercek Play Store rakip verisi (top oyunlar, install/rating, en yardimci yorumlar)
+ve studio'nun mevcut oyun portfoyu sana verilir. Cikti olarak indie/midcore stuido
+icin **3 yeni oyun konsepti** uretirsin.
+
+KATI KURALLAR
+- Asla genel tavsiye yok. Her konsept rakip yorumlarindaki bir sikayet kalibina
+  VEYA rating/install trendine ozel olarak referans verir (orn:
+  "Block Blast yorumlarinin %X'i reklam fazlasindan sikayet -> reduced-ad mode").
+- Generik "battle royale yap" gibi cikti yasak. Pazardaki bos koltuga oturt.
+- Studio'nun mevcut engine'leri reuse edilebilirse soyle (effort dusurur).
+- Tum metinler Turkce. JSON anahtarlari Ingilizce sabit.
+- SADECE JSON dondur. Once/sonra metin, markdown fence yazma.
+
+ANALIZ AKISI (zihninde)
+1. Top rakiplerin install/rating dagilimina bak -> kategori doygun mu, fragmente mi?
+2. En cok yardimci alan yorumlardaki tekrarlayan sikayet kaliplarini cikar
+   (reklam, zorluk, monetizasyon, tema, performans, tekrar, vs.).
+3. Bu sikayetlerin **her biri bir farklilasma firsati**.
+4. Studio engine'lerini dusun: reuse edilebilen mekanikler dusuk efor.
+5. 3 konsept: 1 high-impact + risky, 1 medium-impact + safe reuse,
+   1 low-effort hizli launch.
+
+OUTPUT JSON SHAPE (kati)
+{
+  "market_overview": {
+    "category": string,
+    "country":  string,
+    "saturation": "low"|"medium"|"high"|"saturated",
+    "saturation_note": string,
+    "top_complaint_patterns": [
+      { "pattern": string, "frequency_estimate": string, "sample_quote": string }
+    ],
+    "top_trend_signals": [
+      { "signal": string, "evidence": string }
+    ]
+  },
+  "concepts": [
+    {
+      "title":       string,
+      "tagline":     string,
+      "genre":       string,
+      "hook":        string,
+      "core_loop":   string,
+      "mechanics":   [string],
+      "progression": string,
+      "monetization": {
+        "primary":   string,
+        "secondary": string,
+        "rationale": string
+      },
+      "differentiation":      string,
+      "market_signal":        string,
+      "competitor_benchmark": [
+        { "app": string, "rating": number, "install": string, "lesson": string }
+      ],
+      "target_audience":   string,
+      "effort_estimate":   string,
+      "engine_reuse":      string,
+      "risk":              string,
+      "impact":            "high"|"medium"|"low",
+      "effort":            "low"|"medium"|"high",
+      "confidence":        "low"|"medium"|"high"
+    }
+  ],
+  "next_steps": [string]
+}`;
+
+// ─────────────────────────────────────────────────────────────────────────────
 // generateAIReport — callable
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -627,6 +701,201 @@ exports.fetchMarketIntel = onCall(
       throw new HttpsError(
         "internal",
         `Pazar verisi cekilemedi: ${err?.message || "hata"}`,
+        { reason: err?.name || "Error", detail: err?.message || "" }
+      );
+    }
+  }
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// generateGameConcepts — callable, admin-only
+// Market scraper'in topladigi rakip + yorum verisinden 3 yeni oyun konsepti
+// uretir. Studio'nun mevcut oyunlarini da context'e koyar (engine reuse).
+// Sonuc Firestore'da game_concepts/{studioId}/concepts altina yazilir.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const CONCEPT_CACHE_TTL_MS = 3 * 24 * 3600 * 1000; // 3 gun
+
+exports.generateGameConcepts = onCall(
+  { secrets: [ANTHROPIC_API_KEY], timeoutSeconds: 120, memory: "512MiB" },
+  async (request) => {
+    try {
+      assertAdmin(request);
+
+      const {
+        gameType = "puzzle",
+        country = "tr",
+        forceRefresh = false,
+      } = request.data || {};
+
+      const uid = request.auth.uid;
+      const collectionId = `${gameType}-${country}`;
+
+      logger.info("generateGameConcepts start", { uid, gameType, country, forceRefresh });
+
+      // 1) Cache kontrol (3 gun TTL — pazar verisi gunluk degismez)
+      const cacheRef = db.collection("game_concepts").doc(`${uid}_${collectionId}`);
+      if (!forceRefresh) {
+        const cacheSnap = await cacheRef.get();
+        if (cacheSnap.exists) {
+          const data = cacheSnap.data();
+          const age = Date.now() - (data.cachedAt?.toMillis?.() || 0);
+          if (age < CONCEPT_CACHE_TTL_MS && data.concepts) {
+            logger.info("concept cache hit", { uid, ageHours: Math.round(age / 3600e3) });
+            return {
+              success: true,
+              source: "cache",
+              ageHours: Math.round(age / 3600e3),
+              gameType,
+              country,
+              report: data.concepts,
+              competitorCount: data.competitorCount || 0,
+            };
+          }
+        }
+      }
+
+      // 2) Market verisini cek (admin daha once fetchMarketIntel cagirdi mi?)
+      const intelRef = db.collection("market_intel").doc(collectionId);
+      const intelSnap = await intelRef.get();
+      if (!intelSnap.exists) {
+        throw new HttpsError(
+          "failed-precondition",
+          `Bu kategori (${gameType}/${country}) icin pazar verisi yok. Once Pazar Analizi sekmesinden "Yenile" basip rakipleri cek.`
+        );
+      }
+      const compSnap = await intelRef
+        .collection("competitors")
+        .orderBy("minInstalls", "desc")
+        .limit(10)
+        .get();
+      const competitors = compSnap.docs.map((d) => d.data());
+      if (competitors.length === 0) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Pazar verisi bos. Once Pazar Analizi sekmesinden rakipleri cek."
+        );
+      }
+
+      // 3) Studio context — kullanicinin mevcut oyunlari (engine reuse icin)
+      const studioGamesSnap = await db
+        .collection("games")
+        .where("developerId", "==", uid)
+        .get();
+      const studioGames = studioGamesSnap.docs.map((d) => {
+        const g = d.data();
+        return {
+          gameId: g.gameId || d.id,
+          gameName: g.gameName || d.id,
+          gameType: g.gameType || "unknown",
+          platforms: g.platforms || [],
+        };
+      });
+
+      // Admin ise tum oyunlari da gor (Royal Dreams gibi seed oyunlar dahil)
+      if (request.auth.token.admin === true && studioGames.length === 0) {
+        const allSnap = await db.collection("games").limit(20).get();
+        allSnap.docs.forEach((d) => {
+          const g = d.data();
+          studioGames.push({
+            gameId: g.gameId || d.id,
+            gameName: g.gameName || d.id,
+            gameType: g.gameType || "unknown",
+            platforms: g.platforms || [],
+          });
+        });
+      }
+
+      // 4) Rakip ozetini kompakt formata cek (Claude'a fazla token yedirme)
+      const compactCompetitors = competitors.map((c) => ({
+        title: c.title,
+        developer: c.developer,
+        genre: c.genre,
+        rating: c.score,
+        ratingsCount: c.ratings,
+        installs: c.installs,
+        minInstalls: c.minInstalls,
+        free: c.free,
+        adSupported: c.adSupported,
+        offersIAP: c.offersIAP,
+        topReviews: Array.isArray(c.topReviews)
+          ? c.topReviews.slice(0, 5).map((r) => ({
+              score: r.score,
+              text: typeof r.text === "string" ? r.text.slice(0, 220) : "",
+            }))
+          : [],
+      }));
+
+      const userPrompt = [
+        "KATEGORI: " + gameType,
+        "ULKE: " + country,
+        "",
+        "STUDIO MEVCUT OYUNLARI (engine reuse degerlendirmesi icin):",
+        JSON.stringify(studioGames, null, 2),
+        "",
+        "PAZAR RAKIPLERI (top " + compactCompetitors.length + " — install/rating/yorum):",
+        JSON.stringify(compactCompetitors, null, 2),
+        "",
+        "Yukaridaki GERCEK PLAY STORE verisine dayanarak 3 oyun konsepti uret.",
+        "Her konseptin market_signal alani somut bir rakip/yorum referansi vermek zorunda.",
+        "Sadece JSON dondur.",
+      ].join("\n");
+
+      logger.info("generateGameConcepts calling anthropic", {
+        uid, gameType, competitorCount: compactCompetitors.length, studioGameCount: studioGames.length,
+      });
+
+      const aiJson = await callAnthropic(
+        ANTHROPIC_API_KEY.value(),
+        GAME_CONCEPT_SYSTEM_PROMPT,
+        userPrompt
+      );
+
+      logger.info("generateGameConcepts anthropic ok", {
+        uid, conceptCount: Array.isArray(aiJson?.concepts) ? aiJson.concepts.length : 0,
+      });
+
+      // 5) Firestore'a kaydet (cache + history)
+      await cacheRef.set(sanitizeForFirestore({
+        uid,
+        gameType,
+        country,
+        competitorCount: compactCompetitors.length,
+        studioGameCount: studioGames.length,
+        concepts: aiJson,
+        provider: "anthropic",
+        model: ANTHROPIC_MODEL,
+        cachedAt: admin.firestore.FieldValue.serverTimestamp(),
+      }));
+
+      // Tarihsel kayit da tut (her uretim ayri dokuman)
+      await db.collection("game_concepts").doc(`${uid}_${collectionId}`)
+        .collection("history").add(sanitizeForFirestore({
+          gameType, country,
+          concepts: aiJson,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        }));
+
+      return {
+        success: true,
+        source: "live",
+        gameType,
+        country,
+        competitorCount: compactCompetitors.length,
+        studioGameCount: studioGames.length,
+        report: aiJson,
+      };
+    } catch (err) {
+      if (err instanceof HttpsError) {
+        logger.warn("generateGameConcepts HttpsError", { code: err.code, message: err.message });
+        throw err;
+      }
+      logger.error("generateGameConcepts unhandled", {
+        message: err?.message, stack: err?.stack, name: err?.name,
+      });
+      throw new HttpsError(
+        "internal",
+        `Oyun konsepti uretilemedi: ${err?.message || "hata"}`,
         { reason: err?.name || "Error", detail: err?.message || "" }
       );
     }

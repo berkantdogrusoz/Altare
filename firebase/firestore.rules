@@ -112,6 +112,21 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // ---------- Game concepts (AI Market Strategist cache) ----------
+    // Cloud Functions yazar; kullanici sadece kendi konseptlerini okur.
+    // Doc id formati: {uid}_{gameType-country} — owner uid prefix'i ile esles.
+    match /game_concepts/{conceptId} {
+      allow read: if isAdmin()
+        || (isSignedIn() && conceptId.matches(request.auth.uid + '_.*'));
+      allow write: if false;
+
+      match /history/{historyId} {
+        allow read: if isAdmin()
+          || (isSignedIn() && conceptId.matches(request.auth.uid + '_.*'));
+        allow write: if false;
+      }
+    }
+
     // ---------- Users (admin allowlist mirror) ----------
     match /users/{uid} {
       allow read: if isSignedIn() && (request.auth.uid == uid || isAdmin());

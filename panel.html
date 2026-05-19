@@ -1428,23 +1428,36 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
 
                 <section class="tab-view" data-tab="roadmap">
                     <div class="info-banner">
-                        Roadmap önerileri Market Analyst rolüyle birlikte çalışıyor; market scraper bağlandığında AI gerçek pazardan üretmeye başlayacak.
+                        Gerçek Play Store rakip + yorum verisinden AI yeni oyun konseptleri üretir. Önce <strong>Pazar Analizi</strong> sekmesinden ilgili kategori için rakipleri çek, sonra burada <strong>"Konsept Üret"</strong> bas.
                     </div>
                     <div class="section-block">
                         <div class="section-head">
-                            <h3>Sıradaki Proje Önerileri · AI Strateji</h3>
-                            <span class="head-meta">Cross-game + market analiz</span>
+                            <h3>Sıradaki Proje Önerileri · AI Market Strategist</h3>
+                            <span class="head-meta">
+                                <select id="concept-gametype" style="background: rgba(0,0,0,0.3); color: var(--fg, #fff); border: 1px solid var(--border); padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; margin-right: 6px;">
+                                    <option value="puzzle">Puzzle</option>
+                                    <option value="match3">Match-3</option>
+                                    <option value="midcore">Mid-Core</option>
+                                    <option value="rpg">RPG</option>
+                                    <option value="action">Action</option>
+                                    <option value="strategy">Strategy</option>
+                                    <option value="simulation">Simulation</option>
+                                    <option value="casino">Casino</option>
+                                </select>
+                                <select id="concept-country" style="background: rgba(0,0,0,0.3); color: var(--fg, #fff); border: 1px solid var(--border); padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; margin-right: 6px;">
+                                    <option value="tr">Türkiye</option>
+                                    <option value="us">USA</option>
+                                    <option value="de">Germany</option>
+                                    <option value="jp">Japan</option>
+                                </select>
+                                <button class="primary-btn" id="concept-generate-btn" style="padding: 5px 12px; font-size: 0.8rem;">⚡ Konsept Üret</button>
+                            </span>
                         </div>
                         <div class="section-content">
-                            <div class="ai-report">
-                                <h4>Öneri 1 · Cozy Match-3 + Decoration Hibrit <span class="badge high" style="margin-left: 8px;">High Potential</span></h4>
-                                <p>Kategori trend sinyalleri "cozy" (+%34) ve "decoration" (+%28) temalarının yorumlarda yükseldiğini gösteriyor. Royal Match'in formülünü takip et ama farklı tema (köy/cottage). Royal Dreams'in match-3 kodunu reuse edebilir.</p>
-                                <div class="quote">Tahmini development: 4-5 ay · Market window: Q3 2026</div>
-                                <h4>Öneri 2 · Crimson Scar Live-Ops <span class="badge medium" style="margin-left: 8px;">Medium</span></h4>
-                                <p>Crimson Scar mid-core dungeon yapısı; mid-core kategoride "PvP arena" yorumlarda parlıyor. Mevcut dungeon engine'in üstüne haftalık event arenası eklenebilir. Düşük efor, retention etkisi yüksek.</p>
-                                <h4>Öneri 3 · Block Puzzle Re-Theme <span class="badge low" style="margin-left: 8px;">Low Effort</span></h4>
-                                <p>Block Blast! yorumlarında "tema sıkıcı" şikayeti (%14). Mevcut block puzzle engine'imiz üzerine 3 farklı tema (woody, neon, ocean) hızlı re-theme yapılabilir.</p>
-                            </div>
+                            <div id="concept-status" style="font-size: 0.84rem; color: var(--muted); margin-bottom: 12px;"></div>
+                            <div id="concept-market-overview"></div>
+                            <div id="concept-list"></div>
+                            <div id="concept-next-steps"></div>
                         </div>
                     </div>
                 </section>
@@ -2036,6 +2049,7 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
 
     <script type="module" src="/js/games.js"></script>
     <script type="module" src="/js/market.js"></script>
+    <script type="module" src="/js/concepts.js"></script>
 
 </body>
 
