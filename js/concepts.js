@@ -11,7 +11,8 @@ import { db, functions, auth } from "/js/firebase-config.js";
 
 document.addEventListener("DOMContentLoaded", () => {
     const btn = document.getElementById("concept-generate-btn");
-    if (btn) btn.addEventListener("click", () => handleGenerate(false));
+    // Buton her zaman taze uretim ister; cache sadece sekme acilirken gosterilir.
+    if (btn) btn.addEventListener("click", () => handleGenerate(true));
 
     // Sekme acildiginda cache'i hemen goster
     document.querySelectorAll(".nav-tab").forEach((tab) => {
@@ -90,6 +91,23 @@ function renderConcepts(data) {
     const overviewEl = document.getElementById("concept-market-overview");
     const listEl = document.getElementById("concept-list");
     const nextEl = document.getElementById("concept-next-steps");
+
+    // Claude JSON parse fail durumunda { raw: "..." } gelir — kullaniciya goster
+    if (report.raw && !report.concepts) {
+        if (overviewEl) overviewEl.innerHTML = "";
+        if (nextEl) nextEl.innerHTML = "";
+        if (listEl) {
+            listEl.innerHTML = `
+                <div class="ai-report" style="border-left:3px solid #fbbf24;">
+                    <h4>⚠️ AI cevabı JSON formatında değil</h4>
+                    <p style="color:var(--muted);">Claude beklenen şemayı döndürmedi (büyük ihtimalle token limitinde kesildi veya markdown sardı). Aşağıda ham yanıt:</p>
+                    <pre style="background:rgba(0,0,0,0.4);padding:12px;border-radius:6px;font-size:0.78rem;overflow:auto;max-height:400px;white-space:pre-wrap;">${escapeHtml(report.raw)}</pre>
+                    <p style="font-size:0.82rem;margin-top:10px;">"⚡ Konsept Üret" butonuna bir daha bas — yeni deneme yapılır.</p>
+                </div>
+            `;
+        }
+        return;
+    }
 
     if (overviewEl) overviewEl.innerHTML = renderOverview(report.market_overview);
     if (listEl) listEl.innerHTML = renderConceptList(report.concepts || []);

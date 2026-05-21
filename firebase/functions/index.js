@@ -734,13 +734,17 @@ exports.generateGameConcepts = onCall(
       logger.info("generateGameConcepts start", { uid, gameType, country, forceRefresh });
 
       // 1) Cache kontrol (3 gun TTL — pazar verisi gunluk degismez)
+      // Cache'te concepts dizisi YOKSA (eski/bozuk yazim) atla, live uretim yap.
       const cacheRef = db.collection("game_concepts").doc(`${uid}_${collectionId}`);
       if (!forceRefresh) {
         const cacheSnap = await cacheRef.get();
         if (cacheSnap.exists) {
           const data = cacheSnap.data();
           const age = Date.now() - (data.cachedAt?.toMillis?.() || 0);
-          if (age < CONCEPT_CACHE_TTL_MS && data.concepts) {
+          const hasValidConcepts = data.concepts
+            && Array.isArray(data.concepts.concepts)
+            && data.concepts.concepts.length > 0;
+          if (age < CONCEPT_CACHE_TTL_MS && hasValidConcepts) {
             logger.info("concept cache hit", { uid, ageHours: Math.round(age / 3600e3) });
             return {
               success: true,
@@ -751,6 +755,9 @@ exports.generateGameConcepts = onCall(
               report: data.concepts,
               competitorCount: data.competitorCount || 0,
             };
+          }
+          if (cacheSnap.exists && !hasValidConcepts) {
+            logger.info("concept cache invalid (no concepts array) — going live", { uid });
           }
         }
       }
@@ -848,12 +855,31 @@ exports.generateGameConcepts = onCall(
       const aiJson = await callAnthropic(
         ANTHROPIC_API_KEY.value(),
         GAME_CONCEPT_SYSTEM_PROMPT,
-        userPrompt
+        userPrompt,
+        { maxTokens: 8192 }
       );
 
       logger.info("generateGameConcepts anthropic ok", {
-        uid, conceptCount: Array.isArray(aiJson?.concepts) ? aiJson.concepts.length : 0,
+        uid,
+        conceptCount: Array.isArray(aiJson?.concepts) ? aiJson.concepts.length : 0,
+        hasRaw: !!aiJson?.raw,
+        rawLength: aiJson?.raw ? aiJson.raw.length : 0,
       });
+
+      // Eger parse fail olduysa cache'e yazma — bir daha denesin
+      if (aiJson && aiJson.raw && !aiJson.concepts) {
+        logger.warn("generateGameConcepts parse fail — cache yazilmadi", {
+          uid, sample: String(aiJson.raw).slice(0, 300),
+        });
+        return {
+          success: false,
+          source: "live",
+          parseError: true,
+          gameType, country,
+          competitorCount: compactCompetitors.length,
+          report: aiJson,
+        };
+      }
 
       // 5) Firestore'a kaydet (cache + history)
       await cacheRef.set(sanitizeForFirestore({
@@ -1050,7 +1076,7 @@ function buildUserPrompt(gameId, gameName, timeRange, summary) {
   ].join("\n");
 }
 
-async function callAnthropic(apiKey, systemPrompt, userPrompt) {
+async function callAnthropic(apiKey, systemPrompt, userPrompt, options) {
   if (!apiKey || typeof apiKey !== "string" || apiKey.length < 20) {
     throw new HttpsError(
       "failed-precondition",
@@ -1058,6 +1084,8 @@ async function callAnthropic(apiKey, systemPrompt, userPrompt) {
       "`firebase functions:secrets:set ANTHROPIC_API_KEY` ile ekleyip functions'i redeploy et."
     );
   }
+
+  const maxTokens = (options && Number.isFinite(options.maxTokens)) ? options.maxTokens : 4096;
 
   let res;
   try {
@@ -1070,7 +1098,7 @@ async function callAnthropic(apiKey, systemPrompt, userPrompt) {
       },
       body: JSON.stringify({
         model: ANTHROPIC_MODEL,
-        max_tokens: 4096,
+        max_tokens: maxTokens,
         system: systemPrompt,
         messages: [{ role: "user", content: userPrompt }],
       }),
