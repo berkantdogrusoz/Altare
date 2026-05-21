@@ -5,10 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description"
-        content="Altare is an indie mobile game studio crafting engaging, fun, and visually stunning gaming experiences.">
-    <meta name="keywords" content="Altare, Mobile Game Studio, Indie Games, Hyper-casual Games, Mobile Games">
+        content="Altare is an indie mobile game studio crafting Royal Dreams and other engaging, fun, and visually stunning mobile gaming experiences.">
+    <meta name="keywords" content="Altare, Royal Dreams, Mobile Game Studio, Indie Games, Puzzle Games, Match-3, Tetris, Hyper-casual Games, Mobile Games">
     <meta name="google-site-verification" content="Bk8c-GljKSp8yMMw2OQwxGaZeuNVGdH4fb0K8nU-YEU" />
-    <title>Altare - Mobile Game Studio</title>
+    <title>Altare - Royal Dreams & Mobile Game Studio</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
@@ -200,6 +200,19 @@
             margin-top: 40px;
         }
 
+        .hero-flagship {
+            margin-top: 20px;
+            font-size: clamp(13px, 1.3vw, 18px);
+            font-weight: 500;
+            letter-spacing: 0.1em;
+            color: rgba(255, 255, 255, 0.55);
+        }
+
+        .hero-flagship strong {
+            color: #fbbf24;
+            font-weight: 700;
+        }
+
         .scroll-indicator {
             position: absolute;
             bottom: 40px;
@@ -359,6 +372,34 @@
             cursor: pointer;
         }
 
+        .game-card.flagship {
+            grid-column: span 2;
+            aspect-ratio: 21/9;
+        }
+
+        .game-card.flagship .game-card-border {
+            border-color: rgba(251, 191, 36, 0.35);
+        }
+
+        .game-card.flagship:hover .game-card-border {
+            border-color: rgba(251, 191, 36, 0.8);
+        }
+
+        .game-card-badge {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 6px 14px;
+            background: rgba(251, 191, 36, 0.95);
+            color: #0a0a0a;
+            font-size: 0.7rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            border-radius: 999px;
+            z-index: 3;
+        }
+
         .game-card img {
             width: 100%;
             height: 100%;
@@ -388,11 +429,21 @@
             opacity: 1;
         }
 
+        .game-card.flagship .game-card-overlay {
+            opacity: 1;
+            transform: translateY(0);
+            background: linear-gradient(transparent 30%, rgba(0, 0, 0, 0.95));
+        }
+
         .game-card-title {
             font-size: 1.4rem;
             font-weight: 800;
             text-transform: uppercase;
             letter-spacing: 0.05em;
+        }
+
+        .game-card.flagship .game-card-title {
+            font-size: 2rem;
         }
 
         .game-card-genre {
@@ -401,6 +452,26 @@
             text-transform: uppercase;
             letter-spacing: 0.15em;
             margin-top: 6px;
+        }
+
+        .game-card-cta {
+            display: inline-block;
+            margin-top: 14px;
+            padding: 10px 20px;
+            background: #fbbf24;
+            color: #0a0a0a;
+            font-size: 0.78rem;
+            font-weight: 800;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            text-decoration: none;
+            border-radius: 999px;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .game-card-cta:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(251, 191, 36, 0.35);
         }
 
         .game-card-border {
@@ -611,6 +682,15 @@
                 grid-template-columns: 1fr;
             }
 
+            .game-card.flagship {
+                grid-column: span 1;
+                aspect-ratio: 16/10;
+            }
+
+            .game-card.flagship .game-card-title {
+                font-size: 1.5rem;
+            }
+
             .contact-links {
                 flex-direction: column;
                 align-items: center;
@@ -644,11 +724,12 @@
     <!-- Hero Section -->
     <section class="hero" id="hero">
         <div class="hero-bg-text top">ALTARE ALTARE ALTARE ALTARE&nbsp;</div>
-        <div class="hero-bg-text bottom">MOBILE GAMES MOBILE GAMES&nbsp;</div>
+        <div class="hero-bg-text bottom">ROYAL DREAMS ROYAL DREAMS&nbsp;</div>
         <div class="hero-content">
             <h1 class="hero-title" aria-label="ALTARE"><span>A</span><span>L</span><span>T</span><span>A</span><span>R</span><span>E</span></h1>
             <p class="hero-subtitle" data-i18n="hero-subtitle">Mobile Game Studio</p>
             <p class="hero-tagline" data-i18n="hero-tagline">We Create Worlds You Can't Put Down</p>
+            <p class="hero-flagship" data-i18n="hero-flagship" data-html="true">Now Playing: <strong>Royal Dreams</strong> — Cozy Puzzle Hybrid</p>
         </div>
         <div class="scroll-indicator">
             <span data-i18n="scroll">Scroll</span>
@@ -673,12 +754,14 @@
                 </p>
                 <p data-i18n="about-p2">
                     From hyper-casual to mid-core, we explore different genres and push creative
-                    boundaries to deliver unique gaming experiences that players love.
+                    boundaries to deliver unique gaming experiences that players love. Our latest
+                    flagship title <strong>Royal Dreams</strong> blends Tetris and Match-3 mechanics
+                    into a cozy kingdom-restoration adventure.
                 </p>
             </div>
             <div class="about-stats reveal reveal-delay-2">
                 <div class="stat-item">
-                    <div class="stat-number" data-target="4">0</div>
+                    <div class="stat-number" data-target="5">0</div>
                     <div class="stat-label" data-i18n="stat-games">Games Published</div>
                 </div>
                 <div class="stat-item">
@@ -716,6 +799,18 @@
             <h2 class="section-title" data-i18n="games-title">Our Games</h2>
         </div>
         <div class="games-grid">
+            <!-- Royal Dreams — Flagship (full-width, en üstte) -->
+            <a href="https://play.google.com/store/apps/details?id=com.Altare.BlastMatch" target="_blank" class="game-card flagship reveal" style="text-decoration:none;color:inherit;">
+                <span class="game-card-badge" data-i18n="badge-new">New</span>
+                <img src="assets/royal dreams.png" alt="Royal Dreams - Cozy Puzzle Game by Altare">
+                <div class="game-card-overlay">
+                    <div class="game-card-title">Royal Dreams</div>
+                    <div class="game-card-genre" data-i18n="royal-dreams-genre">Puzzle · Tetris × Match-3 · Cozy</div>
+                    <span class="game-card-cta" data-i18n="play-on-google">Play on Google Play</span>
+                </div>
+                <div class="game-card-border"></div>
+            </a>
+
             <div class="game-card reveal">
                 <img src="assets/core of the hunt.png" alt="Core of the Hunt">
                 <div class="game-card-overlay">
@@ -888,17 +983,21 @@
                 'nav-contact': 'Contact',
                 'hero-subtitle': 'Mobile Game Studio',
                 'hero-tagline': "We Create Worlds You Can't Put Down",
+                'hero-flagship': 'Now Playing: <strong>Royal Dreams</strong> — Cozy Puzzle Hybrid',
                 'scroll': 'Scroll',
                 'about-label': 'Who We Are',
                 'about-title': 'Crafting Mobile<br>Experiences',
                 'about-p1': 'Altare is an indie mobile game studio passionate about creating engaging, fun, and visually stunning games. We believe in the power of mobile gaming to bring joy to millions of players worldwide.',
-                'about-p2': 'From hyper-casual to mid-core, we explore different genres and push creative boundaries to deliver unique gaming experiences that players love.',
+                'about-p2': 'From hyper-casual to mid-core, we explore different genres and push creative boundaries to deliver unique gaming experiences that players love. Our latest flagship title <strong>Royal Dreams</strong> blends Tetris and Match-3 mechanics into a cozy kingdom-restoration adventure.',
                 'stat-games': 'Games Published',
                 'stat-downloads': 'K+ Downloads',
                 'stat-genres': 'Genres',
                 'stat-founded': 'Founded',
                 'games-label': 'Portfolio',
                 'games-title': 'Our Games',
+                'badge-new': 'New',
+                'royal-dreams-genre': 'Puzzle · Tetris × Match-3 · Cozy',
+                'play-on-google': 'Play on Google Play',
                 'contact-label': 'Contact',
                 'contact-title': "Let's Connect",
                 'contact-desc': 'Have a question, a collaboration idea, or just want to say hi? Reach out through any of the channels below.',
@@ -912,17 +1011,21 @@
                 'nav-contact': 'Iletisim',
                 'hero-subtitle': 'Mobil Oyun Stüdyosu',
                 'hero-tagline': 'Birakamayacaginiz Dünyalar Yaratiyoruz',
+                'hero-flagship': 'Simdi Oyna: <strong>Royal Dreams</strong> — Sicak Bulmaca Karisi',
                 'scroll': 'Kaydir',
                 'about-label': 'Biz Kimiz',
                 'about-title': 'Mobil Deneyimler<br>Tasarliyoruz',
                 'about-p1': 'Altare, ilgi çekici, eglenceli ve görsel olarak çarpici oyunlar yaratma tutkusuyla çalisan bagimsiz bir mobil oyun stüdyosudur. Mobil oyunlarin dünya genelinde milyonlarca oyuncuya keyif verme gücüne inaniyoruz.',
-                'about-p2': 'Hyper-casual\'dan mid-core\'a kadar farkli türleri kesfediyor ve oyuncularin sevecegi benzersiz oyun deneyimleri sunmak için yaratici sinirlari zorluyoruz.',
+                'about-p2': 'Hyper-casual\'dan mid-core\'a kadar farkli türleri kesfediyor ve oyuncularin sevecegi benzersiz oyun deneyimleri sunmak için yaratici sinirlari zorluyoruz. Son amiral oyunumuz <strong>Royal Dreams</strong>, Tetris ve Match-3 mekaniklerini sicak bir krallik onarim macerasinda birlestiriyor.',
                 'stat-games': 'Yayinlanan Oyun',
                 'stat-downloads': 'B+ Indirme',
                 'stat-genres': 'Tür',
                 'stat-founded': 'Kurulus',
                 'games-label': 'Portföy',
                 'games-title': 'Oyunlarimiz',
+                'badge-new': 'Yeni',
+                'royal-dreams-genre': 'Bulmaca · Tetris × Match-3 · Sicak',
+                'play-on-google': 'Google Play\'de Oyna',
                 'contact-label': 'Iletisim',
                 'contact-title': 'Bize Ulasin',
                 'contact-desc': 'Bir sorunuz, is birligi fikriniz mi var ya da sadece merhaba demek mi istiyorsunuz? Asagidaki kanallardan bize ulasin.',
