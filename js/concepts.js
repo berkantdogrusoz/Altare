@@ -36,7 +36,7 @@ async function handleGenerate(forceRefresh) {
     status.innerHTML = `<span style="color: var(--accent);">AI ${gameType}/${country} pazarından konsept üretiyor… 30-60sn sürebilir.</span>`;
 
     try {
-        const fn = httpsCallable(functions, "generateGameConcepts");
+        const fn = httpsCallable(functions, "generateGameConcepts", { timeout: 180000 });
         const result = await fn({ gameType, country, forceRefresh });
         const data = result.data || {};
         renderConcepts(data);
