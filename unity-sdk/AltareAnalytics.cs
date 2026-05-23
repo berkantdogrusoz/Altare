@@ -116,6 +116,7 @@ namespace Altare.Analytics
 
         private readonly Queue<PendingEvent> _buffer = new Queue<PendingEvent>(64);
 
+        private string _sessionId;
         private float _sessionStartTime;
         private bool _quitting;
 
@@ -135,6 +136,7 @@ namespace Altare.Analytics
         private void Boot()
         {
             _playerAnonId = LoadOrCreatePlayerId();
+            _sessionId = Guid.NewGuid().ToString("N");
             _platform = Application.platform.ToString();
             _appVersion = Application.version;
             _deviceModel = SystemInfo.deviceModel;
@@ -220,6 +222,7 @@ namespace Altare.Analytics
                 { "gameId",        _gameId },
                 { "gameName",      _gameName },
                 { "playerAnonId",  _playerAnonId },
+                { "sessionId",     _sessionId },
                 { "eventName",     pending.eventName },
                 { "eventParams",   pending.parameters ?? new Dictionary<string, object>() },
                 { "timestamp",     FieldValue.ServerTimestamp },
@@ -316,6 +319,7 @@ namespace Altare.Analytics
             }
             else
             {
+                _sessionId = Guid.NewGuid().ToString("N");
                 _sessionStartTime = Time.realtimeSinceStartup;
                 LogSessionStart();
             }

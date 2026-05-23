@@ -1039,6 +1039,52 @@
                             <div class="kpi-delta" id="kpi-crash-delta"></div>
                         </div>
                     </div>
+                    <div class="section-block" id="ga4-section" style="display: none;">
+                        <div class="section-head">
+                            <h3>Firebase Analytics · Canlı Veriler</h3>
+                            <span class="head-meta" id="ga4-meta">—</span>
+                        </div>
+                        <div class="section-content">
+                            <div class="kpi-grid" style="margin-bottom: 12px;">
+                                <div class="kpi-card" style="border-left: 3px solid #4285f4;">
+                                    <div class="kpi-label">Anlık Aktif</div>
+                                    <div class="kpi-value mono" id="ga4-realtime">—</div>
+                                </div>
+                                <div class="kpi-card" style="border-left: 3px solid #34a853;">
+                                    <div class="kpi-label">DAU (Bugün)</div>
+                                    <div class="kpi-value mono" id="ga4-dau">—</div>
+                                </div>
+                                <div class="kpi-card" style="border-left: 3px solid #fbbc04;">
+                                    <div class="kpi-label">WAU (7 Gün)</div>
+                                    <div class="kpi-value mono" id="ga4-wau">—</div>
+                                </div>
+                                <div class="kpi-card" style="border-left: 3px solid #ea4335;">
+                                    <div class="kpi-label">MAU (28 Gün)</div>
+                                    <div class="kpi-value mono" id="ga4-mau">—</div>
+                                </div>
+                            </div>
+                            <div class="kpi-grid" style="margin-bottom: 12px;">
+                                <div class="kpi-card">
+                                    <div class="kpi-label">Oturum (Bugün)</div>
+                                    <div class="kpi-value mono" id="ga4-sessions-day">—</div>
+                                </div>
+                                <div class="kpi-card">
+                                    <div class="kpi-label">Ort. Oturum Süresi</div>
+                                    <div class="kpi-value mono" id="ga4-avg-duration">—</div>
+                                </div>
+                                <div class="kpi-card">
+                                    <div class="kpi-label">Yeni Kullanıcı</div>
+                                    <div class="kpi-value mono" id="ga4-new-users">—</div>
+                                </div>
+                                <div class="kpi-card">
+                                    <div class="kpi-label">Gelir</div>
+                                    <div class="kpi-value mono" id="ga4-revenue">—</div>
+                                </div>
+                            </div>
+                            <div id="ga4-countries" style="font-size: 0.8rem; color: var(--text-dim);"></div>
+                        </div>
+                    </div>
+
                     <div class="section-block">
                         <div class="section-head">
                             <h3>Önerilen Aksiyon · AI Tespiti</h3>
@@ -1352,7 +1398,7 @@
 
                 <section class="tab-view" data-tab="integration">
                     <div class="info-banner">
-                        Royal Dreams + Crimson Scar dahil her oyunda kullanılabilen <strong>drop-in Unity SDK</strong>. Aşağıdaki adımları sırayla takip et — 5 dakikada veri akmaya başlar.
+                        Her oyunda kullanılabilen <strong>drop-in Unity SDK</strong>. Aşağıdaki adımları sırayla takip et — 5 dakikada veri akmaya başlar. SDK otomatik olarak oturum, performans ve crash verilerini toplar.
                     </div>
                     <div class="section-block">
                         <div class="section-head">
@@ -1361,9 +1407,8 @@
                         <div class="section-content">
                             <p>Oyun ekledikten sonra <strong>"Oyunlarım"</strong> sekmesinde her oyunun yanında <em>"SDK İndir"</em> butonu çıkar. İndirdiğin zip içinde:</p>
                             <ul>
-                                <li><code>AltareAnalytics.cs</code> — Unity drop-in script</li>
+                                <li><code>AltareAnalytics.cs</code> — Unity drop-in script (Assets klasörüne at)</li>
                                 <li><code>AltareConfig.json</code> — gameId pre-filled</li>
-                                <li><code>INTEGRATION_GUIDE.pdf</code> — adım adım rehber</li>
                                 <li><code>SAMPLE_USAGE.cs</code> — örnek event çağrıları</li>
                             </ul>
                             <p><strong>Firebase Unity SDK gerekli:</strong> Authentication + Firestore modüllerini <a href="https://firebase.google.com/download/unity" target="_blank" rel="noopener">resmi siteden</a> indir, Unity'e import et.</p>
@@ -1381,6 +1426,7 @@ void Start() {
     AltareAnalytics.Initialize("YOUR_GAME_ID", "Your Game Name");
 }</pre>
                             <p><code>YOUR_GAME_ID</code> — Oyunlarım sekmesinde sistemin sana verdiği değer (örn: <code>altare.royal-dreams</code>).</p>
+                            <p style="margin-top: 8px; color: var(--text-dim); font-size: 0.85rem;">SDK otomatik olarak <code>sessionId</code> üretir. Her oturum ve app resume'da yeni bir session başlatılır — panelde <strong>Aktif Oturum</strong> sayısı buna göre ölçülür.</p>
                         </div>
                     </div>
                     <div class="section-block">
@@ -1388,19 +1434,29 @@ void Start() {
                             <h3>3. Event Çağrıları — Standart Taxonomy</h3>
                         </div>
                         <div class="section-content">
-                            <pre class="code-block">// Level olayları
+                            <pre class="code-block">// ── Level olayları ──
 AltareAnalytics.LogEvent("level_start",    new() { { "level", level } });
 AltareAnalytics.LogEvent("level_complete", new() { { "level", level }, { "score", score } });
 AltareAnalytics.LogEvent("level_fail",     new() { { "level", level }, { "moves_used", moves } });
 
-// Reklam + IAP
-AltareAnalytics.LogEvent("ad_watched",     new() { { "placement", "continue" } });
-AltareAnalytics.LogEvent("rewarded_ad_watched", new() { { "placement", "extra_lives" } });
+// ── Reklam ──
+AltareAnalytics.LogEvent("ad_watched",          new() { { "placement", "interstitial" } });
+AltareAnalytics.LogEvent("rewarded_ad_watched",  new() { { "placement", "extra_lives" } });
+
+// ── IAP (Uygulama İçi Satın Alma) ──
 AltareAnalytics.LogEvent("iap_purchase_success", new() { { "sku", sku }, { "amount_usd", price } });
 
-// Player feedback
+// ── Player feedback ──
 AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
-                            <p>SDK <code>session_start</code>, <code>session_end</code>, <code>fps_warning</code>, <code>crash_detected</code> event'lerini <strong>otomatik</strong> yazar — manuel çağırmana gerek yok.</p>
+                            <div style="margin-top: 10px; padding: 10px 14px; background: rgba(66,133,244,0.08); border-radius: 6px; font-size: 0.85rem;">
+                                <strong>Otomatik Event'ler (manuel çağırma yok):</strong>
+                                <ul style="margin: 6px 0 0; padding-left: 18px;">
+                                    <li><code>session_start</code> — uygulama açılışında ve resume'da</li>
+                                    <li><code>session_end</code> — uygulama pause/quit'te (duration_seconds dahil)</li>
+                                    <li><code>fps_warning</code> — FPS &lt;30 düşünce (5sn aralıkla kontrol, 60sn cooldown)</li>
+                                    <li><code>crash_detected</code> — beklenmeyen kapanmalarda</li>
+                                </ul>
+                            </div>
                         </div>
                     </div>
                     <div class="section-block">
@@ -1408,20 +1464,65 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
                             <h3>4. Firebase Setup (her oyun için bir kere)</h3>
                         </div>
                         <div class="section-content">
-                            <ul>
+                            <ol style="padding-left: 18px;">
                                 <li>Firebase Console → projeye Android app ekle (paket adı eşleşmeli)</li>
                                 <li><code>google-services.json</code> dosyasını <code>Assets/</code> köküne koy</li>
-                                <li>Authentication → <strong>Anonymous Provider</strong>'ı Enable yap</li>
+                                <li>Authentication → Sign-in method → <strong>Anonymous</strong> provider'ı Enable yap</li>
+                                <li>Firestore Database → Rules'da oyunun event yazmasına izin ver (varsayılan kurallar bunu destekler)</li>
                                 <li>Build → telefona kur → ilk açılışta event akmaya başlar</li>
-                            </ul>
+                            </ol>
                         </div>
                     </div>
                     <div class="section-block">
                         <div class="section-head">
-                            <h3>5. Doğrulama</h3>
+                            <h3>5. Doğrulama Checklist</h3>
                         </div>
                         <div class="section-content">
-                            <p>Oyunda 1-2 dakika oyna, <strong>"Canlı Event Stream"</strong> sekmesinde <code>session_start</code> + <code>level_start</code> event'leri akmaya başlamalı. <em>"AI Raporu"</em> sekmesinde 24 saat veri biriktikten sonra ilk raporunu üretebilirsin.</p>
+                            <ol style="padding-left: 18px;">
+                                <li>Oyunu telefonda aç, 1-2 dakika oyna</li>
+                                <li><strong>"Canlı Event Stream"</strong> sekmesinde <code>session_start</code> event'i görünmeli</li>
+                                <li>Level başlat/bitir → <code>level_start</code> + <code>level_complete</code> akmalı</li>
+                                <li><strong>"Genel Bakış"</strong>'ta Aktif Oturum &gt; 0 olmalı</li>
+                                <li>Reklam izlet → <code>ad_watched</code> event'i geldiğini onayla</li>
+                                <li>24 saat veri biriktikten sonra <em>"AI Raporu"</em> üretebilirsin</li>
+                            </ol>
+                            <p style="margin-top: 10px; padding: 8px 12px; background: rgba(234,67,53,0.08); border-radius: 6px; font-size: 0.85rem;">
+                                <strong>Sorun mu var?</strong> Unity Console'da <code>[Altare]</code> ile başlayan logları kontrol et. <code>[Altare] Ready. uid=...</code> mesajı görmüyorsan Firebase SDK kurulumunu tekrar kontrol et. <code>google-services.json</code> eksik veya paket adı uyumsuz olabilir.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="section-block">
+                        <div class="section-head">
+                            <h3>6. Her Event'te Gönderilen Veriler</h3>
+                        </div>
+                        <div class="section-content">
+                            <p style="font-size: 0.85rem; color: var(--text-dim);">SDK her event'te şu alanları otomatik doldurur — ek bir şey yapmanıza gerek yok:</p>
+                            <table style="width: 100%; font-size: 0.82rem; margin-top: 8px; border-collapse: collapse;">
+                                <tr style="border-bottom: 1px solid var(--border);">
+                                    <td style="padding: 4px 8px;"><code>gameId</code></td>
+                                    <td style="padding: 4px 8px;">Oyun kimliği (initialize'da verilen)</td>
+                                </tr>
+                                <tr style="border-bottom: 1px solid var(--border);">
+                                    <td style="padding: 4px 8px;"><code>sessionId</code></td>
+                                    <td style="padding: 4px 8px;">Her oturum için benzersiz UUID (otomatik üretilir)</td>
+                                </tr>
+                                <tr style="border-bottom: 1px solid var(--border);">
+                                    <td style="padding: 4px 8px;"><code>playerAnonId</code></td>
+                                    <td style="padding: 4px 8px;">Anonim oyuncu kimliği (cihazda saklanır, PII yok)</td>
+                                </tr>
+                                <tr style="border-bottom: 1px solid var(--border);">
+                                    <td style="padding: 4px 8px;"><code>platform</code></td>
+                                    <td style="padding: 4px 8px;">Android / iOS / Editor</td>
+                                </tr>
+                                <tr style="border-bottom: 1px solid var(--border);">
+                                    <td style="padding: 4px 8px;"><code>appVersion</code></td>
+                                    <td style="padding: 4px 8px;">Oyun sürümü (Application.version)</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 4px 8px;"><code>deviceModel</code></td>
+                                    <td style="padding: 4px 8px;">Cihaz modeli (Samsung SM-A217F vb.)</td>
+                                </tr>
+                            </table>
                         </div>
                     </div>
                 </section>
@@ -1603,6 +1704,8 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
                 }
             );
 
+            fetchGA4Overview();
+
             const reportsQ = query(
                 collection(db, 'games', gameId, 'ai_reports'),
                 orderBy('createdAt', 'desc'),
@@ -1707,6 +1810,52 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
 
             renderTopProblemLevels(stats && stats.topProblemLevels);
             renderTopDevices(stats && stats.topDevices);
+        }
+
+        async function fetchGA4Overview() {
+            const section = $('ga4-section');
+            try {
+                const fn = httpsCallable(functions, 'fetchAnalyticsOverview', { timeout: 30000 });
+                const result = await fn();
+                const d = result.data;
+                if (!d || !d.success) {
+                    if (section) section.style.display = 'none';
+                    return;
+                }
+                if (section) section.style.display = '';
+                renderGA4(d);
+            } catch (err) {
+                console.warn('[GA4] fetch failed:', err.message);
+                if (section) section.style.display = 'none';
+            }
+        }
+
+        function renderGA4(d) {
+            setKpi('ga4-realtime', formatInt(d.realtimeUsers || 0));
+            const day = d.ranges?.day || {};
+            const week = d.ranges?.week || {};
+            const month = d.ranges?.month || {};
+            setKpi('ga4-dau', formatInt(day.activeUsers || 0));
+            setKpi('ga4-wau', formatInt(week.activeUsers || 0));
+            setKpi('ga4-mau', formatInt(month.activeUsers || 0));
+            setKpi('ga4-sessions-day', formatInt(day.sessions || 0));
+            setKpi('ga4-avg-duration', formatDuration(day.avgSessionDuration || 0));
+            setKpi('ga4-new-users', formatInt(day.newUsers || 0));
+            setKpi('ga4-revenue', formatUsd(day.revenue || 0));
+
+            const countriesEl = $('ga4-countries');
+            if (countriesEl && d.countries && d.countries.length > 0) {
+                countriesEl.innerHTML = '<strong>Top Ülkeler (7 gün):</strong> ' +
+                    d.countries.slice(0, 5).map(c =>
+                        escapeHtml(c.country) + ' (' + formatInt(c.users) + ')'
+                    ).join(' · ');
+            }
+
+            const metaEl = $('ga4-meta');
+            if (metaEl && d.fetchedAt) {
+                const t = new Date(d.fetchedAt);
+                metaEl.textContent = t.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+            }
         }
 
         function setKpi(id, value) {

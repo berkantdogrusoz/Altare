@@ -9,17 +9,23 @@
  *   - aggregateDailyStats (scheduled, every 30 min)
  *       Rolls up the last 24h of events per game into games/{gameId}/stats/{day}.
  *
+ *   - fetchAnalyticsOverview (callable, admin-only)
+ *       Queries GA4 Data API for realtime users, DAU/WAU/MAU, engagement, countries.
+ *
  *   - setAdminRole (callable, admin-only — bootstrap via console first)
  *       Toggles a custom auth claim {admin: true} for a target uid and mirrors
  *       the row into /users/{uid}. Allowlist of "panel users".
  *
  * Secrets (set via `firebase functions:secrets:set <NAME>`):
  *   - ANTHROPIC_API_KEY
+ *
+ * Environment config (firebase functions:config:set or defineString):
+ *   - GA4_PROPERTY_ID — Google Analytics 4 property numeric ID (e.g. "123456789")
  */
 
 const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
-const { defineSecret } = require("firebase-functions/params");
+const { defineSecret, defineString } = require("firebase-functions/params");
 const { setGlobalOptions } = require("firebase-functions/v2");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
@@ -36,6 +42,7 @@ db.settings({ ignoreUndefinedProperties: true });
 setGlobalOptions({ region: "europe-west1", maxInstances: 10 });
 
 const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
+const GA4_PROPERTY_ID = defineString("GA4_PROPERTY_ID", { default: "" });
 const ANTHROPIC_MODEL = "claude-sonnet-4-5"; // Anthropic Sonnet 4.5 (latest stable)
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 
@@ -341,6 +348,110 @@ exports.aggregateDailyStats = onSchedule(
     });
 
     await Promise.all(tasks);
+  }
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// fetchAnalyticsOverview — callable, admin-only
+// GA4 Data API'den gerçek Firebase Analytics verisi çeker (DAU, WAU, MAU,
+// aktif kullanıcılar, ortalama etkileşim süresi, ülke dağılımı).
+// ─────────────────────────────────────────────────────────────────────────────
+
+exports.fetchAnalyticsOverview = onCall(
+  { timeoutSeconds: 30 },
+  async (request) => {
+    assertAdmin(request);
+
+    const propertyId = GA4_PROPERTY_ID.value();
+    if (!propertyId) {
+      throw new HttpsError(
+        "failed-precondition",
+        "GA4_PROPERTY_ID tanımlı değil. Firebase Console → Project Settings → " +
+        "Integrations → Google Analytics'ten Property ID'yi al, sonra: " +
+        "firebase functions:config:set ga4.property_id=\"XXXXXXXXX\" veya " +
+        ".env dosyasına GA4_PROPERTY_ID=XXXXXXXXX ekle."
+      );
+    }
+
+    const { BetaAnalyticsDataClient } = require("@google-analytics/data");
+    const client = new BetaAnalyticsDataClient();
+
+    try {
+      const [report] = await client.runReport({
+        property: `properties/${propertyId}`,
+        dateRanges: [
+          { startDate: "1daysAgo", endDate: "today" },
+          { startDate: "7daysAgo", endDate: "today" },
+          { startDate: "28daysAgo", endDate: "today" },
+        ],
+        metrics: [
+          { name: "activeUsers" },
+          { name: "sessions" },
+          { name: "averageSessionDuration" },
+          { name: "screenPageViews" },
+          { name: "newUsers" },
+          { name: "totalRevenue" },
+        ],
+      });
+
+      const [realtime] = await client.runRealtimeReport({
+        property: `properties/${propertyId}`,
+        metrics: [{ name: "activeUsers" }],
+      });
+
+      const [countryReport] = await client.runReport({
+        property: `properties/${propertyId}`,
+        dateRanges: [{ startDate: "7daysAgo", endDate: "today" }],
+        dimensions: [{ name: "country" }],
+        metrics: [{ name: "activeUsers" }],
+        orderBys: [{ metric: { metricName: "activeUsers" }, desc: true }],
+        limit: 10,
+      });
+
+      const parseRow = (row) => ({
+        activeUsers: parseInt(row.metricValues[0]?.value || "0", 10),
+        sessions: parseInt(row.metricValues[1]?.value || "0", 10),
+        avgSessionDuration: parseFloat(row.metricValues[2]?.value || "0"),
+        pageViews: parseInt(row.metricValues[3]?.value || "0", 10),
+        newUsers: parseInt(row.metricValues[4]?.value || "0", 10),
+        revenue: parseFloat(row.metricValues[5]?.value || "0"),
+      });
+
+      const ranges = {};
+      for (const row of report.rows || []) {
+        const rangeIdx = parseInt(row.metricValues?.[0]?.oneValue?.dateRange || "0", 10);
+        const key = ["day", "week", "month"][rangeIdx] || `range${rangeIdx}`;
+        ranges[key] = parseRow(row);
+      }
+
+      if (report.rows && report.rows.length >= 3) {
+        ranges.day = parseRow(report.rows[0]);
+        ranges.week = parseRow(report.rows[1]);
+        ranges.month = parseRow(report.rows[2]);
+      } else if (report.rows && report.rows.length > 0) {
+        ranges.day = parseRow(report.rows[0]);
+      }
+
+      const realtimeUsers = realtime.rows && realtime.rows.length > 0
+        ? parseInt(realtime.rows[0].metricValues[0]?.value || "0", 10)
+        : 0;
+
+      const countries = (countryReport.rows || []).map((r) => ({
+        country: r.dimensionValues[0]?.value || "unknown",
+        users: parseInt(r.metricValues[0]?.value || "0", 10),
+      }));
+
+      return {
+        success: true,
+        realtimeUsers,
+        ranges,
+        countries,
+        fetchedAt: new Date().toISOString(),
+      };
+    } catch (err) {
+      logger.error("fetchAnalyticsOverview failed", { error: err.message });
+      throw new HttpsError("internal", "GA4 verisi çekilemedi: " + err.message);
+    }
   }
 );
 
