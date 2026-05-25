@@ -199,7 +199,8 @@ function showGameCredentials(gameId) {
         <div style="margin-top: 16px; padding: 14px; background: rgba(52,168,83,0.08); border: 1px solid rgba(52,168,83,0.2); border-radius: 8px;">
             <p style="margin: 0 0 10px; font-size: 0.9rem;"><strong>SDK Paketi</strong> — zip icinde her sey hazir:</p>
             <ul style="margin: 0 0 12px; padding-left: 18px; font-size: 0.85rem; color: var(--text-dim);">
-                <li><code>AltareAnalytics.cs</code> — drop-in Unity SDK</li>
+                <li><code>AltareAnalytics.cs</code> — drop-in Unity SDK (v2.1)</li>
+                <li><code>AltareAnalyticsBootstrap.cs</code> — otomatik baslangic + KVKK/GDPR consent</li>
                 <li><code>AltareConfig.json</code> — gameId + ayarlar (pre-filled)</li>
                 <li><code>SampleUsage.cs</code> — ornek event cagrilari</li>
                 <li><code>KURULUM_REHBERI.txt</code> — adim adim Turkce kurulum</li>
@@ -234,6 +235,7 @@ async function downloadSDK(gameId) {
     const folder = zip.folder(`AltareSDK_${sanitizeFileName(game.gameName)}`);
 
     folder.file('AltareAnalytics.cs', generateSDKScript());
+    folder.file('AltareAnalyticsBootstrap.cs', generateBootstrapScript(game));
     folder.file('AltareConfig.json', generateConfig(game));
     folder.file('SampleUsage.cs', generateSampleUsage(game));
     folder.file('KURULUM_REHBERI.txt', generateSetupGuide(game));
@@ -251,6 +253,137 @@ async function downloadSDK(gameId) {
 
 function sanitizeFileName(name) {
     return (name || 'game').replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 40);
+}
+
+function generateBootstrapScript(game) {
+    return `// =============================================================================
+// AltareAnalyticsBootstrap.cs  —  v2.1.0
+// -----------------------------------------------------------------------------
+// AltareAnalytics SDK'sini sahnelere dokunmadan otomatik baslatir.
+// Drop-in: bu script projeye eklendiginde uygulama acilisinda kendiliginden
+// devreye girer.
+//
+// PRIVACY/CONSENT (KVKK/GDPR):
+// Consent panelinden gelen onayi (PlayerPrefs) kontrol eder. Onay yoksa
+// SDK'yi baslatmaz; onay sonradan verilirse sessizce retry yaparak baslatir.
+// =============================================================================
+
+using UnityEngine;
+
+public static class AltareAnalyticsBootstrap
+{
+    // ── Oyun ayarlari (pre-filled) ──
+    private const string GameId = "${game.gameId}";
+    private const string GameName = "${game.gameName}";
+
+    private const string ConsentAnalyticsKey = "app_consent_analytics";
+    private const float ConsentPollIntervalSec = 5f;
+
+    private static bool installed;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    private static void Install()
+    {
+        if (installed) return;
+        installed = true;
+
+        if (HasAnalyticsConsent())
+        {
+            StartSdk();
+            return;
+        }
+
+        BootstrapHost.EnsureExists().StartConsentWatch(StartSdk);
+    }
+
+    private static bool HasAnalyticsConsent()
+    {
+        return PlayerPrefs.GetInt(ConsentAnalyticsKey, 0) == 1;
+    }
+
+    private static void StartSdk()
+    {
+        Reflective.TryInvokeInitialize(GameId, GameName);
+    }
+
+    private class BootstrapHost : MonoBehaviour
+    {
+        private static BootstrapHost instance;
+
+        public static BootstrapHost EnsureExists()
+        {
+            if (instance != null) return instance;
+            GameObject go = new GameObject("[AltareAnalyticsBootstrap]");
+            DontDestroyOnLoad(go);
+            instance = go.AddComponent<BootstrapHost>();
+            return instance;
+        }
+
+        public void StartConsentWatch(System.Action onConsentGranted)
+        {
+            StartCoroutine(WatchConsent(onConsentGranted));
+        }
+
+        private System.Collections.IEnumerator WatchConsent(System.Action onConsentGranted)
+        {
+            while (true)
+            {
+                if (PlayerPrefs.GetInt(ConsentAnalyticsKey, 0) == 1)
+                {
+                    onConsentGranted?.Invoke();
+                    yield break;
+                }
+                yield return new WaitForSeconds(ConsentPollIntervalSec);
+            }
+        }
+    }
+
+    private static class Reflective
+    {
+        private static bool warned;
+
+        public static void TryInvokeInitialize(string gameId, string gameName)
+        {
+            System.Type t = System.Type.GetType("Altare.Analytics.AltareAnalytics, Assembly-CSharp")
+                            ?? System.Type.GetType("Altare.Analytics.AltareAnalytics");
+
+            if (t == null)
+            {
+                if (!warned)
+                {
+                    warned = true;
+                    Debug.Log("[AltareBootstrap] AltareAnalytics class henuz projede yok. " +
+                              "Firebase Auth+Firestore modulleri import edilince + SDK kopyalaninca aktif olur.");
+                }
+                return;
+            }
+
+            System.Reflection.MethodInfo m = t.GetMethod(
+                "Initialize",
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static,
+                null,
+                new[] { typeof(string), typeof(string) },
+                null);
+
+            if (m == null)
+            {
+                Debug.LogWarning("[AltareBootstrap] AltareAnalytics.Initialize(string,string) bulunamadi.");
+                return;
+            }
+
+            try
+            {
+                m.Invoke(null, new object[] { gameId, gameName });
+                Debug.Log("[AltareBootstrap] AltareAnalytics baslatildi: " + gameId + " / " + gameName);
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning("[AltareBootstrap] AltareAnalytics.Initialize hata: " + e.Message);
+            }
+        }
+    }
+}
+`;
 }
 
 function generateConfig(game) {
@@ -467,11 +600,16 @@ Oyunculardan email/telefon ISTENMEZ — tamamen arka planda calisir.
 ADIM 4: SDK Dosyalarini Projeye Ekleme
 ================================================================================
 
-1. Bu zip'ten cikan AltareAnalytics.cs dosyasini Unity projenizde
-   Assets/Plugins/Altare/ klasorune kopyalayin
+1. Bu zip'ten cikan dosyalari Unity projenizde
+   Assets/Plugins/Altare/ klasorune kopyalayin:
+   - AltareAnalytics.cs (ana SDK)
+   - AltareAnalyticsBootstrap.cs (otomatik baslangic + KVKK consent)
    (klasor yoksa olusturun)
 
-2. Unity'nin dosyayi compile etmesini bekleyin (Console'da hata olmamali)
+2. Unity'nin dosyalari compile etmesini bekleyin (Console'da hata olmamali)
+
+NOT: AltareAnalyticsBootstrap.cs GameId ve GameName'i sizin oyununuz
+icin onceden doldurulmus olarak gelir. Ek bir ayar yapmaniza gerek yok.
 
 ================================================================================
 ADIM 5: Baslangic Kodu (Bootstrap)
@@ -551,32 +689,24 @@ Tarih: ${new Date().toISOString().slice(0, 10)}
 
 function generateSDKScript() {
     return `// =============================================================================
-// AltareAnalytics.cs
+// AltareAnalytics.cs  —  v2.1.0
 // -----------------------------------------------------------------------------
 // Drop-in Unity client for the Altare AI Live Game Intelligence platform.
 // Authenticates the device anonymously with Firebase Auth and writes events
 // into Firestore at  games/{gameId}/events/{eventId}.
 //
-// Usage (anywhere in your bootstrap, e.g. a "GameRoot" MonoBehaviour):
+// Usage:
+//   void Start() {
+//       AltareAnalytics.Initialize("your-game-id", "Your Game Name");
+//   }
 //
-//     void Start() {
-//         AltareAnalytics.Initialize("your-game-id", "Your Game Name");
-//     }
-//
-//     // Then, anywhere in gameplay:
-//     AltareAnalytics.LogEvent("level_start", new Dictionary<string, object> {
-//         { "level", currentLevel }
-//     });
-//
-// Required Unity packages (add via Package Manager / com.google.firebase):
+// Required Unity packages:
 //   - Firebase Authentication
 //   - Firebase Firestore
 //
 // Privacy notes:
 //   - Stores only an anonymous UUID (playerAnonId) in PlayerPrefs.
 //   - Never collects email, phone, location, or 3rd-party app data.
-//
-// Version: 2.0.0
 // =============================================================================
 
 using System;
@@ -644,9 +774,11 @@ namespace Altare.Analytics
         private string _gameId;
         private string _gameName;
         private string _playerAnonId;
+        private string _sessionId;
         private string _platform;
         private string _appVersion;
         private string _deviceModel;
+        private bool _isFirstOpen;
 
         private FirebaseFirestore _db;
         private bool _ready;
@@ -654,7 +786,6 @@ namespace Altare.Analytics
 
         private readonly Queue<PendingEvent> _buffer = new Queue<PendingEvent>(64);
 
-        private string _sessionId;
         private float _sessionStartTime;
         private bool _quitting;
 
@@ -668,7 +799,7 @@ namespace Altare.Analytics
 
         private void Boot()
         {
-            _playerAnonId = LoadOrCreatePlayerId();
+            _playerAnonId = LoadOrCreatePlayerId(out _isFirstOpen);
             _sessionId = Guid.NewGuid().ToString("N");
             _platform = Application.platform.ToString();
             _appVersion = Application.version;
@@ -695,14 +826,20 @@ namespace Altare.Analytics
                         _db = FirebaseFirestore.DefaultInstance;
                         _ready = true;
                         Debug.Log("[Altare] Ready. uid=" + authTask.Result.User.UserId
-                                  + " playerAnonId=" + _playerAnonId);
+                                  + " playerAnonId=" + _playerAnonId
+                                  + " sessionId=" + _sessionId);
+                        if (_isFirstOpen)
+                            LogEvent("first_open", null);
+                        LogEvent("app_open", new Dictionary<string, object> {
+                            { "is_first_open", _isFirstOpen }
+                        });
                         LogSessionStart();
                         FlushBuffer();
                     });
             });
         }
 
-        private string LoadOrCreatePlayerId()
+        private string LoadOrCreatePlayerId(out bool created)
         {
             string id = PlayerPrefs.GetString(PrefsPlayerIdKey, null);
             if (string.IsNullOrEmpty(id))
@@ -710,7 +847,10 @@ namespace Altare.Analytics
                 id = Guid.NewGuid().ToString("N");
                 PlayerPrefs.SetString(PrefsPlayerIdKey, id);
                 PlayerPrefs.Save();
+                created = true;
+                return id;
             }
+            created = false;
             return id;
         }
 
