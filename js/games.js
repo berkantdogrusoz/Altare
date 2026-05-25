@@ -1,8 +1,9 @@
 // =============================================================================
-// games.js — Self-Service Multi-Tenant Game Management
+// games.js — Self-Service Multi-Tenant Game Management + SDK Download
 // -----------------------------------------------------------------------------
 // "Oyunlarım" sekmesi: kullanicinin kendi oyunlarini listele + yeni oyun ekle
 // "Musteri Yonetimi" sekmesi: admin-only musteri olusturma
+// SDK indirme: JSZip ile client-side zip olusturma (AltareAnalytics.cs + config)
 //
 // Cloud Functions cagrilari:
 //   - createGame(gameName, gameType, platforms)
@@ -14,6 +15,18 @@
 import { httpsCallable } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-functions.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
 import { auth, functions } from "/js/firebase-config.js";
+
+let _jsZipLoaded = false;
+function ensureJSZip() {
+    if (_jsZipLoaded) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+        s.onload = () => { _jsZipLoaded = true; resolve(); };
+        s.onerror = () => reject(new Error('JSZip yuklenemedi'));
+        document.head.appendChild(s);
+    });
+}
 
 const GAME_TYPES = [
     { value: "match3", label: "Match-3" },
@@ -122,8 +135,9 @@ function renderMyGames(games) {
                         <td>${(g.platforms || []).map(escapeHtml).join(', ')}</td>
                         <td><span class="badge ${g.status === 'active' ? 'medium' : 'low'}">${escapeHtml(g.status || 'active')}</span></td>
                         <td class="row-actions">
-                            <button class="btn-link" data-action="select-game" data-game="${escapeHtml(g.gameId)}">Seç</button>
-                            <button class="btn-link" data-action="show-credentials" data-game="${escapeHtml(g.gameId)}">SDK Bilgileri</button>
+                            <button class="btn-link" data-action="select-game" data-game="${escapeHtml(g.gameId)}">Sec</button>
+                            <button class="btn-link" data-action="download-sdk" data-game="${escapeHtml(g.gameId)}" style="color: var(--green, #34a853);">SDK Indir</button>
+                            <button class="btn-link" data-action="show-credentials" data-game="${escapeHtml(g.gameId)}">Bilgiler</button>
                             <button class="btn-link danger" data-action="delete-game" data-game="${escapeHtml(g.gameId)}">Sil</button>
                         </td>
                     </tr>
@@ -141,6 +155,9 @@ function renderMyGames(games) {
     });
     container.querySelectorAll('[data-action="delete-game"]').forEach(btn => {
         btn.addEventListener('click', () => handleDeleteGame(btn.dataset.game));
+    });
+    container.querySelectorAll('[data-action="download-sdk"]').forEach(btn => {
+        btn.addEventListener('click', () => downloadSDK(btn.dataset.game));
     });
 }
 
@@ -177,13 +194,674 @@ function showGameCredentials(gameId) {
             <div class="kv-row"><span class="kv-key">Game ID</span><code class="kv-val">${escapeHtml(gameId)}</code></div>
             <div class="kv-row"><span class="kv-key">API Key</span><code class="kv-val">${escapeHtml(apiKey)}</code></div>
         </div>
-        <p style="margin-top: 16px;"><strong>Unity Initialize Çağrısı:</strong></p>
+        <p style="margin-top: 16px;"><strong>Unity Initialize:</strong></p>
         <pre class="code-block">${escapeHtml(initSnippet)}</pre>
-        <p style="margin-top: 12px; color: var(--muted);">SDK indirme zip'i (AltareAnalytics.cs + AltareConfig.json + INTEGRATION_GUIDE.pdf) yakında gelecek. Şimdilik <strong>Entegrasyon Rehberi</strong> sekmesindeki adımları takip et.</p>
-        <div class="modal-actions">
-            <button class="primary-btn" data-modal-close>Tamam</button>
+        <div style="margin-top: 16px; padding: 14px; background: rgba(52,168,83,0.08); border: 1px solid rgba(52,168,83,0.2); border-radius: 8px;">
+            <p style="margin: 0 0 10px; font-size: 0.9rem;"><strong>SDK Paketi</strong> — zip icinde her sey hazir:</p>
+            <ul style="margin: 0 0 12px; padding-left: 18px; font-size: 0.85rem; color: var(--text-dim);">
+                <li><code>AltareAnalytics.cs</code> — drop-in Unity SDK</li>
+                <li><code>AltareConfig.json</code> — gameId + ayarlar (pre-filled)</li>
+                <li><code>SampleUsage.cs</code> — ornek event cagrilari</li>
+                <li><code>KURULUM_REHBERI.txt</code> — adim adim Turkce kurulum</li>
+            </ul>
+            <button class="primary-btn" id="modal-download-sdk" style="width: 100%; padding: 10px; font-size: 0.95rem;">SDK Indir (.zip)</button>
+        </div>
+        <div class="modal-actions" style="margin-top: 12px;">
+            <button class="btn-link" data-modal-close>Kapat</button>
         </div>
     `);
+
+    const dlBtn = document.getElementById('modal-download-sdk');
+    if (dlBtn) dlBtn.addEventListener('click', () => downloadSDK(gameId));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SDK Download — client-side zip generation
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function downloadSDK(gameId) {
+    const game = myGamesCache.find(g => g.gameId === gameId);
+    if (!game) { alert('Oyun bulunamadi.'); return; }
+
+    try {
+        await ensureJSZip();
+    } catch {
+        alert('Zip kutuphanesi yuklenemedi. Lutfen internet baglantini kontrol et.');
+        return;
+    }
+
+    const zip = new JSZip();
+    const folder = zip.folder(`AltareSDK_${sanitizeFileName(game.gameName)}`);
+
+    folder.file('AltareAnalytics.cs', generateSDKScript());
+    folder.file('AltareConfig.json', generateConfig(game));
+    folder.file('SampleUsage.cs', generateSampleUsage(game));
+    folder.file('KURULUM_REHBERI.txt', generateSetupGuide(game));
+
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `AltareSDK_${sanitizeFileName(game.gameName)}.zip`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+function sanitizeFileName(name) {
+    return (name || 'game').replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 40);
+}
+
+function generateConfig(game) {
+    return JSON.stringify({
+        gameId: game.gameId,
+        gameName: game.gameName,
+        apiKey: game.apiKey || '',
+        gameType: game.gameType || 'puzzle',
+        platforms: game.platforms || ['Android'],
+        sdkVersion: '2.0.0',
+        firebaseProject: 'altare-312a1',
+        region: 'europe-west1',
+    }, null, 2);
+}
+
+function generateSampleUsage(game) {
+    return `// =============================================================================
+// SampleUsage.cs — Altare SDK Ornek Kullanim
+// Oyun: ${game.gameName} (${game.gameId})
+// =============================================================================
+//
+// Bu dosya ornek event cagrilarini icerir. Kendi oyun kodunuza entegre edin.
+// AltareAnalytics.cs dosyasini Assets/ klasorunuze ekledikten sonra
+// asagidaki kodlari ilgili yerlere kopyalayin.
+//
+// Firebase Unity SDK gereksinimleri:
+//   1. https://firebase.google.com/download/unity adresinden indirin
+//   2. FirebaseAuth.unitypackage import edin
+//   3. FirebaseFirestore.unitypackage import edin
+//   4. google-services.json dosyasini Assets/ kokunne yerlestirin
+//
+// =============================================================================
+
+using System.Collections.Generic;
+using UnityEngine;
+using Altare.Analytics;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 1. BOOTSTRAP — Oyun acilisinda bir kere cagirin
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class GameBootstrap : MonoBehaviour
+{
+    void Start()
+    {
+        // Tek satirlik baslangic — gameId ve gameName config'den gelir
+        AltareAnalytics.Initialize("${game.gameId}", "${game.gameName}");
+
+        // SDK otomatik olarak sunlari yapar:
+        // - session_start event'i gonderir
+        // - Anonim oyuncu ID'si olusturur (PlayerPrefs'te saklar)
+        // - FPS izleme baslatir (< 30 FPS ise fps_warning gonderir)
+        // - Uygulama kapandiginda session_end gonderir
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 2. LEVEL EVENT'LERI — Her level baslangic/bitis/kaybetmede cagirin
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class LevelManager : MonoBehaviour
+{
+    private int currentLevel = 1;
+
+    public void OnLevelStart()
+    {
+        AltareAnalytics.LogEvent("level_start", new Dictionary<string, object> {
+            { "level", currentLevel }
+        });
+    }
+
+    public void OnLevelComplete(int score)
+    {
+        AltareAnalytics.LogEvent("level_complete", new Dictionary<string, object> {
+            { "level", currentLevel },
+            { "score", score }
+        });
+    }
+
+    public void OnLevelFail(int movesUsed)
+    {
+        AltareAnalytics.LogEvent("level_fail", new Dictionary<string, object> {
+            { "level", currentLevel },
+            { "moves_used", movesUsed }
+        });
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 3. REKLAM EVENT'LERI — Reklam izlendiginde cagirin
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class AdManager : MonoBehaviour
+{
+    public void OnInterstitialAdWatched()
+    {
+        AltareAnalytics.LogEvent("ad_watched", new Dictionary<string, object> {
+            { "placement", "interstitial" }
+        });
+    }
+
+    public void OnRewardedAdWatched(string rewardType)
+    {
+        AltareAnalytics.LogEvent("rewarded_ad_watched", new Dictionary<string, object> {
+            { "placement", rewardType }  // ornegin: "extra_lives", "skip_level", "double_coins"
+        });
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 4. IAP (UYGULAMA ICI SATIN ALMA) — Basarili satin almada cagirin
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class IAPManager : MonoBehaviour
+{
+    public void OnPurchaseSuccess(string sku, float priceUsd)
+    {
+        AltareAnalytics.LogEvent("iap_purchase_success", new Dictionary<string, object> {
+            { "sku", sku },
+            { "amount_usd", priceUsd }
+        });
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 5. PLAYER FEEDBACK — Oyuncu geri bildiriminde cagirin (opsiyonel)
+// ─────────────────────────────────────────────────────────────────────────────
+
+public class FeedbackUI : MonoBehaviour
+{
+    public void SubmitPlayerFeedback(int rating, string comment)
+    {
+        // rating: 1-5 arasi, comment: serbest metin
+        AltareAnalytics.SubmitFeedback(rating, comment);
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 6. CUSTOM EVENT'LER — Oyuna ozel herhangi bir event gonderin
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// AltareAnalytics.LogEvent("tutorial_complete", new Dictionary<string, object> {
+//     { "step", 5 },
+//     { "duration_seconds", 120 }
+// });
+//
+// AltareAnalytics.LogEvent("achievement_unlocked", new Dictionary<string, object> {
+//     { "achievement_id", "first_win" },
+//     { "level", 1 }
+// });
+//
+// AltareAnalytics.LogEvent("store_item_purchased", new Dictionary<string, object> {
+//     { "item_id", "gold_pack_500" },
+//     { "currency", "coins" },
+//     { "amount", 500 }
+// });
+`;
+}
+
+function generateSetupGuide(game) {
+    return `================================================================================
+ALTARE SDK KURULUM REHBERI
+Oyun: ${game.gameName}
+Game ID: ${game.gameId}
+================================================================================
+
+Bu rehber Altare AI Live Game Intelligence SDK'sini Unity projenize
+entegre etmeniz icin adim adim talimatlari icerir.
+
+================================================================================
+GEREKSINIMLER
+================================================================================
+
+- Unity 2021.3 veya ustu
+- Firebase Unity SDK (Authentication + Firestore)
+  Indirme: https://firebase.google.com/download/unity
+- Firebase projesi (altare-312a1) ile eslesmis google-services.json
+
+================================================================================
+ADIM 1: Firebase Unity SDK Kurulumu
+================================================================================
+
+1. https://firebase.google.com/download/unity adresinden SDK'yi indirin
+2. Unity'de Assets > Import Package > Custom Package secin
+3. Sirayla import edin:
+   - FirebaseAuth.unitypackage
+   - FirebaseFirestore.unitypackage
+4. Import tamamlandiginda Unity Console'da hata olmadigini kontrol edin
+
+================================================================================
+ADIM 2: google-services.json Yerlestirme
+================================================================================
+
+1. Firebase Console'a gidin: https://console.firebase.google.com
+2. Altare projesini secin (altare-312a1)
+3. Project Settings > Your apps > Android uygulamanizi secin
+   (Yoksa "Add app" ile Android uygulamasi ekleyin — paket adiniz:
+   com.altarestudio.${sanitizeFileName(game.gameName).toLowerCase()})
+4. google-services.json dosyasini indirin
+5. Bu dosyayi Unity projenizde Assets/ kok klasorune kopyalayin
+
+================================================================================
+ADIM 3: Anonymous Authentication Aktif Etme
+================================================================================
+
+1. Firebase Console > Authentication > Sign-in method
+2. "Anonymous" provider'i bulun ve "Enable" yapin
+3. Save'leyin
+
+Bu adim gerekli cunku SDK oyunculari anonim olarak dogrular.
+Oyunculardan email/telefon ISTENMEZ — tamamen arka planda calisir.
+
+================================================================================
+ADIM 4: SDK Dosyalarini Projeye Ekleme
+================================================================================
+
+1. Bu zip'ten cikan AltareAnalytics.cs dosyasini Unity projenizde
+   Assets/Plugins/Altare/ klasorune kopyalayin
+   (klasor yoksa olusturun)
+
+2. Unity'nin dosyayi compile etmesini bekleyin (Console'da hata olmamali)
+
+================================================================================
+ADIM 5: Baslangic Kodu (Bootstrap)
+================================================================================
+
+Oyununuzun en ust sahnesindeki bir MonoBehaviour'a ekleyin:
+
+    using Altare.Analytics;
+
+    void Start()
+    {
+        AltareAnalytics.Initialize("${game.gameId}", "${game.gameName}");
+    }
+
+BU KADAR! SDK artik otomatik olarak sunlari yapar:
+  - session_start event'i gonderir
+  - Anonim oyuncu ID olusturur
+  - FPS izleme baslatir (< 30 FPS ise uyari gonderir)
+  - Uygulama kapandiginda session_end gonderir
+
+================================================================================
+ADIM 6: Level + Reklam + IAP Event'lerini Ekleyin
+================================================================================
+
+SampleUsage.cs dosyasindaki ornekleri kendi kodunuza entegre edin:
+
+  Level baslangici:
+    AltareAnalytics.LogEvent("level_start", new() { { "level", lvl } });
+
+  Level tamamlama:
+    AltareAnalytics.LogEvent("level_complete", new() { { "level", lvl }, { "score", s } });
+
+  Level kaybetme:
+    AltareAnalytics.LogEvent("level_fail", new() { { "level", lvl } });
+
+  Reklam izleme:
+    AltareAnalytics.LogEvent("ad_watched", new() { { "placement", "interstitial" } });
+
+  Odulli reklam:
+    AltareAnalytics.LogEvent("rewarded_ad_watched", new() { { "placement", "extra_lives" } });
+
+  IAP satin alma:
+    AltareAnalytics.LogEvent("iap_purchase_success", new() { { "sku", "gold_100" }, { "amount_usd", 1.99 } });
+
+================================================================================
+ADIM 7: Test ve Dogrulama
+================================================================================
+
+1. Unity'de Build & Run (Android cihaza veya emulatorde)
+2. Oyunu acin, 1-2 dakika oynayin
+3. Altare Panel'e gidin: https://altarestudio.com.tr/panel.html
+4. "Canli Event Stream" sekmesinde session_start + level_start gormelisiniz
+5. "Genel Bakis"'ta Aktif Oturum > 0 olmali
+
+SORUN GIDERME:
+- Unity Console'da [Altare] ile baslayan loglari kontrol edin
+- "[Altare] Ready. uid=..." mesaji goruyorsaniz SDK calisiyor demektir
+- Gormuyorsaniz: google-services.json eksik veya paket adi uyumsuz olabilir
+- Firebase Console > Authentication'da anonim kullanicilarin olusup
+  olusmadigini kontrol edin
+- Firestore'da games/${game.gameId}/events/ koleksiyonuna veri gelip
+  gelmedegini kontrol edin
+
+================================================================================
+DESTEK
+================================================================================
+
+Sorun yasarsaniz:
+- Panel: https://altarestudio.com.tr/panel.html (Entegrasyon Rehberi sekmesi)
+- Email: berkant@altarestudio.com.tr
+
+SDK Surumu: 2.0.0
+Tarih: ${new Date().toISOString().slice(0, 10)}
+================================================================================
+`;
+}
+
+function generateSDKScript() {
+    return `// =============================================================================
+// AltareAnalytics.cs
+// -----------------------------------------------------------------------------
+// Drop-in Unity client for the Altare AI Live Game Intelligence platform.
+// Authenticates the device anonymously with Firebase Auth and writes events
+// into Firestore at  games/{gameId}/events/{eventId}.
+//
+// Usage (anywhere in your bootstrap, e.g. a "GameRoot" MonoBehaviour):
+//
+//     void Start() {
+//         AltareAnalytics.Initialize("your-game-id", "Your Game Name");
+//     }
+//
+//     // Then, anywhere in gameplay:
+//     AltareAnalytics.LogEvent("level_start", new Dictionary<string, object> {
+//         { "level", currentLevel }
+//     });
+//
+// Required Unity packages (add via Package Manager / com.google.firebase):
+//   - Firebase Authentication
+//   - Firebase Firestore
+//
+// Privacy notes:
+//   - Stores only an anonymous UUID (playerAnonId) in PlayerPrefs.
+//   - Never collects email, phone, location, or 3rd-party app data.
+//
+// Version: 2.0.0
+// =============================================================================
+
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+using Firebase;
+using Firebase.Auth;
+using Firebase.Firestore;
+using Firebase.Extensions;
+
+namespace Altare.Analytics
+{
+    public class AltareAnalytics : MonoBehaviour
+    {
+        // Public static API
+
+        public static void Initialize(string gameId, string gameName)
+        {
+            if (_instance != null) return;
+            if (string.IsNullOrWhiteSpace(gameId))
+                throw new ArgumentException("gameId is required", nameof(gameId));
+
+            var go = new GameObject("[AltareAnalytics]");
+            DontDestroyOnLoad(go);
+            _instance = go.AddComponent<AltareAnalytics>();
+            _instance._gameId = gameId.Trim();
+            _instance._gameName = string.IsNullOrWhiteSpace(gameName) ? gameId : gameName.Trim();
+            _instance.Boot();
+        }
+
+        public static void LogEvent(string eventName, Dictionary<string, object> parameters = null)
+        {
+            if (string.IsNullOrWhiteSpace(eventName)) return;
+            if (_instance == null)
+            {
+                Debug.LogWarning("[Altare] LogEvent called before Initialize -- dropping: " + eventName);
+                return;
+            }
+            _instance.EnqueueEvent(eventName, parameters);
+        }
+
+        public static void LogSessionStart() => LogEvent("session_start", null);
+
+        public static void LogSessionEnd(float durationSeconds)
+        {
+            LogEvent("session_end", new Dictionary<string, object> {
+                { "duration_seconds", durationSeconds }
+            });
+        }
+
+        public static void SubmitFeedback(int rating, string text)
+        {
+            if (_instance == null) return;
+            _instance.WriteFeedback(rating, text);
+        }
+
+        public static string PlayerAnonId => _instance != null ? _instance._playerAnonId : null;
+
+        // Internals
+
+        private const string PrefsPlayerIdKey = "altare.playerAnonId";
+
+        private static AltareAnalytics _instance;
+
+        private string _gameId;
+        private string _gameName;
+        private string _playerAnonId;
+        private string _platform;
+        private string _appVersion;
+        private string _deviceModel;
+
+        private FirebaseFirestore _db;
+        private bool _ready;
+        private bool _initFailed;
+
+        private readonly Queue<PendingEvent> _buffer = new Queue<PendingEvent>(64);
+
+        private string _sessionId;
+        private float _sessionStartTime;
+        private bool _quitting;
+
+        private const float FpsCheckIntervalSec = 5f;
+        private const float FpsWarningThreshold = 30f;
+        private const float FpsWarningCooldownSec = 60f;
+        private float _fpsAccum;
+        private int _fpsFrames;
+        private float _fpsCheckTimer;
+        private float _lastFpsWarnAt = -999f;
+
+        private void Boot()
+        {
+            _playerAnonId = LoadOrCreatePlayerId();
+            _sessionId = Guid.NewGuid().ToString("N");
+            _platform = Application.platform.ToString();
+            _appVersion = Application.version;
+            _deviceModel = SystemInfo.deviceModel;
+            _sessionStartTime = Time.realtimeSinceStartup;
+
+            FirebaseApp.CheckAndFixDependenciesAsync().ContinueWithOnMainThread(task =>
+            {
+                if (task.Result != DependencyStatus.Available)
+                {
+                    _initFailed = true;
+                    Debug.LogError("[Altare] Firebase deps unavailable: " + task.Result);
+                    return;
+                }
+                FirebaseAuth.DefaultInstance.SignInAnonymouslyAsync()
+                    .ContinueWithOnMainThread(authTask =>
+                    {
+                        if (authTask.IsFaulted || authTask.IsCanceled)
+                        {
+                            _initFailed = true;
+                            Debug.LogError("[Altare] Anonymous auth failed: " + authTask.Exception);
+                            return;
+                        }
+                        _db = FirebaseFirestore.DefaultInstance;
+                        _ready = true;
+                        Debug.Log("[Altare] Ready. uid=" + authTask.Result.User.UserId
+                                  + " playerAnonId=" + _playerAnonId);
+                        LogSessionStart();
+                        FlushBuffer();
+                    });
+            });
+        }
+
+        private string LoadOrCreatePlayerId()
+        {
+            string id = PlayerPrefs.GetString(PrefsPlayerIdKey, null);
+            if (string.IsNullOrEmpty(id))
+            {
+                id = Guid.NewGuid().ToString("N");
+                PlayerPrefs.SetString(PrefsPlayerIdKey, id);
+                PlayerPrefs.Save();
+            }
+            return id;
+        }
+
+        private void EnqueueEvent(string eventName, Dictionary<string, object> parameters)
+        {
+            var pending = new PendingEvent
+            {
+                eventName = eventName,
+                parameters = parameters != null
+                    ? new Dictionary<string, object>(parameters)
+                    : new Dictionary<string, object>(),
+                clientTimestampUtc = DateTime.UtcNow,
+            };
+
+            if (!_ready)
+            {
+                if (_buffer.Count > 256) _buffer.Dequeue();
+                _buffer.Enqueue(pending);
+                return;
+            }
+            WriteEvent(pending);
+        }
+
+        private void FlushBuffer()
+        {
+            while (_buffer.Count > 0)
+            {
+                WriteEvent(_buffer.Dequeue());
+            }
+        }
+
+        private void WriteEvent(PendingEvent pending)
+        {
+            if (_db == null) return;
+
+            var payload = new Dictionary<string, object>
+            {
+                { "gameId",        _gameId },
+                { "gameName",      _gameName },
+                { "playerAnonId",  _playerAnonId },
+                { "sessionId",     _sessionId },
+                { "eventName",     pending.eventName },
+                { "eventParams",   pending.parameters ?? new Dictionary<string, object>() },
+                { "timestamp",     FieldValue.ServerTimestamp },
+                { "clientTimestamp", Timestamp.FromDateTime(pending.clientTimestampUtc) },
+                { "platform",      _platform },
+                { "appVersion",    _appVersion },
+                { "deviceModel",   _deviceModel },
+            };
+
+            _db.Collection("games").Document(_gameId)
+               .Collection("events").Document()
+               .SetAsync(payload)
+               .ContinueWithOnMainThread(t =>
+               {
+                   if (t.IsFaulted)
+                   {
+                       Debug.LogWarning("[Altare] event write failed (" + pending.eventName
+                                        + "): " + t.Exception?.GetBaseException()?.Message);
+                   }
+               });
+        }
+
+        private void WriteFeedback(int rating, string text)
+        {
+            if (_db == null)
+            {
+                LogEvent("player_feedback", new Dictionary<string, object> {
+                    { "rating", rating },
+                    { "text", text ?? "" },
+                });
+                return;
+            }
+            var payload = new Dictionary<string, object>
+            {
+                { "gameId",       _gameId },
+                { "gameName",     _gameName },
+                { "playerAnonId", _playerAnonId },
+                { "rating",       rating },
+                { "text",         text ?? "" },
+                { "platform",     _platform },
+                { "appVersion",   _appVersion },
+                { "deviceModel",  _deviceModel },
+                { "timestamp",    FieldValue.ServerTimestamp },
+            };
+            _db.Collection("games").Document(_gameId)
+               .Collection("feedback").Document()
+               .SetAsync(payload);
+
+            LogEvent("player_feedback", new Dictionary<string, object> {
+                { "rating", rating },
+                { "text", (text ?? "").Length > 80 ? (text.Substring(0, 80) + "\\u2026") : text ?? "" },
+            });
+        }
+
+        private void Update()
+        {
+            if (!_ready) return;
+
+            _fpsAccum += Time.unscaledDeltaTime;
+            _fpsFrames++;
+            _fpsCheckTimer += Time.unscaledDeltaTime;
+
+            if (_fpsCheckTimer >= FpsCheckIntervalSec)
+            {
+                float avg = _fpsFrames > 0 && _fpsAccum > 0 ? _fpsFrames / _fpsAccum : 60f;
+                _fpsAccum = 0; _fpsFrames = 0; _fpsCheckTimer = 0;
+
+                if (avg < FpsWarningThreshold &&
+                    Time.realtimeSinceStartup - _lastFpsWarnAt > FpsWarningCooldownSec)
+                {
+                    _lastFpsWarnAt = Time.realtimeSinceStartup;
+                    LogEvent("fps_warning", new Dictionary<string, object> {
+                        { "avg_fps", Mathf.RoundToInt(avg) },
+                        { "device", _deviceModel },
+                    });
+                }
+            }
+        }
+
+        private void OnApplicationPause(bool pauseStatus)
+        {
+            if (!_ready) return;
+            if (pauseStatus)
+            {
+                LogSessionEnd(Time.realtimeSinceStartup - _sessionStartTime);
+            }
+            else
+            {
+                _sessionId = Guid.NewGuid().ToString("N");
+                _sessionStartTime = Time.realtimeSinceStartup;
+                LogSessionStart();
+            }
+        }
+
+        private void OnApplicationQuit()
+        {
+            _quitting = true;
+            if (!_ready) return;
+            LogSessionEnd(Time.realtimeSinceStartup - _sessionStartTime);
+        }
+
+        private struct PendingEvent
+        {
+            public string eventName;
+            public Dictionary<string, object> parameters;
+            public DateTime clientTimestampUtc;
+        }
+    }
+}
+`;
 }
 
 async function handleDeleteGame(gameId) {
@@ -254,15 +932,22 @@ async function handleCreateGame(e) {
         if (resultDiv) {
             resultDiv.innerHTML = `
                 <div class="success-box" style="margin-top: 16px;">
-                    <h4>✅ Oyun oluşturuldu!</h4>
+                    <h4>Oyun olusturuldu!</h4>
                     <div class="kv" style="margin-top: 8px;">
                         <div class="kv-row"><span class="kv-key">Game ID</span><code class="kv-val">${escapeHtml(data.gameId)}</code></div>
                         <div class="kv-row"><span class="kv-key">API Key</span><code class="kv-val">${escapeHtml(data.apiKey || '')}</code></div>
                     </div>
                     <p style="margin-top: 12px;"><strong>Unity Initialize:</strong></p>
                     <pre class="code-block">AltareAnalytics.Initialize("${escapeHtml(data.gameId)}", "${escapeHtml(gameName)}");</pre>
+                    <button class="primary-btn" id="new-game-download-sdk"
+                        style="margin-top: 12px; width: 100%; padding: 10px;">SDK Indir (.zip)</button>
                 </div>
             `;
+            const dlBtn2 = document.getElementById('new-game-download-sdk');
+            if (dlBtn2) {
+                myGamesCache.push({ gameId: data.gameId, gameName: gameName, apiKey: data.apiKey, gameType, platforms });
+                dlBtn2.addEventListener('click', () => downloadSDK(data.gameId));
+            }
         }
         await refreshMyGames();
     } catch (err) {
