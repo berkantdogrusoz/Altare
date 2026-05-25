@@ -1144,7 +1144,7 @@ async function buildSummaryData(gameId, sinceTs) {
       const failRate = attempts > 0 ? s.fails / attempts : 0;
       return { level, ...s, attempts, failRate };
     })
-    .filter((x) => x.attempts >= 5)
+    .filter((x) => x.attempts >= 1)
     .sort((a, b) => b.failRate - a.failRate)
     .slice(0, 5);
 
@@ -1169,6 +1169,19 @@ async function buildSummaryData(gameId, sinceTs) {
     fpsWarnings,
     avgSessionSeconds,
     topProblemLevels,
+    allLevelStats: Object.entries(levelStats)
+      .map(([level, s]) => ({
+        level,
+        starts: s.starts,
+        completes: s.completes,
+        fails: s.fails,
+      }))
+      .sort((a, b) => {
+        const na = parseInt(a.level, 10);
+        const nb = parseInt(b.level, 10);
+        if (!isNaN(na) && !isNaN(nb)) return na - nb;
+        return a.level.localeCompare(b.level);
+      }),
     topDevices,
     feedbackSamples: feedback.slice(0, 20),
   };
