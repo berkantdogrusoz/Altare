@@ -177,6 +177,25 @@
             border-color: var(--border-strong);
         }
 
+        .lang-toggle {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            padding: 6px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            transition: all 0.2s;
+            min-width: 38px;
+        }
+        .lang-toggle:hover {
+            color: var(--text);
+            border-color: var(--border-strong);
+            background: rgba(255,255,255,0.04);
+        }
+
         /* Layout */
         .panel-body {
             display: grid;
@@ -941,55 +960,56 @@
         <header class="topbar">
             <div class="topbar-left">
                 <div class="topbar-logo">ALTARE</div>
-                <div class="topbar-tag" id="topbar-tag">AI Panel · v1.0 · Live</div>
+                <div class="topbar-tag" id="topbar-tag" data-i18n="topbar.tag">AI Panel · v1.0 · Live</div>
                 <select class="game-selector" id="game-selector">
                     <option value="royal-dreams">Royal Dreams</option>
                     <option value="crimson-scar">Crimson Scar</option>
                 </select>
             </div>
             <div class="topbar-right">
-                <div class="live-pulse"><span class="pulse-dot"></span> Canlı</div>
+                <div class="live-pulse"><span class="pulse-dot"></span> <span data-i18n="topbar.live">Canlı</span></div>
+                <button id="lang-toggle" class="lang-toggle" title="Dili değiştir / Switch language">EN</button>
                 <div class="user-chip">
                     <div class="user-avatar" id="user-avatar">B</div>
                     <div class="user-name" id="user-name">Berkant D.</div>
                 </div>
-                <button class="logout-btn" id="logout-btn">Çıkış</button>
+                <button class="logout-btn" id="logout-btn" data-i18n="topbar.logout">Çıkış</button>
             </div>
         </header>
 
         <div class="panel-body">
             <aside class="sidebar">
                 <div class="sidebar-section">
-                    <div class="sidebar-label">Studio</div>
-                    <button class="nav-tab" data-tab="my-games"><span class="dot"></span> Oyunlarım</button>
-                    <button class="nav-tab admin-only" data-tab="customers" hidden><span class="dot"></span> Müşteri Yönetimi</button>
-                    <button class="nav-tab" data-tab="integration"><span class="dot"></span> Entegrasyon Rehberi</button>
+                    <div class="sidebar-label" data-i18n="sidebar.studio">Studio</div>
+                    <button class="nav-tab" data-tab="my-games"><span class="dot"></span> <span data-i18n="tab.my-games">Oyunlarım</span></button>
+                    <button class="nav-tab admin-only" data-tab="customers" hidden><span class="dot"></span> <span data-i18n="tab.customers">Müşteri Yönetimi</span></button>
+                    <button class="nav-tab" data-tab="integration"><span class="dot"></span> <span data-i18n="tab.integration">Entegrasyon Rehberi</span></button>
                 </div>
                 <div class="sidebar-section">
-                    <div class="sidebar-label">Game Intelligence</div>
-                    <button class="nav-tab active" data-tab="overview"><span class="dot"></span> Genel Bakış</button>
-                    <button class="nav-tab" data-tab="events"><span class="dot"></span> Canlı Event Stream</button>
-                    <button class="nav-tab" data-tab="levels"><span class="dot"></span> Level Intelligence</button>
-                    <button class="nav-tab" data-tab="performance"><span class="dot"></span> Crash & Performance</button>
+                    <div class="sidebar-label" data-i18n="sidebar.gameIntel">Game Intelligence</div>
+                    <button class="nav-tab active" data-tab="overview"><span class="dot"></span> <span data-i18n="tab.overview">Genel Bakış</span></button>
+                    <button class="nav-tab" data-tab="events"><span class="dot"></span> <span data-i18n="tab.events">Canlı Event Stream</span></button>
+                    <button class="nav-tab" data-tab="levels"><span class="dot"></span> <span data-i18n="tab.levels">Level Intelligence</span></button>
+                    <button class="nav-tab" data-tab="performance"><span class="dot"></span> <span data-i18n="tab.performance">Crash & Performance</span></button>
                 </div>
                 <div class="sidebar-section">
-                    <div class="sidebar-label">Market Intelligence</div>
-                    <button class="nav-tab" data-tab="market"><span class="dot"></span> Pazar Analizi</button>
-                    <button class="nav-tab" data-tab="reviews"><span class="dot"></span> Yorum & Sentiment</button>
+                    <div class="sidebar-label" data-i18n="sidebar.marketIntel">Market Intelligence</div>
+                    <button class="nav-tab" data-tab="market"><span class="dot"></span> <span data-i18n="tab.market">Pazar Analizi</span></button>
+                    <button class="nav-tab" data-tab="reviews"><span class="dot"></span> <span data-i18n="tab.reviews">Yorum & Sentiment</span></button>
                 </div>
                 <div class="sidebar-section">
-                    <div class="sidebar-label">AI</div>
-                    <button class="nav-tab" data-tab="ai-report"><span class="dot"></span> AI Raporu</button>
-                    <button class="nav-tab" data-tab="roadmap"><span class="dot"></span> Roadmap Önerileri</button>
+                    <div class="sidebar-label" data-i18n="sidebar.ai">AI</div>
+                    <button class="nav-tab" data-tab="ai-report"><span class="dot"></span> <span data-i18n="tab.ai-report">AI Raporu</span></button>
+                    <button class="nav-tab" data-tab="roadmap"><span class="dot"></span> <span data-i18n="tab.roadmap">Roadmap Önerileri</span></button>
                 </div>
             </aside>
 
             <main class="main">
                 <div class="page-header">
-                    <h1 class="page-title" id="page-title">Genel Bakış</h1>
+                    <h1 class="page-title" id="page-title" data-i18n="tab.overview">Genel Bakış</h1>
                     <p class="page-sub">
                         <span id="game-name-display">Royal Dreams</span> ·
-                        <span class="mono" id="time-range">Son 24 saat</span> ·
+                        <span class="mono" id="time-range" data-i18n="page.last24h">Son 24 saat</span> ·
                         <span class="mono" id="current-time">--:--</span>
                     </p>
                 </div>
@@ -997,87 +1017,87 @@
                 <section class="tab-view active" data-tab="overview">
                     <div class="kpi-grid">
                         <div class="kpi-card">
-                            <div class="kpi-label">Aktif Oturum</div>
+                            <div class="kpi-label" data-i18n="kpi.activeSession">Aktif Oturum</div>
                             <div class="kpi-value mono" id="kpi-sessions">—</div>
                             <div class="kpi-delta" id="kpi-sessions-delta"></div>
                         </div>
                         <div class="kpi-card">
-                            <div class="kpi-label">24s Event</div>
+                            <div class="kpi-label" data-i18n="kpi.events24h">24s Event</div>
                             <div class="kpi-value mono" id="kpi-events">—</div>
                             <div class="kpi-delta" id="kpi-events-delta"></div>
                         </div>
                         <div class="kpi-card">
-                            <div class="kpi-label">Ortalama Oturum</div>
+                            <div class="kpi-label" data-i18n="kpi.avgSession">Ortalama Oturum</div>
                             <div class="kpi-value mono" id="kpi-avg-session">—</div>
                             <div class="kpi-delta" id="kpi-avg-session-delta"></div>
                         </div>
                         <div class="kpi-card">
-                            <div class="kpi-label">Fail Oranı</div>
+                            <div class="kpi-label" data-i18n="kpi.failRate">Fail Oranı</div>
                             <div class="kpi-value mono" id="kpi-fail-rate">—</div>
                             <div class="kpi-delta" id="kpi-fail-rate-delta"></div>
                         </div>
                     </div>
                     <div class="kpi-grid">
                         <div class="kpi-card">
-                            <div class="kpi-label">Reklam İzleme (24h)</div>
+                            <div class="kpi-label" data-i18n="kpi.adWatches">Reklam İzleme (24h)</div>
                             <div class="kpi-value mono" id="kpi-ads">—</div>
                             <div class="kpi-delta" id="kpi-ads-delta"></div>
                         </div>
                         <div class="kpi-card">
-                            <div class="kpi-label">IAP Geliri (24h)</div>
+                            <div class="kpi-label" data-i18n="kpi.iapRevenue">IAP Geliri (24h)</div>
                             <div class="kpi-value mono" id="kpi-iap">—</div>
                             <div class="kpi-delta" id="kpi-iap-delta"></div>
                         </div>
                         <div class="kpi-card">
-                            <div class="kpi-label">FPS Uyarısı</div>
+                            <div class="kpi-label" data-i18n="kpi.fpsWarnings">FPS Uyarısı</div>
                             <div class="kpi-value mono" id="kpi-fps">—</div>
                             <div class="kpi-delta" id="kpi-fps-delta"></div>
                         </div>
                         <div class="kpi-card">
-                            <div class="kpi-label">Crash (24h)</div>
+                            <div class="kpi-label" data-i18n="kpi.crashes">Crash (24h)</div>
                             <div class="kpi-value mono" id="kpi-crash">—</div>
                             <div class="kpi-delta" id="kpi-crash-delta"></div>
                         </div>
                     </div>
                     <div class="section-block" id="ga4-section" style="display: none;">
                         <div class="section-head">
-                            <h3>Firebase Analytics · Canlı Veriler</h3>
+                            <h3 data-i18n="section.firebaseAnalytics">Firebase Analytics · Canlı Veriler</h3>
                             <span class="head-meta" id="ga4-meta">—</span>
                         </div>
                         <div class="section-content">
                             <div class="kpi-grid" style="margin-bottom: 12px;">
                                 <div class="kpi-card" style="border-left: 3px solid #4285f4;">
-                                    <div class="kpi-label">Anlık Aktif</div>
+                                    <div class="kpi-label" data-i18n="kpi.realtimeActive">Anlık Aktif</div>
                                     <div class="kpi-value mono" id="ga4-realtime">—</div>
                                 </div>
                                 <div class="kpi-card" style="border-left: 3px solid #34a853;">
-                                    <div class="kpi-label">DAU (Bugün)</div>
+                                    <div class="kpi-label" data-i18n="kpi.dauToday">DAU (Bugün)</div>
                                     <div class="kpi-value mono" id="ga4-dau">—</div>
                                 </div>
                                 <div class="kpi-card" style="border-left: 3px solid #fbbc04;">
-                                    <div class="kpi-label">WAU (7 Gün)</div>
+                                    <div class="kpi-label" data-i18n="kpi.wau7d">WAU (7 Gün)</div>
                                     <div class="kpi-value mono" id="ga4-wau">—</div>
                                 </div>
                                 <div class="kpi-card" style="border-left: 3px solid #ea4335;">
-                                    <div class="kpi-label">MAU (28 Gün)</div>
+                                    <div class="kpi-label" data-i18n="kpi.mau28d">MAU (28 Gün)</div>
                                     <div class="kpi-value mono" id="ga4-mau">—</div>
                                 </div>
                             </div>
                             <div class="kpi-grid" style="margin-bottom: 12px;">
                                 <div class="kpi-card">
-                                    <div class="kpi-label">Oturum (Bugün)</div>
+                                    <div class="kpi-label" data-i18n="kpi.sessionsToday">Oturum (Bugün)</div>
                                     <div class="kpi-value mono" id="ga4-sessions-day">—</div>
                                 </div>
                                 <div class="kpi-card">
-                                    <div class="kpi-label">Ort. Oturum Süresi</div>
+                                    <div class="kpi-label" data-i18n="kpi.avgSessionDur">Ort. Oturum Süresi</div>
                                     <div class="kpi-value mono" id="ga4-avg-duration">—</div>
                                 </div>
                                 <div class="kpi-card">
-                                    <div class="kpi-label">Yeni Kullanıcı</div>
+                                    <div class="kpi-label" data-i18n="kpi.newUsers">Yeni Kullanıcı</div>
                                     <div class="kpi-value mono" id="ga4-new-users">—</div>
                                 </div>
                                 <div class="kpi-card">
-                                    <div class="kpi-label">Gelir</div>
+                                    <div class="kpi-label" data-i18n="kpi.revenue">Gelir</div>
                                     <div class="kpi-value mono" id="ga4-revenue">—</div>
                                 </div>
                             </div>
@@ -1087,11 +1107,11 @@
 
                     <div class="section-block">
                         <div class="section-head">
-                            <h3>Önerilen Aksiyon · AI Tespiti</h3>
+                            <h3 data-i18n="section.aiSuggestedAction">Önerilen Aksiyon · AI Tespiti</h3>
                             <span class="head-meta" id="overview-action-meta">—</span>
                         </div>
                         <div class="section-content" id="overview-action-content">
-                            <p style="color: var(--text-dim); font-size: 0.9rem;">Henüz AI analizi yapılmadı. <strong style="color: var(--text);">AI Raporu</strong> sekmesinden ilk raporu üretebilirsin.</p>
+                            <p style="color: var(--text-dim); font-size: 0.9rem;"><span data-i18n="empty.noAIYet">Henüz AI analizi yapılmadı.</span> <strong style="color: var(--text);" data-i18n="tab.ai-report">AI Raporu</strong> <span data-i18n="empty.aiReportHint">sekmesinden ilk raporu üretebilirsin.</span></p>
                         </div>
                     </div>
                 </section>
@@ -1099,8 +1119,8 @@
                 <section class="tab-view" data-tab="events">
                     <div class="section-block">
                         <div class="section-head">
-                            <h3>Canlı Event Stream</h3>
-                            <span class="head-meta"><span class="live-pulse" style="font-size: 0.7rem;"><span class="pulse-dot"></span> Streaming</span></span>
+                            <h3 data-i18n="section.liveEventStream">Canlı Event Stream</h3>
+                            <span class="head-meta"><span class="live-pulse" style="font-size: 0.7rem;"><span class="pulse-dot"></span> <span data-i18n="section.streamingLabel">Streaming</span></span></span>
                         </div>
                         <div class="section-content">
                             <div class="event-stream" id="event-stream"></div>
@@ -1111,23 +1131,23 @@
                 <section class="tab-view" data-tab="levels">
                     <div class="section-block">
                         <div class="section-head">
-                            <h3>En Çok Fail Olan Level'lar · Top 5</h3>
-                            <span class="head-meta" id="levels-meta">Son 24 saat</span>
+                            <h3 data-i18n="section.topProblemLevels">En Çok Fail Olan Level'lar · Top 5</h3>
+                            <span class="head-meta" id="levels-meta" data-i18n="page.last24h">Son 24 saat</span>
                         </div>
                         <div class="section-content">
                             <div class="bar-list" id="top-problem-levels">
-                                <div class="empty-state">Veri toplandığında en çok fail olan 5 level burada listelenecek.</div>
+                                <div class="empty-state" data-i18n="empty.topLevels">Veri toplandığında en çok fail olan 5 level burada listelenecek.</div>
                             </div>
                         </div>
                     </div>
                     <div class="section-block">
                         <div class="section-head">
-                            <h3>Level Aralık Dağılımı</h3>
-                            <span class="head-meta">Funnel · son 24 saat</span>
+                            <h3 data-i18n="section.levelDistribution">Level Aralık Dağılımı</h3>
+                            <span class="head-meta">Funnel · <span data-i18n="page.last24h">son 24 saat</span></span>
                         </div>
                         <div class="section-content">
                             <div class="bar-list" id="level-funnel">
-                                <div class="empty-state">Level event'leri toplandığında aralık bazlı tamamlama oranı burada görünecek.</div>
+                                <div class="empty-state" data-i18n="empty.levelFunnel">Level event'leri toplandığında aralık bazlı tamamlama oranı burada görünecek.</div>
                             </div>
                         </div>
                     </div>
@@ -1581,21 +1601,11 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
 
         import { db, functions } from "/js/firebase-config.js";
         import { requireAdmin, altareSignOut } from "/js/auth.js";
+        import { t, getLanguage, setLanguage, applyTranslations, initLanguageToggle } from "/js/i18n.js";
 
         // ----- Constants -----
-        const TAB_TITLES = {
-            'my-games': 'Oyunlarım',
-            'customers': 'Müşteri Yönetimi',
-            'integration': 'Entegrasyon Rehberi',
-            'overview': 'Genel Bakış',
-            'events': 'Canlı Event Stream',
-            'levels': 'Level Intelligence',
-            'performance': 'Crash & Performance',
-            'market': 'Pazar Analizi',
-            'reviews': 'Yorum & Sentiment',
-            'ai-report': 'AI Raporu',
-            'roadmap': 'Roadmap Önerileri',
-        };
+        // Tab basliklari i18n'den gelir, ama eski kod tab key -> baslik olarak kullaniyor
+        function tabTitle(tab) { return t('tab.' + tab); }
 
         const GAME_NAMES = {
             'royal-dreams': 'Royal Dreams',
@@ -1624,6 +1634,12 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
             wireGenerateButton();
             startClock();
             subscribeToGame(currentGame);
+            initLanguageToggle('lang-toggle');
+            window.addEventListener('altare-lang-changed', () => {
+                const activeTab = document.querySelector('.nav-tab.active')?.getAttribute('data-tab');
+                const pageTitle = $('page-title');
+                if (pageTitle && activeTab) pageTitle.textContent = tabTitle(activeTab);
+            });
         }
 
         function wireUserChip(user) {
@@ -1650,7 +1666,10 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
                     document.querySelectorAll('.tab-view').forEach((v) => v.classList.remove('active'));
                     const target = document.querySelector(`.tab-view[data-tab="${tab}"]`);
                     if (target) target.classList.add('active');
-                    if (pageTitle) pageTitle.textContent = TAB_TITLES[tab] || 'Altare AI Panel';
+                    if (pageTitle) {
+                        pageTitle.setAttribute('data-i18n', 'tab.' + tab);
+                        pageTitle.textContent = tabTitle(tab);
+                    }
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 });
             });
