@@ -110,6 +110,99 @@ const I18N = {
         'lang.tr': 'Türkçe',
         'lang.en': 'English',
         'lang.switchTo': 'Dili değiştir',
+
+        // ── My Games ──
+        'mygames.banner': 'Bu sekmede kendi oyunlarını görüyorsun. <strong>"Yeni Oyun Ekle"</strong> ile bir Unity projesi için tracking başlatabilirsin — sistem otomatik <code>gameId</code> üretir, SDK\'yı senin için hazırlar.',
+        'mygames.title': 'Oyunlarım',
+
+        // ── Customer Management (admin) ──
+        'customers.banner': '<strong>Admin paneli</strong> · B2B sözleşme imzalanan müşterileri buradan oluşturursun. Sistem otomatik olarak Firebase Auth user + developers profili oluşturur, password reset linki üretir.',
+        'customers.title': 'Müşteri Ekle',
+        'customers.email': 'Email',
+        'customers.studio': 'Stüdyo adı',
+        'customers.tier.indie': 'Indie ($0)',
+        'customers.tier.studio': 'Studio ($49/ay)',
+        'customers.tier.enterprise': 'Enterprise (özel)',
+        'customers.btnCreate': 'Müşteri Oluştur',
+
+        // ── Integration Guide ──
+        'integ.banner': 'Her oyunda kullanılabilen <strong>drop-in Unity SDK</strong>. Aşağıdaki adımları sırayla takip et — 5 dakikada veri akmaya başlar. SDK otomatik olarak oturum, performans ve crash verilerini toplar.',
+        'integ.s1.title': '1. SDK\'yı Projene Ekle',
+        'integ.s1.p1': 'Oyun ekledikten sonra <strong>"Oyunlarım"</strong> sekmesinde her oyunun yanında <em>"SDK İndir"</em> butonu çıkar. İndirdiğin zip içinde:',
+        'integ.s1.li1': '<code>AltareAnalytics.cs</code> — Unity drop-in SDK (Assets klasörüne at)',
+        'integ.s1.li2': '<code>AltareAnalyticsBootstrap.cs</code> — otomatik başlangıç + KVKK/GDPR consent (gameId pre-filled)',
+        'integ.s1.li3': '<code>AltareConfig.json</code> — gameId + ayarlar pre-filled',
+        'integ.s1.li4': '<code>SampleUsage.cs</code> — örnek event çağrıları',
+        'integ.s1.li5': '<code>KURULUM_REHBERI.txt</code> — adım adım Türkçe kurulum',
+        'integ.s1.p2': '<strong>Firebase Unity SDK gerekli:</strong> Authentication + Firestore modüllerini <a href="https://firebase.google.com/download/unity" target="_blank" rel="noopener">resmi siteden</a> indir, Unity\'e import et.',
+
+        'integ.s2.title': '2. Bootstrap — Tek Satırlık Initialize',
+        'integ.s2.pathA': '<strong>Yol A (Önerilen):</strong> <code>AltareAnalyticsBootstrap.cs</code> dosyasını projeye at — başka bir şey yapma. Bootstrap, KVKK/GDPR onayını kontrol eder ve SDK\'yı otomatik başlatır. <code>GameId</code> ve <code>GameName</code> zip\'te pre-filled gelir.',
+        'integ.s2.pathB': '<strong>Yol B (Manuel):</strong> Bootstrap kullanmıyorsan sahnenin en üst MonoBehaviour\'ında:',
+        'integ.s2.note': 'SDK otomatik olarak <code>sessionId</code> üretir. Her oturum ve app resume\'da yeni bir session başlatılır — panelde <strong>Aktif Oturum</strong> sayısı buna göre ölçülür. Ayrıca <code>first_open</code> ve <code>app_open</code> event\'lerini otomatik gönderir.',
+
+        'integ.s3.title': '3. Event Çağrıları — Standart Taxonomy',
+        'integ.s3.autoTitle': '<strong>Otomatik Event\'ler (manuel çağırma yok):</strong>',
+        'integ.s3.auto1': '<code>session_start</code> — uygulama açılışında ve resume\'da',
+        'integ.s3.auto2': '<code>session_end</code> — uygulama pause/quit\'te (duration_seconds dahil)',
+        'integ.s3.auto3': '<code>fps_warning</code> — FPS &lt;30 düşünce (5sn aralıkla kontrol, 60sn cooldown)',
+        'integ.s3.auto4': '<code>crash_detected</code> — beklenmeyen kapanmalarda',
+
+        'integ.s4.title': '4. Firebase Setup (her oyun için bir kere)',
+        'integ.s4.li1': 'Firebase Console → projeye Android app ekle (paket adı eşleşmeli)',
+        'integ.s4.li2': '<code>google-services.json</code> dosyasını <code>Assets/</code> köküne koy',
+        'integ.s4.li3': 'Authentication → Sign-in method → <strong>Anonymous</strong> provider\'ı Enable yap',
+        'integ.s4.li4': 'Firestore Database → Rules\'da oyunun event yazmasına izin ver (varsayılan kurallar bunu destekler)',
+        'integ.s4.li5': 'Build → telefona kur → ilk açılışta event akmaya başlar',
+
+        'integ.s5.title': '5. Doğrulama Checklist',
+        'integ.s5.li1': 'Oyunu telefonda aç, 1-2 dakika oyna',
+        'integ.s5.li2': '<strong>"Canlı Event Stream"</strong> sekmesinde <code>session_start</code> event\'i görünmeli',
+        'integ.s5.li3': 'Level başlat/bitir → <code>level_start</code> + <code>level_complete</code> akmalı',
+        'integ.s5.li4': '<strong>"Genel Bakış"</strong>\'ta Aktif Oturum &gt; 0 olmalı',
+        'integ.s5.li5': 'Reklam izlet → <code>ad_watched</code> event\'i geldiğini onayla',
+        'integ.s5.li6': '24 saat veri biriktikten sonra <em>"AI Raporu"</em> üretebilirsin',
+        'integ.s5.trouble': '<strong>Sorun mu var?</strong> Unity Console\'da <code>[Altare]</code> ile başlayan logları kontrol et. <code>[Altare] Ready. uid=...</code> mesajı görmüyorsan Firebase SDK kurulumunu tekrar kontrol et. <code>google-services.json</code> eksik veya paket adı uyumsuz olabilir.',
+
+        'integ.s6.title': '6. Her Event\'te Gönderilen Veriler',
+        'integ.s6.intro': 'SDK her event\'te şu alanları otomatik doldurur — ek bir şey yapmanıza gerek yok:',
+        'integ.s6.gameId': 'Oyun kimliği (initialize\'da verilen)',
+        'integ.s6.sessionId': 'Her oturum için benzersiz UUID (otomatik üretilir)',
+        'integ.s6.playerAnonId': 'Anonim oyuncu kimliği (cihazda saklanır, PII yok)',
+        'integ.s6.platform': 'Android / iOS / Editor',
+        'integ.s6.appVersion': 'Oyun sürümü (Application.version)',
+        'integ.s6.deviceModel': 'Cihaz modeli (Samsung SM-A217F vb.)',
+
+        // ── Roadmap (concepts) ──
+        'roadmap.banner': 'Gerçek Play Store rakip + yorum verisinden AI yeni oyun konseptleri üretir. Önce <strong>Pazar Analizi</strong> sekmesinden ilgili kategori için rakipleri çek, sonra burada <strong>"Konsept Üret"</strong> bas.',
+
+        // ── AI Report ──
+        'ai.btnGenerate': 'Yeni AI Raporu Üret',
+        'ai.lastReport': 'Henüz rapor yok',
+        'ai.emptyTitle': 'Henüz AI raporu üretilmedi.',
+        'ai.emptyBody': 'Yukarıdaki <em>Yeni AI Raporu Üret</em> butonuna basarak ilk raporu üretebilirsin. Cloud Function event verilerini analiz edip Claude\'a gönderir, sonucu burada görürsün.',
+
+        // ── Market Analysis ──
+        'market.competitorSnapshot': 'Rakip Snapshot · Play Store',
+        'market.refresh': '↻ Yenile',
+        'market.trendSignals': 'Trend Sinyalleri',
+        'market.trendMeta': 'Son 30 gün · kategori yorumları',
+
+        // ── Reviews ──
+        'reviews.banner': 'Yorum sentiment\'ı şu an demo. Google Play Review API entegre edildiğinde gerçek yorumlar buraya akacak.',
+
+        // ── Performance ──
+        'perf.fpsWarn24h': 'FPS Uyarısı (24h)',
+
+        // ── Range selector ──
+        'range.last24h': 'Son 24 saat',
+        'range.last7d': 'Son 7 gün',
+
+        // ── Countries ──
+        'country.tr': 'Türkiye',
+        'country.us': 'USA',
+        'country.de': 'Almanya',
+        'country.jp': 'Japonya',
     },
 
     en: {
@@ -207,6 +300,99 @@ const I18N = {
         'lang.tr': 'Türkçe',
         'lang.en': 'English',
         'lang.switchTo': 'Switch language',
+
+        // ── My Games ──
+        'mygames.banner': 'Here you see your own games. Use <strong>"Add New Game"</strong> to start tracking a Unity project — the system generates a <code>gameId</code> automatically and prepares the SDK for you.',
+        'mygames.title': 'My Games',
+
+        // ── Customer Management (admin) ──
+        'customers.banner': '<strong>Admin panel</strong> · Create customers who signed B2B contracts. The system automatically creates a Firebase Auth user + developer profile and generates a password reset link.',
+        'customers.title': 'Add Customer',
+        'customers.email': 'Email',
+        'customers.studio': 'Studio name',
+        'customers.tier.indie': 'Indie ($0)',
+        'customers.tier.studio': 'Studio ($49/mo)',
+        'customers.tier.enterprise': 'Enterprise (custom)',
+        'customers.btnCreate': 'Create Customer',
+
+        // ── Integration Guide ──
+        'integ.banner': 'A <strong>drop-in Unity SDK</strong> for every game. Follow the steps below in order — data starts flowing in 5 minutes. The SDK automatically collects session, performance, and crash data.',
+        'integ.s1.title': '1. Add the SDK to Your Project',
+        'integ.s1.p1': 'After adding a game, an <em>"Download SDK"</em> button appears next to each game in <strong>"My Games"</strong>. The downloaded zip contains:',
+        'integ.s1.li1': '<code>AltareAnalytics.cs</code> — Unity drop-in SDK (place in Assets folder)',
+        'integ.s1.li2': '<code>AltareAnalyticsBootstrap.cs</code> — auto-init + KVKK/GDPR consent (gameId pre-filled)',
+        'integ.s1.li3': '<code>AltareConfig.json</code> — gameId + settings pre-filled',
+        'integ.s1.li4': '<code>SampleUsage.cs</code> — example event calls',
+        'integ.s1.li5': '<code>KURULUM_REHBERI.txt</code> — step-by-step Turkish setup guide',
+        'integ.s1.p2': '<strong>Firebase Unity SDK required:</strong> download Authentication + Firestore modules from the <a href="https://firebase.google.com/download/unity" target="_blank" rel="noopener">official site</a> and import them into Unity.',
+
+        'integ.s2.title': '2. Bootstrap — One-Line Initialize',
+        'integ.s2.pathA': '<strong>Option A (Recommended):</strong> drop <code>AltareAnalyticsBootstrap.cs</code> into your project — that\'s it. Bootstrap checks KVKK/GDPR consent and initializes the SDK automatically. <code>GameId</code> and <code>GameName</code> come pre-filled in the zip.',
+        'integ.s2.pathB': '<strong>Option B (Manual):</strong> if you don\'t use Bootstrap, add this to the top MonoBehaviour of your scene:',
+        'integ.s2.note': 'The SDK automatically generates a <code>sessionId</code>. A new session starts on every launch and app resume — the panel\'s <strong>Active Sessions</strong> count is measured by this. It also sends <code>first_open</code> and <code>app_open</code> events automatically.',
+
+        'integ.s3.title': '3. Event Calls — Standard Taxonomy',
+        'integ.s3.autoTitle': '<strong>Automatic Events (no manual call needed):</strong>',
+        'integ.s3.auto1': '<code>session_start</code> — on app launch and resume',
+        'integ.s3.auto2': '<code>session_end</code> — on app pause/quit (includes duration_seconds)',
+        'integ.s3.auto3': '<code>fps_warning</code> — when FPS drops below 30 (checked every 5s, 60s cooldown)',
+        'integ.s3.auto4': '<code>crash_detected</code> — on unexpected shutdowns',
+
+        'integ.s4.title': '4. Firebase Setup (once per game)',
+        'integ.s4.li1': 'Firebase Console → add Android app to the project (package name must match)',
+        'integ.s4.li2': 'Place <code>google-services.json</code> in <code>Assets/</code> root',
+        'integ.s4.li3': 'Authentication → Sign-in method → Enable <strong>Anonymous</strong> provider',
+        'integ.s4.li4': 'Firestore Database → Rules must allow game event writes (default rules already do)',
+        'integ.s4.li5': 'Build → install on phone → events start flowing on first launch',
+
+        'integ.s5.title': '5. Validation Checklist',
+        'integ.s5.li1': 'Open the game on a phone, play for 1-2 minutes',
+        'integ.s5.li2': 'The <code>session_start</code> event should appear in <strong>"Live Event Stream"</strong>',
+        'integ.s5.li3': 'Start/finish a level → <code>level_start</code> + <code>level_complete</code> should flow',
+        'integ.s5.li4': 'Active Sessions &gt; 0 in <strong>"Overview"</strong>',
+        'integ.s5.li5': 'Watch an ad → confirm <code>ad_watched</code> event arrives',
+        'integ.s5.li6': 'After 24 hours of data, you can generate an <em>"AI Report"</em>',
+        'integ.s5.trouble': '<strong>Trouble?</strong> Check logs starting with <code>[Altare]</code> in Unity Console. If you don\'t see <code>[Altare] Ready. uid=...</code>, re-check the Firebase SDK setup. <code>google-services.json</code> may be missing or the package name may not match.',
+
+        'integ.s6.title': '6. Data Sent With Every Event',
+        'integ.s6.intro': 'The SDK fills these fields automatically on every event — no extra work needed:',
+        'integ.s6.gameId': 'Game identifier (passed to Initialize)',
+        'integ.s6.sessionId': 'Unique UUID per session (auto-generated)',
+        'integ.s6.playerAnonId': 'Anonymous player ID (stored on device, no PII)',
+        'integ.s6.platform': 'Android / iOS / Editor',
+        'integ.s6.appVersion': 'Game version (Application.version)',
+        'integ.s6.deviceModel': 'Device model (e.g. Samsung SM-A217F)',
+
+        // ── Roadmap (concepts) ──
+        'roadmap.banner': 'AI generates new game concepts from real Play Store competitor + review data. First fetch competitors from the <strong>Market Analysis</strong> tab for the relevant category, then click <strong>"Generate Concepts"</strong> here.',
+
+        // ── AI Report ──
+        'ai.btnGenerate': 'Generate New AI Report',
+        'ai.lastReport': 'No reports yet',
+        'ai.emptyTitle': 'No AI report generated yet.',
+        'ai.emptyBody': 'Click the <em>Generate New AI Report</em> button above to create the first report. The Cloud Function analyzes event data, sends it to Claude, and shows the result here.',
+
+        // ── Market Analysis ──
+        'market.competitorSnapshot': 'Competitor Snapshot · Play Store',
+        'market.refresh': '↻ Refresh',
+        'market.trendSignals': 'Trend Signals',
+        'market.trendMeta': 'Last 30 days · category reviews',
+
+        // ── Reviews ──
+        'reviews.banner': 'Review sentiment is currently a demo. Real reviews will flow here once the Google Play Review API is integrated.',
+
+        // ── Performance ──
+        'perf.fpsWarn24h': 'FPS Warnings (24h)',
+
+        // ── Range selector ──
+        'range.last24h': 'Last 24 hours',
+        'range.last7d': 'Last 7 days',
+
+        // ── Countries ──
+        'country.tr': 'Turkey',
+        'country.us': 'USA',
+        'country.de': 'Germany',
+        'country.jp': 'Japan',
     },
 };
 

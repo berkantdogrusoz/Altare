@@ -1195,7 +1195,7 @@
                     </div>
                     <div class="section-block">
                         <div class="section-head">
-                            <h3>Rakip Snapshot · Play Store</h3>
+                            <h3 data-i18n="market.competitorSnapshot">Rakip Snapshot · Play Store</h3>
                             <span class="head-meta">
                                 <select id="market-gametype" style="background: rgba(0,0,0,0.3); color: var(--fg, #fff); border: 1px solid var(--border); padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; margin-right: 6px;">
                                     <option value="puzzle">Puzzle</option>
@@ -1206,12 +1206,12 @@
                                     <option value="simulation">Simulation</option>
                                 </select>
                                 <select id="market-country" style="background: rgba(0,0,0,0.3); color: var(--fg, #fff); border: 1px solid var(--border); padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; margin-right: 6px;">
-                                    <option value="tr">Türkiye</option>
-                                    <option value="us">USA</option>
-                                    <option value="de">Germany</option>
-                                    <option value="jp">Japan</option>
+                                    <option value="tr" data-i18n="country.tr">Türkiye</option>
+                                    <option value="us" data-i18n="country.us">USA</option>
+                                    <option value="de" data-i18n="country.de">Germany</option>
+                                    <option value="jp" data-i18n="country.jp">Japan</option>
                                 </select>
-                                <button class="primary-btn" id="market-refresh-btn" style="padding: 5px 12px; font-size: 0.8rem;">↻ Yenile</button>
+                                <button class="primary-btn" id="market-refresh-btn" style="padding: 5px 12px; font-size: 0.8rem;" data-i18n="market.refresh">↻ Yenile</button>
                             </span>
                         </div>
                         <div class="section-content">
@@ -1280,8 +1280,8 @@
                     </div>
                     <div class="section-block">
                         <div class="section-head">
-                            <h3>Trend Sinyalleri</h3>
-                            <span class="head-meta">Son 30 gün · kategori yorumları</span>
+                            <h3 data-i18n="market.trendSignals">Trend Sinyalleri</h3>
+                            <span class="head-meta" data-i18n="market.trendMeta">Son 30 gün · kategori yorumları</span>
                         </div>
                         <div class="section-content">
                             <div class="bar-list">
@@ -1311,7 +1311,7 @@
                 </section>
 
                 <section class="tab-view" data-tab="reviews">
-                    <div class="info-banner">
+                    <div class="info-banner" data-i18n="reviews.banner">
                         Yorum sentiment'ı şu an demo. Google Play Review API entegre edildiğinde gerçek yorumlar buraya akacak.
                     </div>
                     <div class="section-block">
@@ -1357,20 +1357,20 @@
                 <section class="tab-view" data-tab="ai-report">
                     <div class="ai-action-bar">
                         <div>
-                            <button class="ai-btn" id="generate-btn">⚡ Yeni AI Raporu Üret</button>
+                            <button class="ai-btn" id="generate-btn"><span data-i18n="ai.btnGenerate">⚡ Yeni AI Raporu Üret</span></button>
                             <select class="game-selector" id="report-range-selector" style="margin-left: 6px;">
-                                <option value="last_24h" selected>Son 24 saat</option>
-                                <option value="last_7d">Son 7 gün</option>
+                                <option value="last_24h" selected data-i18n="range.last24h">Son 24 saat</option>
+                                <option value="last_7d" data-i18n="range.last7d">Son 7 gün</option>
                             </select>
                         </div>
-                        <div class="head-meta" id="last-report">Henüz rapor yok</div>
+                        <div class="head-meta" id="last-report" data-i18n="ai.lastReport">Henüz rapor yok</div>
                     </div>
                     <div id="ai-report-container">
                         <div class="section-block">
                             <div class="section-content">
                                 <div class="empty-state">
-                                    <strong style="color: var(--text); display: block; margin-bottom: 6px;">Henüz AI raporu üretilmedi.</strong>
-                                    Yukarıdaki <em>Yeni AI Raporu Üret</em> butonuna basarak ilk raporu üretebilirsin. Cloud Function event verilerini analiz edip Claude'a gönderir, sonucu burada görürsün.
+                                    <strong style="color: var(--text); display: block; margin-bottom: 6px;" data-i18n="ai.emptyTitle">Henüz AI raporu üretilmedi.</strong>
+                                    <span data-i18n-html="ai.emptyBody">Yukarıdaki <em>Yeni AI Raporu Üret</em> butonuna basarak ilk raporu üretebilirsin. Cloud Function event verilerini analiz edip Claude'a gönderir, sonucu burada görürsün.</span>
                                 </div>
                             </div>
                         </div>
@@ -1378,38 +1378,38 @@
                 </section>
 
                 <section class="tab-view" data-tab="my-games">
-                    <div class="info-banner">
+                    <div class="info-banner" data-i18n-html="mygames.banner">
                         Bu sekmede kendi oyunlarını görüyorsun. <strong>"Yeni Oyun Ekle"</strong> ile bir Unity projesi için tracking başlatabilirsin — sistem otomatik <code>gameId</code> üretir, SDK'yı senin için hazırlar.
                     </div>
                     <div class="section-block">
                         <div class="section-head">
-                            <h3>Oyunlarım</h3>
-                            <button class="primary-btn" id="btn-new-game">+ Yeni Oyun Ekle</button>
+                            <h3 data-i18n="mygames.title">Oyunlarım</h3>
+                            <button class="primary-btn" id="btn-new-game" data-i18n="mygames.newGame">+ Yeni Oyun Ekle</button>
                         </div>
                         <div class="section-content" id="my-games-list">
-                            <div class="empty">Yükleniyor...</div>
+                            <div class="empty" data-i18n="empty.loading">Yükleniyor...</div>
                         </div>
                     </div>
                 </section>
 
                 <section class="tab-view" data-tab="customers">
-                    <div class="info-banner">
+                    <div class="info-banner" data-i18n-html="customers.banner">
                         <strong>Admin paneli</strong> · B2B sözleşme imzalanan müşterileri buradan oluşturursun. Sistem otomatik olarak Firebase Auth user + developers profili oluşturur, password reset linki üretir.
                     </div>
                     <div class="section-block">
                         <div class="section-head">
-                            <h3>Müşteri Ekle</h3>
+                            <h3 data-i18n="customers.title">Müşteri Ekle</h3>
                         </div>
                         <div class="section-content">
                             <form id="form-new-customer" class="form-inline">
-                                <input type="email" id="customer-email" placeholder="Email" required>
-                                <input type="text" id="customer-studio" placeholder="Studio adı" required>
+                                <input type="email" id="customer-email" placeholder="Email" data-i18n-placeholder="customers.email" required>
+                                <input type="text" id="customer-studio" placeholder="Studio adı" data-i18n-placeholder="customers.studio" required>
                                 <select id="customer-tier">
-                                    <option value="indie">Indie ($0)</option>
-                                    <option value="studio">Studio ($49/ay)</option>
-                                    <option value="enterprise" selected>Enterprise (custom)</option>
+                                    <option value="indie" data-i18n="customers.tier.indie">Indie ($0)</option>
+                                    <option value="studio" data-i18n="customers.tier.studio">Studio ($49/ay)</option>
+                                    <option value="enterprise" selected data-i18n="customers.tier.enterprise">Enterprise (custom)</option>
                                 </select>
-                                <button type="submit" class="primary-btn">Müşteri Oluştur</button>
+                                <button type="submit" class="primary-btn" data-i18n="customers.btnCreate">Müşteri Oluştur</button>
                             </form>
                             <div id="new-customer-result"></div>
                         </div>
@@ -1417,43 +1417,43 @@
                 </section>
 
                 <section class="tab-view" data-tab="integration">
-                    <div class="info-banner">
+                    <div class="info-banner" data-i18n-html="integ.banner">
                         Her oyunda kullanılabilen <strong>drop-in Unity SDK</strong>. Aşağıdaki adımları sırayla takip et — 5 dakikada veri akmaya başlar. SDK otomatik olarak oturum, performans ve crash verilerini toplar.
                     </div>
                     <div class="section-block">
                         <div class="section-head">
-                            <h3>1. SDK'yı Projene Ekle</h3>
+                            <h3 data-i18n="integ.s1.title">1. SDK'yı Projene Ekle</h3>
                         </div>
                         <div class="section-content">
-                            <p>Oyun ekledikten sonra <strong>"Oyunlarım"</strong> sekmesinde her oyunun yanında <em>"SDK İndir"</em> butonu çıkar. İndirdiğin zip içinde:</p>
+                            <p data-i18n-html="integ.s1.p1">Oyun ekledikten sonra <strong>"Oyunlarım"</strong> sekmesinde her oyunun yanında <em>"SDK İndir"</em> butonu çıkar. İndirdiğin zip içinde:</p>
                             <ul>
-                                <li><code>AltareAnalytics.cs</code> — Unity drop-in SDK (Assets klasörüne at)</li>
-                                <li><code>AltareAnalyticsBootstrap.cs</code> — otomatik başlangıç + KVKK/GDPR consent (gameId pre-filled)</li>
-                                <li><code>AltareConfig.json</code> — gameId + ayarlar pre-filled</li>
-                                <li><code>SampleUsage.cs</code> — örnek event çağrıları</li>
-                                <li><code>KURULUM_REHBERI.txt</code> — adım adım Türkçe kurulum</li>
+                                <li data-i18n-html="integ.s1.li1"><code>AltareAnalytics.cs</code> — Unity drop-in SDK (Assets klasörüne at)</li>
+                                <li data-i18n-html="integ.s1.li2"><code>AltareAnalyticsBootstrap.cs</code> — otomatik başlangıç + KVKK/GDPR consent (gameId pre-filled)</li>
+                                <li data-i18n-html="integ.s1.li3"><code>AltareConfig.json</code> — gameId + ayarlar pre-filled</li>
+                                <li data-i18n-html="integ.s1.li4"><code>SampleUsage.cs</code> — örnek event çağrıları</li>
+                                <li data-i18n-html="integ.s1.li5"><code>KURULUM_REHBERI.txt</code> — adım adım Türkçe kurulum</li>
                             </ul>
-                            <p><strong>Firebase Unity SDK gerekli:</strong> Authentication + Firestore modüllerini <a href="https://firebase.google.com/download/unity" target="_blank" rel="noopener">resmi siteden</a> indir, Unity'e import et.</p>
+                            <p data-i18n-html="integ.s1.p2"><strong>Firebase Unity SDK gerekli:</strong> Authentication + Firestore modüllerini <a href="https://firebase.google.com/download/unity" target="_blank" rel="noopener">resmi siteden</a> indir, Unity'e import et.</p>
                         </div>
                     </div>
                     <div class="section-block">
                         <div class="section-head">
-                            <h3>2. Bootstrap — Tek Satırlık Initialize</h3>
+                            <h3 data-i18n="integ.s2.title">2. Bootstrap — Tek Satırlık Initialize</h3>
                         </div>
                         <div class="section-content">
-                            <p><strong>Yol A (Önerilen):</strong> <code>AltareAnalyticsBootstrap.cs</code> dosyasını projeye at — başka bir şey yapma. Bootstrap, KVKK/GDPR onayını kontrol eder ve SDK'yı otomatik başlatır. <code>GameId</code> ve <code>GameName</code> zip'te pre-filled gelir.</p>
-                            <p style="margin-top: 8px;"><strong>Yol B (Manuel):</strong> Bootstrap kullanmıyorsan sahnenin en üst MonoBehaviour'ında:</p>
+                            <p data-i18n-html="integ.s2.pathA"><strong>Yol A (Önerilen):</strong> <code>AltareAnalyticsBootstrap.cs</code> dosyasını projeye at — başka bir şey yapma. Bootstrap, KVKK/GDPR onayını kontrol eder ve SDK'yı otomatik başlatır. <code>GameId</code> ve <code>GameName</code> zip'te pre-filled gelir.</p>
+                            <p style="margin-top: 8px;" data-i18n-html="integ.s2.pathB"><strong>Yol B (Manuel):</strong> Bootstrap kullanmıyorsan sahnenin en üst MonoBehaviour'ında:</p>
                             <pre class="code-block">using Altare.Analytics;
 
 void Start() {
     AltareAnalytics.Initialize("YOUR_GAME_ID", "Your Game Name");
 }</pre>
-                            <p style="margin-top: 8px; color: var(--text-dim); font-size: 0.85rem;">SDK otomatik olarak <code>sessionId</code> üretir. Her oturum ve app resume'da yeni bir session başlatılır — panelde <strong>Aktif Oturum</strong> sayısı buna göre ölçülür. Ayrıca <code>first_open</code> ve <code>app_open</code> event'lerini otomatik gönderir.</p>
+                            <p style="margin-top: 8px; color: var(--text-dim); font-size: 0.85rem;" data-i18n-html="integ.s2.note">SDK otomatik olarak <code>sessionId</code> üretir. Her oturum ve app resume'da yeni bir session başlatılır — panelde <strong>Aktif Oturum</strong> sayısı buna göre ölçülür. Ayrıca <code>first_open</code> ve <code>app_open</code> event'lerini otomatik gönderir.</p>
                         </div>
                     </div>
                     <div class="section-block">
                         <div class="section-head">
-                            <h3>3. Event Çağrıları — Standart Taxonomy</h3>
+                            <h3 data-i18n="integ.s3.title">3. Event Çağrıları — Standart Taxonomy</h3>
                         </div>
                         <div class="section-content">
                             <pre class="code-block">// ── Level olayları ──
@@ -1471,78 +1471,78 @@ AltareAnalytics.LogEvent("iap_purchase_success", new() { { "sku", sku }, { "amou
 // ── Player feedback ──
 AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
                             <div style="margin-top: 10px; padding: 10px 14px; background: rgba(66,133,244,0.08); border-radius: 6px; font-size: 0.85rem;">
-                                <strong>Otomatik Event'ler (manuel çağırma yok):</strong>
+                                <strong data-i18n-html="integ.s3.autoTitle">Otomatik Event'ler (manuel çağırma yok):</strong>
                                 <ul style="margin: 6px 0 0; padding-left: 18px;">
-                                    <li><code>session_start</code> — uygulama açılışında ve resume'da</li>
-                                    <li><code>session_end</code> — uygulama pause/quit'te (duration_seconds dahil)</li>
-                                    <li><code>fps_warning</code> — FPS &lt;30 düşünce (5sn aralıkla kontrol, 60sn cooldown)</li>
-                                    <li><code>crash_detected</code> — beklenmeyen kapanmalarda</li>
+                                    <li data-i18n-html="integ.s3.auto1"><code>session_start</code> — uygulama açılışında ve resume'da</li>
+                                    <li data-i18n-html="integ.s3.auto2"><code>session_end</code> — uygulama pause/quit'te (duration_seconds dahil)</li>
+                                    <li data-i18n-html="integ.s3.auto3"><code>fps_warning</code> — FPS &lt;30 düşünce (5sn aralıkla kontrol, 60sn cooldown)</li>
+                                    <li data-i18n-html="integ.s3.auto4"><code>crash_detected</code> — beklenmeyen kapanmalarda</li>
                                 </ul>
                             </div>
                         </div>
                     </div>
                     <div class="section-block">
                         <div class="section-head">
-                            <h3>4. Firebase Setup (her oyun için bir kere)</h3>
+                            <h3 data-i18n="integ.s4.title">4. Firebase Setup (her oyun için bir kere)</h3>
                         </div>
                         <div class="section-content">
                             <ol style="padding-left: 18px;">
-                                <li>Firebase Console → projeye Android app ekle (paket adı eşleşmeli)</li>
-                                <li><code>google-services.json</code> dosyasını <code>Assets/</code> köküne koy</li>
-                                <li>Authentication → Sign-in method → <strong>Anonymous</strong> provider'ı Enable yap</li>
-                                <li>Firestore Database → Rules'da oyunun event yazmasına izin ver (varsayılan kurallar bunu destekler)</li>
-                                <li>Build → telefona kur → ilk açılışta event akmaya başlar</li>
+                                <li data-i18n-html="integ.s4.li1">Firebase Console → projeye Android app ekle (paket adı eşleşmeli)</li>
+                                <li data-i18n-html="integ.s4.li2"><code>google-services.json</code> dosyasını <code>Assets/</code> köküne koy</li>
+                                <li data-i18n-html="integ.s4.li3">Authentication → Sign-in method → <strong>Anonymous</strong> provider'ı Enable yap</li>
+                                <li data-i18n-html="integ.s4.li4">Firestore Database → Rules'da oyunun event yazmasına izin ver (varsayılan kurallar bunu destekler)</li>
+                                <li data-i18n-html="integ.s4.li5">Build → telefona kur → ilk açılışta event akmaya başlar</li>
                             </ol>
                         </div>
                     </div>
                     <div class="section-block">
                         <div class="section-head">
-                            <h3>5. Doğrulama Checklist</h3>
+                            <h3 data-i18n="integ.s5.title">5. Doğrulama Checklist</h3>
                         </div>
                         <div class="section-content">
                             <ol style="padding-left: 18px;">
-                                <li>Oyunu telefonda aç, 1-2 dakika oyna</li>
-                                <li><strong>"Canlı Event Stream"</strong> sekmesinde <code>session_start</code> event'i görünmeli</li>
-                                <li>Level başlat/bitir → <code>level_start</code> + <code>level_complete</code> akmalı</li>
-                                <li><strong>"Genel Bakış"</strong>'ta Aktif Oturum &gt; 0 olmalı</li>
-                                <li>Reklam izlet → <code>ad_watched</code> event'i geldiğini onayla</li>
-                                <li>24 saat veri biriktikten sonra <em>"AI Raporu"</em> üretebilirsin</li>
+                                <li data-i18n-html="integ.s5.li1">Oyunu telefonda aç, 1-2 dakika oyna</li>
+                                <li data-i18n-html="integ.s5.li2"><strong>"Canlı Event Stream"</strong> sekmesinde <code>session_start</code> event'i görünmeli</li>
+                                <li data-i18n-html="integ.s5.li3">Level başlat/bitir → <code>level_start</code> + <code>level_complete</code> akmalı</li>
+                                <li data-i18n-html="integ.s5.li4"><strong>"Genel Bakış"</strong>'ta Aktif Oturum &gt; 0 olmalı</li>
+                                <li data-i18n-html="integ.s5.li5">Reklam izlet → <code>ad_watched</code> event'i geldiğini onayla</li>
+                                <li data-i18n-html="integ.s5.li6">24 saat veri biriktikten sonra <em>"AI Raporu"</em> üretebilirsin</li>
                             </ol>
-                            <p style="margin-top: 10px; padding: 8px 12px; background: rgba(234,67,53,0.08); border-radius: 6px; font-size: 0.85rem;">
+                            <p style="margin-top: 10px; padding: 8px 12px; background: rgba(234,67,53,0.08); border-radius: 6px; font-size: 0.85rem;" data-i18n-html="integ.s5.trouble">
                                 <strong>Sorun mu var?</strong> Unity Console'da <code>[Altare]</code> ile başlayan logları kontrol et. <code>[Altare] Ready. uid=...</code> mesajı görmüyorsan Firebase SDK kurulumunu tekrar kontrol et. <code>google-services.json</code> eksik veya paket adı uyumsuz olabilir.
                             </p>
                         </div>
                     </div>
                     <div class="section-block">
                         <div class="section-head">
-                            <h3>6. Her Event'te Gönderilen Veriler</h3>
+                            <h3 data-i18n="integ.s6.title">6. Her Event'te Gönderilen Veriler</h3>
                         </div>
                         <div class="section-content">
-                            <p style="font-size: 0.85rem; color: var(--text-dim);">SDK her event'te şu alanları otomatik doldurur — ek bir şey yapmanıza gerek yok:</p>
+                            <p style="font-size: 0.85rem; color: var(--text-dim);" data-i18n="integ.s6.intro">SDK her event'te şu alanları otomatik doldurur — ek bir şey yapmanıza gerek yok:</p>
                             <table style="width: 100%; font-size: 0.82rem; margin-top: 8px; border-collapse: collapse;">
                                 <tr style="border-bottom: 1px solid var(--border);">
                                     <td style="padding: 4px 8px;"><code>gameId</code></td>
-                                    <td style="padding: 4px 8px;">Oyun kimliği (initialize'da verilen)</td>
+                                    <td style="padding: 4px 8px;" data-i18n="integ.s6.gameId">Oyun kimliği (initialize'da verilen)</td>
                                 </tr>
                                 <tr style="border-bottom: 1px solid var(--border);">
                                     <td style="padding: 4px 8px;"><code>sessionId</code></td>
-                                    <td style="padding: 4px 8px;">Her oturum için benzersiz UUID (otomatik üretilir)</td>
+                                    <td style="padding: 4px 8px;" data-i18n="integ.s6.sessionId">Her oturum için benzersiz UUID (otomatik üretilir)</td>
                                 </tr>
                                 <tr style="border-bottom: 1px solid var(--border);">
                                     <td style="padding: 4px 8px;"><code>playerAnonId</code></td>
-                                    <td style="padding: 4px 8px;">Anonim oyuncu kimliği (cihazda saklanır, PII yok)</td>
+                                    <td style="padding: 4px 8px;" data-i18n="integ.s6.playerAnonId">Anonim oyuncu kimliği (cihazda saklanır, PII yok)</td>
                                 </tr>
                                 <tr style="border-bottom: 1px solid var(--border);">
                                     <td style="padding: 4px 8px;"><code>platform</code></td>
-                                    <td style="padding: 4px 8px;">Android / iOS / Editor</td>
+                                    <td style="padding: 4px 8px;" data-i18n="integ.s6.platform">Android / iOS / Editor</td>
                                 </tr>
                                 <tr style="border-bottom: 1px solid var(--border);">
                                     <td style="padding: 4px 8px;"><code>appVersion</code></td>
-                                    <td style="padding: 4px 8px;">Oyun sürümü (Application.version)</td>
+                                    <td style="padding: 4px 8px;" data-i18n="integ.s6.appVersion">Oyun sürümü (Application.version)</td>
                                 </tr>
                                 <tr>
                                     <td style="padding: 4px 8px;"><code>deviceModel</code></td>
-                                    <td style="padding: 4px 8px;">Cihaz modeli (Samsung SM-A217F vb.)</td>
+                                    <td style="padding: 4px 8px;" data-i18n="integ.s6.deviceModel">Cihaz modeli (Samsung SM-A217F vb.)</td>
                                 </tr>
                             </table>
                         </div>
@@ -1550,7 +1550,7 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
                 </section>
 
                 <section class="tab-view" data-tab="roadmap">
-                    <div class="info-banner">
+                    <div class="info-banner" data-i18n-html="roadmap.banner">
                         Gerçek Play Store rakip + yorum verisinden AI yeni oyun konseptleri üretir. Önce <strong>Pazar Analizi</strong> sekmesinden ilgili kategori için rakipleri çek, sonra burada <strong>"Konsept Üret"</strong> bas.
                     </div>
                     <div class="section-block">
@@ -1573,7 +1573,7 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
                                     <option value="de">Germany</option>
                                     <option value="jp">Japan</option>
                                 </select>
-                                <button class="primary-btn" id="concept-generate-btn" style="padding: 5px 12px; font-size: 0.8rem;">⚡ Konsept Üret</button>
+                                <button class="primary-btn" id="concept-generate-btn" style="padding: 5px 12px; font-size: 0.8rem;" data-i18n="concept.btnGenerate">⚡ Konsept Üret</button>
                             </span>
                         </div>
                         <div class="section-content">
@@ -1980,14 +1980,14 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
         function renderReportEmpty() {
             const root = $('ai-report-container');
             const lastEl = $('last-report');
-            if (lastEl) lastEl.textContent = 'Henüz rapor yok';
+            if (lastEl) lastEl.textContent = t('ai.lastReport');
             if (root) {
                 root.innerHTML = `
                     <div class="section-block">
                         <div class="section-content">
                             <div class="empty-state">
-                                <strong style="color: var(--text); display: block; margin-bottom: 6px;">Henüz AI raporu üretilmedi.</strong>
-                                Yukarıdaki <em>Yeni AI Raporu Üret</em> butonuna basarak ilk raporu üretebilirsin. Cloud Function event verilerini analiz edip Claude'a gönderir, sonucu burada görürsün.
+                                <strong style="color: var(--text); display: block; margin-bottom: 6px;" data-i18n="ai.emptyTitle">${t('ai.emptyTitle')}</strong>
+                                <span data-i18n-html="ai.emptyBody">${t('ai.emptyBody')}</span>
                             </div>
                         </div>
                     </div>`;
