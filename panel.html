@@ -1935,23 +1935,23 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
             const root = $('level-funnel');
             if (!root) return;
             if (!levels || !levels.length) {
-                root.innerHTML = '<div class="empty-state">Level event\'leri toplandığında aralık bazlı tamamlama oranı burada görünecek.</div>';
+                root.innerHTML = '<div class="empty-state" data-i18n="empty.levelFunnel">' + t('empty.levelFunnel') + '</div>';
                 return;
             }
             const maxStarts = Math.max(...levels.map((l) => l.starts || 0), 1);
             root.innerHTML = levels.map((l) => {
-                const total = (l.starts || 0) + (l.fails || 0) + (l.completes || 0);
-                const completePct = total > 0 ? ((l.completes || 0) / total * 100).toFixed(0) : '0';
-                const failPct = total > 0 ? ((l.fails || 0) / total * 100).toFixed(0) : '0';
+                const total = (l.completes || 0) + (l.fails || 0);
+                const completePct = total > 0 ? Math.round((l.completes || 0) / total * 100) : 0;
+                const failPct = total > 0 ? 100 - completePct : 0;
                 const barW = Math.min(100, ((l.starts || 0) / maxStarts) * 100);
-                const completeW = total > 0 ? ((l.completes || 0) / total * barW) : 0;
-                const failW = total > 0 ? ((l.fails || 0) / total * barW) : 0;
                 return `
                     <div class="bar-row">
                         <div class="label">Level ${escapeHtml(String(l.level))}<span class="sub">${formatInt(l.starts || 0)} start · ${formatInt(l.completes || 0)} win · ${formatInt(l.fails || 0)} fail</span></div>
                         <div class="bar-track">
-                            <div class="bar-fill" style="width: ${completeW}%; background: var(--green, #34a853);"></div>
-                            <div class="bar-fill" style="width: ${failW}%; background: var(--red, #ea4335); margin-left: ${completeW}%; position: absolute; top: 0; bottom: 0;"></div>
+                            <div style="display: flex; width: ${barW}%; height: 100%; border-radius: inherit; overflow: hidden;">
+                                <div style="width: ${completePct}%; background: #34a853; height: 100%;"></div>
+                                <div style="width: ${failPct}%; background: #ea4335; height: 100%;"></div>
+                            </div>
                         </div>
                         <div class="pct">${completePct}% win</div>
                     </div>`;
