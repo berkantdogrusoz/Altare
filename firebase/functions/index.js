@@ -358,7 +358,10 @@ exports.aggregateDailyStats = onSchedule(
 // ─────────────────────────────────────────────────────────────────────────────
 
 exports.fetchAnalyticsOverview = onCall(
-  { timeoutSeconds: 30 },
+  {
+    timeoutSeconds: 30,
+    serviceAccount: "firebase-adminsdk-fbsvc@altare-312a1.iam.gserviceaccount.com",
+  },
   async (request) => {
     assertAdmin(request);
 
