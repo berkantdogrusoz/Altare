@@ -1431,7 +1431,7 @@
                                 <li data-i18n-html="integ.s1.li2"><code>AltareAnalyticsBootstrap.cs</code> — otomatik başlangıç + KVKK/GDPR consent (gameId pre-filled)</li>
                                 <li data-i18n-html="integ.s1.li3"><code>AltareConfig.json</code> — gameId + ayarlar pre-filled</li>
                                 <li data-i18n-html="integ.s1.li4"><code>SampleUsage.cs</code> — örnek event çağrıları</li>
-                                <li data-i18n-html="integ.s1.li5"><code>KURULUM_REHBERI.txt</code> — adım adım Türkçe kurulum</li>
+                                <li data-i18n-html="integ.s1.li5"><code>KURULUM_REHBERI_TR.txt</code> / <code>SETUP_GUIDE_EN.txt</code> — adım adım kurulum (TR + EN)</li>
                             </ul>
                             <p data-i18n-html="integ.s1.p2"><strong>Firebase Unity SDK gerekli:</strong> Authentication + Firestore modüllerini <a href="https://firebase.google.com/download/unity" target="_blank" rel="noopener">resmi siteden</a> indir, Unity'e import et.</p>
                         </div>
@@ -2184,6 +2184,7 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
                         gameId: currentGame,
                         gameName: GAME_NAMES[currentGame] || currentGame,
                         timeRange: rangeSel ? rangeSel.value : 'last_24h',
+                        language: getLanguage(),
                     });
                     showToast('AI raporu güncellendi · ' + ((res.data && res.data.eventCount) || 0) + ' event analiz edildi');
                 } catch (err) {

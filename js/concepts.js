@@ -8,6 +8,7 @@
 import { httpsCallable } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-functions.js";
 import { doc, getDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 import { db, functions, auth } from "/js/firebase-config.js";
+import { getLanguage } from "/js/i18n.js";
 
 document.addEventListener("DOMContentLoaded", () => {
     const btn = document.getElementById("concept-generate-btn");
@@ -38,7 +39,7 @@ async function handleGenerate(forceRefresh) {
 
     try {
         const fn = httpsCallable(functions, "generateGameConcepts", { timeout: 180000 });
-        const result = await fn({ gameType, country, forceRefresh });
+        const result = await fn({ gameType, country, forceRefresh, language: getLanguage() });
         const data = result.data || {};
         renderConcepts(data);
         const src = data.source === "cache" ? `Cache (${data.ageHours}sa önce)` : "Canlı üretim";
@@ -62,7 +63,7 @@ async function loadCachedConcepts() {
     if (!user) return;
     const gameType = document.getElementById("concept-gametype")?.value || "puzzle";
     const country = document.getElementById("concept-country")?.value || "tr";
-    const cacheKey = `${user.uid}_${gameType}-${country}`;
+    const cacheKey = `${user.uid}_${gameType}-${country}-${getLanguage()}`;
 
     try {
         const snap = await getDoc(doc(db, "game_concepts", cacheKey));

@@ -241,12 +241,13 @@ exports.generateAIReport = onCall(
     try {
       assertAdmin(request);
 
-      const { gameId, gameName, timeRange = "last_24h" } = request.data || {};
+      const { gameId, gameName, timeRange = "last_24h", language = "tr" } = request.data || {};
       if (!gameId || typeof gameId !== "string") {
         throw new HttpsError("invalid-argument", "gameId is required.");
       }
+      const lang = language === "en" ? "en" : "tr";
 
-      logger.info("generateAIReport start", { gameId, gameName, timeRange, uid: request.auth.uid });
+      logger.info("generateAIReport start", { gameId, gameName, timeRange, lang, uid: request.auth.uid });
 
       const windowMs = timeRange === "last_7d" ? 7 * 24 * 3600e3 : 24 * 3600e3;
       const since = admin.firestore.Timestamp.fromMillis(Date.now() - windowMs);
@@ -257,15 +258,17 @@ exports.generateAIReport = onCall(
       if (summary.totalEvents === 0) {
         throw new HttpsError(
           "failed-precondition",
-          "Bu zaman aralığında oyundan hiç event yok. AI raporu üretmek için önce veri akışı gerekli."
+          lang === "en"
+            ? "No events from this game in the selected time range. Data flow is required before generating an AI report."
+            : "Bu zaman aralığında oyundan hiç event yok. AI raporu üretmek için önce veri akışı gerekli."
         );
       }
 
-      const userPrompt = buildUserPrompt(gameId, gameName, timeRange, summary);
+      const userPrompt = buildUserPrompt(gameId, gameName, timeRange, summary, lang);
 
       const aiJson = await callAnthropic(
         ANTHROPIC_API_KEY.value(),
-        LIVE_OPS_SYSTEM_PROMPT,
+        localizeSystemPrompt(LIVE_OPS_SYSTEM_PROMPT, lang),
         userPrompt
       );
 
@@ -279,6 +282,7 @@ exports.generateAIReport = onCall(
           gameId,
           gameName: gameName || gameId,
           timeRange,
+          language: lang,
           provider: "anthropic",
           model: ANTHROPIC_MODEL,
           report: aiJson,
@@ -840,10 +844,12 @@ exports.generateGameConcepts = onCall(
         gameType = "puzzle",
         country = "tr",
         forceRefresh = false,
+        language = "tr",
       } = request.data || {};
+      const lang = language === "en" ? "en" : "tr";
 
       const uid = request.auth.uid;
-      const collectionId = `${gameType}-${country}`;
+      const collectionId = `${gameType}-${country}-${lang}`;
 
       logger.info("generateGameConcepts start", { uid, gameType, country, forceRefresh });
 
@@ -968,7 +974,7 @@ exports.generateGameConcepts = onCall(
 
       const aiJson = await callAnthropic(
         ANTHROPIC_API_KEY.value(),
-        GAME_CONCEPT_SYSTEM_PROMPT,
+        localizeSystemPrompt(GAME_CONCEPT_SYSTEM_PROMPT, lang),
         userPrompt,
         { maxTokens: 8192 }
       );
@@ -1190,7 +1196,36 @@ async function buildSummaryData(gameId, sinceTs) {
   };
 }
 
-function buildUserPrompt(gameId, gameName, timeRange, summary) {
+function localizeSystemPrompt(prompt, language) {
+  if (language !== "en") return prompt;
+  // For English requests, append an explicit override that takes precedence
+  // over Turkish instructions embedded in the prompt template.
+  return prompt + "\n\n" +
+    "LANGUAGE OVERRIDE (highest priority):\n" +
+    "- IGNORE any rule in this prompt that says \"Tum metinler Turkce\" or " +
+    "\"Tüm metinler Türkçe\" or any other Turkish-only directive.\n" +
+    "- Generate ALL natural-language text fields in fluent professional English.\n" +
+    "- Keep JSON keys exactly as specified (English) — do not translate keys.\n" +
+    "- Keep enum/literal values exactly as specified (e.g. \"critical\", \"high\", " +
+    "\"medium\", \"low\", \"this week\", etc. — translate enum values like \"bu hafta\" " +
+    "to \"this week\", \"2 hafta\" to \"2 weeks\", \"1 ay\" to \"1 month\", " +
+    "\"sonraki sprint\" to \"next sprint\").\n" +
+    "- Tone: professional, data-driven, B2B SaaS.\n";
+}
+
+function buildUserPrompt(gameId, gameName, timeRange, summary, language) {
+  if (language === "en") {
+    return [
+      `GAME: ${gameName || gameId} (id: ${gameId})`,
+      `TIME RANGE: ${timeRange}`,
+      "",
+      "SUMMARY METRICS (JSON):",
+      JSON.stringify(summary, null, 2),
+      "",
+      "Based on the real data above, generate a Live-Ops report in the specified JSON schema.",
+      "Return JSON only — no explanatory text before or after. All natural-language fields in English.",
+    ].join("\n");
+  }
   return [
     `OYUN: ${gameName || gameId} (id: ${gameId})`,
     `ZAMAN ARALIĞI: ${timeRange}`,
