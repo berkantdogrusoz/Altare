@@ -5,14 +5,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex, nofollow">
-    <title>Altare · Panel Giriş</title>
+    <title>Altare · Yeni Hesap</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap"
         rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-
         :root {
             --bg: #0a0a0a;
             --bg-card: #111;
@@ -22,8 +21,8 @@
             --text-dim: rgba(255, 255, 255, 0.55);
             --text-faint: rgba(255, 255, 255, 0.35);
             --red: #f87171;
+            --green: #4ade80;
         }
-
         body {
             background: var(--bg);
             color: var(--text);
@@ -35,7 +34,6 @@
             padding: 24px;
             overflow-x: hidden;
         }
-
         .login-bg-text {
             position: fixed;
             font-size: clamp(140px, 18vw, 320px);
@@ -51,31 +49,27 @@
         }
         .login-bg-text.top { top: 4%; left: -10%; }
         .login-bg-text.bottom { bottom: 4%; right: -10%; }
-
         .login-card {
             position: relative;
             z-index: 2;
             width: 100%;
-            max-width: 420px;
+            max-width: 460px;
             background: rgba(17, 17, 17, 0.85);
             backdrop-filter: blur(20px);
             border: 1px solid var(--border);
             border-radius: 18px;
             padding: 42px 36px;
         }
-
         .brand {
             text-align: center;
             margin-bottom: 28px;
         }
-
         .brand-logo {
             font-size: 1.4rem;
             font-weight: 900;
             letter-spacing: 0.25em;
             text-transform: uppercase;
         }
-
         .brand-tag {
             margin-top: 8px;
             font-size: 0.7rem;
@@ -84,7 +78,6 @@
             text-transform: uppercase;
             color: var(--text-faint);
         }
-
         h1 {
             font-size: 1.6rem;
             font-weight: 800;
@@ -92,20 +85,17 @@
             margin-bottom: 6px;
             text-align: center;
         }
-
         .subtitle {
             text-align: center;
             color: var(--text-dim);
             font-size: 0.9rem;
             margin-bottom: 28px;
         }
-
         form {
             display: flex;
             flex-direction: column;
             gap: 14px;
         }
-
         label {
             display: block;
             font-size: 0.72rem;
@@ -115,9 +105,9 @@
             color: var(--text-faint);
             margin-bottom: 8px;
         }
-
         input[type="email"],
-        input[type="password"] {
+        input[type="password"],
+        input[type="text"] {
             width: 100%;
             background: rgba(255, 255, 255, 0.03);
             border: 1px solid var(--border);
@@ -128,13 +118,11 @@
             font-size: 0.95rem;
             transition: border-color 0.2s, background 0.2s;
         }
-
         input:focus {
             outline: none;
             border-color: var(--border-strong);
             background: rgba(255, 255, 255, 0.05);
         }
-
         button[type="submit"] {
             margin-top: 6px;
             background: #fff;
@@ -150,11 +138,9 @@
             cursor: pointer;
             transition: opacity 0.2s, transform 0.1s;
         }
-
         button[type="submit"]:hover:not(:disabled) { opacity: 0.92; }
         button[type="submit"]:active:not(:disabled) { transform: scale(0.99); }
         button[type="submit"]:disabled { opacity: 0.5; cursor: not-allowed; }
-
         .err {
             display: none;
             margin-top: 6px;
@@ -167,7 +153,18 @@
             line-height: 1.5;
         }
         .err.show { display: block; }
-
+        .ok {
+            display: none;
+            margin-top: 6px;
+            padding: 10px 14px;
+            background: rgba(74, 222, 128, 0.1);
+            border: 1px solid rgba(74, 222, 128, 0.3);
+            border-radius: 8px;
+            color: var(--green);
+            font-size: 0.82rem;
+            line-height: 1.5;
+        }
+        .ok.show { display: block; }
         .footer-note {
             margin-top: 26px;
             text-align: center;
@@ -175,14 +172,18 @@
             color: var(--text-faint);
             line-height: 1.6;
         }
-
         .footer-note a {
             color: var(--text-dim);
             text-decoration: none;
             border-bottom: 1px solid rgba(255, 255, 255, 0.15);
         }
         .footer-note a:hover { color: var(--text); }
-
+        .hint {
+            font-size: 0.74rem;
+            color: var(--text-faint);
+            margin-top: 6px;
+            line-height: 1.5;
+        }
         @media (max-width: 480px) {
             .login-card { padding: 32px 22px; }
         }
@@ -199,24 +200,30 @@
             <div class="brand-tag">AI Live Game Intelligence</div>
         </div>
 
-        <h1>Panel Girişi</h1>
-        <p class="subtitle">AI Live Game Intelligence — developer & admin erişimi.</p>
+        <h1>Yeni Hesap Oluştur</h1>
+        <p class="subtitle">Self-service kayıt — 30 saniyede panelde olursun.</p>
 
-        <form id="login-form" autocomplete="off">
+        <form id="signup-form" autocomplete="off">
+            <div>
+                <label for="studio">Stüdyo / Şirket Adı</label>
+                <input id="studio" name="studio" type="text" required minlength="2" maxlength="60" placeholder="Acme Games" />
+            </div>
             <div>
                 <label for="email">E-posta</label>
-                <input id="email" name="email" type="email" required autocomplete="username" placeholder="you@altarestudio.com.tr" />
+                <input id="email" name="email" type="email" required autocomplete="email" placeholder="you@studio.com" />
             </div>
             <div>
                 <label for="password">Şifre</label>
-                <input id="password" name="password" type="password" required autocomplete="current-password" />
+                <input id="password" name="password" type="password" required minlength="8" autocomplete="new-password" />
+                <div class="hint">En az 8 karakter, harf + rakam karışık öneririz.</div>
             </div>
             <div class="err" id="err"></div>
-            <button type="submit" id="submit-btn">Giriş Yap</button>
+            <div class="ok" id="ok"></div>
+            <button type="submit" id="submit-btn">Hesap Oluştur ve Panele Gir</button>
         </form>
 
         <p class="footer-note">
-            Hesabın yok mu? <a href="/signup.html"><strong>Yeni hesap oluştur</strong></a>
+            Hesabın var mı? <a href="/login.html"><strong>Giriş yap</strong></a>
             <br>
             <a href="/">← Ana siteye dön</a>
         </p>
@@ -224,104 +231,105 @@
 
     <script type="module">
         import {
-            signInWithEmailAndPassword,
+            createUserWithEmailAndPassword,
+            updateProfile,
             onAuthStateChanged,
         } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
-        import { auth } from "/js/firebase-config.js";
+        import { doc, setDoc, getDoc, serverTimestamp }
+            from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+        import { auth, db } from "/js/firebase-config.js";
 
-        const form = document.getElementById("login-form");
+        const form = document.getElementById("signup-form");
+        const studioEl = document.getElementById("studio");
         const emailEl = document.getElementById("email");
         const passEl = document.getElementById("password");
-        const errEl = document.getElementById("err");
         const btn = document.getElementById("submit-btn");
+        const errEl = document.getElementById("err");
+        const okEl = document.getElementById("ok");
 
         const params = new URLSearchParams(window.location.search);
         const next = params.get("next") || "/panel.html";
 
-        function safeNext(target) {
-            // Only allow same-origin relative paths.
-            if (typeof target !== "string") return "/panel.html";
-            if (!target.startsWith("/") || target.startsWith("//")) return "/panel.html";
-            return target;
+        function safeNext(n) {
+            if (!n || typeof n !== "string" || !n.startsWith("/")) return "/panel.html";
+            return n;
         }
 
         function showError(msg) {
             errEl.textContent = msg;
             errEl.classList.add("show");
+            okEl.classList.remove("show");
         }
-        function clearError() {
-            errEl.textContent = "";
+        function showOK(msg) {
+            okEl.textContent = msg;
+            okEl.classList.add("show");
             errEl.classList.remove("show");
         }
+        function clearMsg() {
+            errEl.classList.remove("show");
+            okEl.classList.remove("show");
+        }
 
-        // If already signed in (admin or developer with profile), jump to panel.
+        // If already signed in, jump to panel
         onAuthStateChanged(auth, async (user) => {
             if (!user) return;
             try {
-                const tok = await user.getIdTokenResult();
-                if (tok.claims.admin === true) {
-                    window.location.href = safeNext(next);
-                    return;
-                }
-                // Developer? has /developers/{uid}?
-                const { doc, getDoc } = await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js");
-                const { db } = await import("/js/firebase-config.js");
                 const snap = await getDoc(doc(db, "developers", user.uid));
-                if (snap.exists()) {
-                    window.location.href = safeNext(next);
-                }
+                if (snap.exists()) window.location.href = safeNext(next);
             } catch (_) {/* ignore */}
         });
 
         form.addEventListener("submit", async (e) => {
             e.preventDefault();
-            clearError();
+            clearMsg();
             btn.disabled = true;
-            btn.textContent = "Giriş yapılıyor…";
+            btn.textContent = "Oluşturuluyor…";
 
+            const studio = studioEl.value.trim();
             const email = emailEl.value.trim();
             const password = passEl.value;
 
             try {
-                const cred = await signInWithEmailAndPassword(auth, email, password);
-                const tok = await cred.user.getIdTokenResult(true);
-                if (tok.claims.admin === true) {
-                    window.location.href = safeNext(next);
-                    return;
-                }
-                // Allow developers (have /developers/{uid} doc)
-                const { doc, getDoc } = await import("https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js");
-                const { db } = await import("/js/firebase-config.js");
-                const snap = await getDoc(doc(db, "developers", cred.user.uid));
-                if (snap.exists()) {
-                    window.location.href = safeNext(next);
-                    return;
-                }
-                showError("Bu hesabın developer profili yok. /signup.html üzerinden kayıt olabilirsin.");
-                btn.disabled = false;
-                btn.textContent = "Giriş Yap";
+                const cred = await createUserWithEmailAndPassword(auth, email, password);
+                await updateProfile(cred.user, { displayName: studio });
+
+                // Developer profili olustur
+                await setDoc(doc(db, "developers", cred.user.uid), {
+                    uid: cred.user.uid,
+                    email: email,
+                    displayName: studio,
+                    studioName: studio,
+                    tier: "indie",
+                    gameIds: [],
+                    createdAt: serverTimestamp(),
+                    createdBy: cred.user.uid,
+                });
+
+                showOK("Hesap oluşturuldu! Panele yönlendiriliyorsun…");
+                setTimeout(() => { window.location.href = safeNext(next); }, 800);
             } catch (err) {
                 console.error(err);
                 showError(prettyAuthError(err));
                 btn.disabled = false;
-                btn.textContent = "Giriş Yap";
+                btn.textContent = "Hesap Oluştur ve Panele Gir";
             }
         });
 
         function prettyAuthError(err) {
-            const code = err && err.code ? err.code : "";
+            const code = (err && err.code) || "";
             switch (code) {
-                case "auth/invalid-email": return "Geçersiz e-posta adresi.";
-                case "auth/user-disabled": return "Bu hesap devre dışı bırakılmış.";
-                case "auth/user-not-found":
-                case "auth/wrong-password":
-                case "auth/invalid-credential": return "E-posta veya şifre hatalı.";
-                case "auth/too-many-requests": return "Çok fazla başarısız deneme. Bir süre sonra tekrar deneyin.";
-                case "auth/network-request-failed": return "Ağ hatası. İnternet bağlantını kontrol et.";
-                default: return "Giriş başarısız: " + (err.message || code || "bilinmeyen hata");
+                case "auth/email-already-in-use":
+                    return "Bu e-posta zaten kullanımda. Giriş yapmayı dene veya farklı bir e-posta kullan.";
+                case "auth/invalid-email":
+                    return "Geçersiz e-posta formatı.";
+                case "auth/weak-password":
+                    return "Şifre çok zayıf. En az 8 karakter, harf + rakam karışık kullan.";
+                case "auth/operation-not-allowed":
+                    return "E-posta/şifre kaydı şu an kapalı. Yöneticiyle iletişime geç.";
+                default:
+                    return "Kayıt başarısız: " + (err.message || String(err));
             }
         }
     </script>
 </body>
-
 </html>

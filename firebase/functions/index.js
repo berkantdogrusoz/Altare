@@ -59,6 +59,30 @@ function assertAdmin(request) {
   }
 }
 
+function assertSignedIn(request) {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Sign-in required.");
+  }
+}
+
+// Game ownership check: admin can access any game, developer can access only
+// games where developerId matches their uid.
+async function assertOwnsGameOrAdmin(request, gameId) {
+  assertSignedIn(request);
+  if (request.auth.token.admin === true) return;
+  if (!gameId || typeof gameId !== "string") {
+    throw new HttpsError("invalid-argument", "gameId is required.");
+  }
+  const snap = await db.collection("games").doc(gameId).get();
+  if (!snap.exists) {
+    throw new HttpsError("not-found", "Game not found.");
+  }
+  const data = snap.data();
+  if (data.developerId !== request.auth.uid) {
+    throw new HttpsError("permission-denied", "You don't own this game.");
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Firestore safety: strip `undefined` recursively so .set()/.add() never throws
 // "Cannot use undefined as a Firestore value". Arrays preserve indices, objects
@@ -239,12 +263,8 @@ exports.generateAIReport = onCall(
   { secrets: [ANTHROPIC_API_KEY], timeoutSeconds: 120 },
   async (request) => {
     try {
-      assertAdmin(request);
-
       const { gameId, gameName, timeRange = "last_24h", language = "tr" } = request.data || {};
-      if (!gameId || typeof gameId !== "string") {
-        throw new HttpsError("invalid-argument", "gameId is required.");
-      }
+      await assertOwnsGameOrAdmin(request, gameId);
       const lang = language === "en" ? "en" : "tr";
 
       logger.info("generateAIReport start", { gameId, gameName, timeRange, lang, uid: request.auth.uid });
@@ -713,7 +733,7 @@ exports.fetchMarketIntel = onCall(
   { timeoutSeconds: 90, memory: "512MiB" },
   async (request) => {
     try {
-      assertAdmin(request);
+      assertSignedIn(request);
 
       const { gameType = "puzzle", country = "tr", topN = 10 } = request.data || {};
       const playCategory = PLAY_STORE_CATEGORIES[gameType] || "GAME_PUZZLE";
@@ -838,7 +858,7 @@ exports.generateGameConcepts = onCall(
   { secrets: [ANTHROPIC_API_KEY], timeoutSeconds: 120, memory: "512MiB" },
   async (request) => {
     try {
-      assertAdmin(request);
+      assertSignedIn(request);
 
       const {
         gameType = "puzzle",
