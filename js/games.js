@@ -203,7 +203,8 @@ function showGameCredentials(gameId) {
                 <li><code>AltareAnalyticsBootstrap.cs</code> — otomatik baslangic + KVKK/GDPR consent</li>
                 <li><code>AltareConfig.json</code> — gameId + ayarlar (pre-filled)</li>
                 <li><code>SampleUsage.cs</code> — ornek event cagrilari</li>
-                <li><code>KURULUM_REHBERI.txt</code> — adim adim Turkce kurulum</li>
+                <li><code>KURULUM_REHBERI_TR.txt</code> — adim adim Turkce kurulum</li>
+                <li><code>SETUP_GUIDE_EN.txt</code> — step-by-step English guide</li>
             </ul>
             <button class="primary-btn" id="modal-download-sdk" style="width: 100%; padding: 10px; font-size: 0.95rem;">SDK Indir (.zip)</button>
         </div>
@@ -238,7 +239,8 @@ async function downloadSDK(gameId) {
     folder.file('AltareAnalyticsBootstrap.cs', generateBootstrapScript(game));
     folder.file('AltareConfig.json', generateConfig(game));
     folder.file('SampleUsage.cs', generateSampleUsage(game));
-    folder.file('KURULUM_REHBERI.txt', generateSetupGuide(game));
+    folder.file('KURULUM_REHBERI_TR.txt', generateSetupGuide(game));
+    folder.file('SETUP_GUIDE_EN.txt', generateSetupGuideEN(game));
 
     const blob = await zip.generateAsync({ type: 'blob' });
     const url = URL.createObjectURL(blob);
@@ -683,6 +685,147 @@ Sorun yasarsaniz:
 
 SDK Surumu: 2.0.0
 Tarih: ${new Date().toISOString().slice(0, 10)}
+================================================================================
+`;
+}
+
+function generateSetupGuideEN(game) {
+    return `================================================================================
+ALTARE SDK SETUP GUIDE
+Game: ${game.gameName}
+Game ID: ${game.gameId}
+================================================================================
+
+This guide walks you through integrating the Altare AI Live Game Intelligence
+SDK into your Unity project, step by step.
+
+================================================================================
+REQUIREMENTS
+================================================================================
+
+- Unity 2021.3 or newer
+- Firebase Unity SDK (Authentication + Firestore)
+  Download: https://firebase.google.com/download/unity
+- A google-services.json file matching your Firebase project (altare-312a1)
+
+================================================================================
+STEP 1: Install the Firebase Unity SDK
+================================================================================
+
+1. Download the SDK from https://firebase.google.com/download/unity
+2. In Unity: Assets > Import Package > Custom Package
+3. Import these packages in order:
+   - FirebaseAuth.unitypackage
+   - FirebaseFirestore.unitypackage
+4. Make sure the Unity Console shows no errors after import completes
+
+================================================================================
+STEP 2: Add google-services.json
+================================================================================
+
+1. Open Firebase Console: https://console.firebase.google.com
+2. Select the Altare project (altare-312a1)
+3. Project Settings > Your apps > select your Android app
+   (If none exists, click "Add app" and create an Android app with package name:
+   com.altarestudio.${sanitizeFileName(game.gameName).toLowerCase()})
+4. Download google-services.json
+5. Place this file in the Assets/ root of your Unity project
+
+================================================================================
+STEP 3: Enable Anonymous Authentication
+================================================================================
+
+1. Firebase Console > Authentication > Sign-in method
+2. Find "Anonymous" provider and click "Enable"
+3. Save
+
+This step is required because the SDK authenticates players anonymously.
+Players are NOT asked for email or phone — it runs silently in the background.
+
+================================================================================
+STEP 4: Copy the SDK Files into Your Project
+================================================================================
+
+1. Copy these files from this zip into your Unity project at
+   Assets/Plugins/Altare/ (create the folder if it doesn't exist):
+   - AltareAnalytics.cs (main SDK)
+   - AltareAnalyticsBootstrap.cs (auto-init + KVKK/GDPR consent)
+
+2. Wait for Unity to compile the files (no errors in Console)
+
+NOTE: AltareAnalyticsBootstrap.cs comes with GameId and GameName pre-filled
+for your game. No extra configuration needed.
+
+================================================================================
+STEP 5: Initialize the SDK
+================================================================================
+
+Add this to a top-level MonoBehaviour in your main scene:
+
+    using Altare.Analytics;
+
+    void Start()
+    {
+        AltareAnalytics.Initialize("${game.gameId}", "${game.gameName}");
+    }
+
+THAT'S IT! The SDK now automatically:
+  - Sends session_start events
+  - Generates an anonymous player ID
+  - Starts FPS monitoring (warns when < 30 FPS)
+  - Sends session_end events on app pause/quit
+
+================================================================================
+STEP 6: Add Level + Ad + IAP Events
+================================================================================
+
+Integrate the examples from SampleUsage.cs into your own code:
+
+  Level start:
+    AltareAnalytics.LogEvent("level_start", new() { { "level", lvl } });
+
+  Level complete:
+    AltareAnalytics.LogEvent("level_complete", new() { { "level", lvl }, { "score", s } });
+
+  Level fail:
+    AltareAnalytics.LogEvent("level_fail", new() { { "level", lvl } });
+
+  Ad watched:
+    AltareAnalytics.LogEvent("ad_watched", new() { { "placement", "interstitial" } });
+
+  Rewarded ad:
+    AltareAnalytics.LogEvent("rewarded_ad_watched", new() { { "placement", "extra_lives" } });
+
+  IAP purchase:
+    AltareAnalytics.LogEvent("iap_purchase_success", new() { { "sku", "gold_100" }, { "amount_usd", 1.99 } });
+
+================================================================================
+STEP 7: Test and Verify
+================================================================================
+
+1. Build & Run in Unity (Android device or emulator)
+2. Open the game and play for 1-2 minutes
+3. Go to the Altare Panel: https://altarestudio.com.tr/panel.html
+4. In "Live Event Stream" you should see session_start + level_start
+5. In "Overview", Active Sessions should be > 0
+
+TROUBLESHOOTING:
+- Check the Unity Console for logs starting with [Altare]
+- If you see "[Altare] Ready. uid=..." the SDK is working
+- If not: google-services.json may be missing or package name mismatched
+- Check Firebase Console > Authentication for newly created anonymous users
+- Check Firestore for events under games/${game.gameId}/events/
+
+================================================================================
+SUPPORT
+================================================================================
+
+If you run into issues:
+- Panel: https://altarestudio.com.tr/panel.html (Integration Guide tab)
+- Email: berkant@altarestudio.com.tr
+
+SDK Version: 2.1.0
+Date: ${new Date().toISOString().slice(0, 10)}
 ================================================================================
 `;
 }

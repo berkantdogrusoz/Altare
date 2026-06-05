@@ -133,7 +133,7 @@ const I18N = {
         'integ.s1.li2': '<code>AltareAnalyticsBootstrap.cs</code> — otomatik başlangıç + KVKK/GDPR consent (gameId pre-filled)',
         'integ.s1.li3': '<code>AltareConfig.json</code> — gameId + ayarlar pre-filled',
         'integ.s1.li4': '<code>SampleUsage.cs</code> — örnek event çağrıları',
-        'integ.s1.li5': '<code>KURULUM_REHBERI.txt</code> — adım adım Türkçe kurulum',
+        'integ.s1.li5': '<code>KURULUM_REHBERI_TR.txt</code> / <code>SETUP_GUIDE_EN.txt</code> — adım adım kurulum (TR + EN)',
         'integ.s1.p2': '<strong>Firebase Unity SDK gerekli:</strong> Authentication + Firestore modüllerini <a href="https://firebase.google.com/download/unity" target="_blank" rel="noopener">resmi siteden</a> indir, Unity\'e import et.',
 
         'integ.s2.title': '2. Bootstrap — Tek Satırlık Initialize',
@@ -323,7 +323,7 @@ const I18N = {
         'integ.s1.li2': '<code>AltareAnalyticsBootstrap.cs</code> — auto-init + KVKK/GDPR consent (gameId pre-filled)',
         'integ.s1.li3': '<code>AltareConfig.json</code> — gameId + settings pre-filled',
         'integ.s1.li4': '<code>SampleUsage.cs</code> — example event calls',
-        'integ.s1.li5': '<code>KURULUM_REHBERI.txt</code> — step-by-step Turkish setup guide',
+        'integ.s1.li5': '<code>KURULUM_REHBERI_TR.txt</code> / <code>SETUP_GUIDE_EN.txt</code> — step-by-step setup guide (TR + EN)',
         'integ.s1.p2': '<strong>Firebase Unity SDK required:</strong> download Authentication + Firestore modules from the <a href="https://firebase.google.com/download/unity" target="_blank" rel="noopener">official site</a> and import them into Unity.',
 
         'integ.s2.title': '2. Bootstrap — One-Line Initialize',
