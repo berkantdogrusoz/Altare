@@ -1598,7 +1598,7 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
         import { httpsCallable } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-functions.js";
 
         import { db, functions } from "/js/firebase-config.js";
-        import { requireAdmin, altareSignOut } from "/js/auth.js";
+        import { requirePanelAccess, altareSignOut } from "/js/auth.js";
         import { t, getLanguage, setLanguage, applyTranslations, initLanguageToggle } from "/js/i18n.js";
 
         // ----- Constants -----
@@ -1617,12 +1617,21 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
         let unsubReport = null;
 
         // ----- Auth gate -----
-        requireAdmin({
+        requirePanelAccess({
             loginPath: '/login.html',
             onReady: bootstrap,
         });
 
-        function bootstrap(user, _claims) {
+        function bootstrap(user, claims, ctx) {
+            const isAdmin = (ctx && ctx.isAdmin === true) || (claims && claims.admin === true);
+            // Hide admin-only UI for non-admins
+            document.querySelectorAll('.admin-only').forEach(el => {
+                if (!isAdmin) el.hidden = true;
+            });
+            // GA4 admin-only for now (shared analytics)
+            const ga4Section = $('ga4-section');
+            if (!isAdmin && ga4Section) ga4Section.style.display = 'none';
+
             wireUserChip(user);
             wireLogout();
             wireTabs();
@@ -1875,6 +1884,8 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
 
         async function fetchGA4Overview() {
             const section = $('ga4-section');
+            // Section gizliyse (non-admin), GA4 call yapma
+            if (section && section.style.display === 'none') return;
             try {
                 const fn = httpsCallable(functions, 'fetchAnalyticsOverview', { timeout: 30000 });
                 const result = await fn();

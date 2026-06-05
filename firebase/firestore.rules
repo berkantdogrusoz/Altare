@@ -40,11 +40,28 @@ service cloud.firestore {
     }
 
     // ---------- Developers (B2B müşteri profilleri) ----------
-    // Self-service signup yoksa admin tarafından create edilir.
-    // Kullanici sadece kendi profilini okur, adminler hepsini gorur.
+    // Self-service signup: kullanici sadece KENDI profilini olusturabilir.
+    // Admin tum profilleri okur/yazar; kullanici sadece kendi profilini.
     match /developers/{uid} {
       allow read: if isSignedIn() && (request.auth.uid == uid || isAdmin());
-      allow create, update: if isAdmin();
+
+      // Kendi profilini olusturabilir (self-signup) — uid match + uid field doğru
+      // + tier 'indie' veya 'studio' ile baslar (enterprise sadece admin verir)
+      allow create: if isAdmin()
+        || (isSignedIn()
+            && request.auth.uid == uid
+            && request.resource.data.uid == uid
+            && request.resource.data.email is string
+            && (request.resource.data.tier == 'indie'
+                || request.resource.data.tier == 'studio'));
+
+      // Update: admin her seyi, developer sadece kendi displayName/studioName
+      allow update: if isAdmin()
+        || (isSignedIn()
+            && request.auth.uid == uid
+            && request.resource.data.uid == uid
+            && request.resource.data.tier == resource.data.tier);
+
       allow delete: if isAdmin();
     }
 
@@ -96,19 +113,21 @@ service cloud.firestore {
       }
     }
 
-    // ---------- Market intel (admin-only, Phase 2) ----------
+    // ---------- Market intel (Play Store data — okuyan herkes) ----------
+    // Public Play Store verisi — her signed-in developer goruntuleyebilir.
+    // Yazma sadece Cloud Functions admin SDK uzerinden.
     match /market_intel/{categoryId} {
-      allow read: if isAdmin();
+      allow read: if isSignedIn();
       allow write: if false;
 
       match /{document=**} {
-        allow read: if isAdmin();
+        allow read: if isSignedIn();
         allow write: if false;
       }
     }
 
     match /roadmap_suggestions/{suggestionId} {
-      allow read: if isAdmin();
+      allow read: if isSignedIn();
       allow write: if false;
     }
 
