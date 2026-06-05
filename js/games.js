@@ -100,6 +100,10 @@ async function refreshMyGames() {
     } catch (err) {
         container.innerHTML = `<div class="empty">Hata: ${escapeHtml(err.message || String(err))}</div>`;
     }
+    // Bilgilendir: panel'deki ust game-selector listMyGames'i tekrar yuklesin
+    if (typeof window.altareReloadGameSelector === 'function') {
+        try { window.altareReloadGameSelector(); } catch {}
+    }
 }
 
 function renderMyGames(games) {

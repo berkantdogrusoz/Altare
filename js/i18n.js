@@ -111,6 +111,9 @@ const I18N = {
         'lang.en': 'English',
         'lang.switchTo': 'Dili değiştir',
 
+        // ── Selector ──
+        'selector.noGames': 'Henüz oyun yok — Oyunlarım > + Yeni Oyun Ekle',
+
         // ── My Games ──
         'mygames.banner': 'Bu sekmede kendi oyunlarını görüyorsun. <strong>"Yeni Oyun Ekle"</strong> ile bir Unity projesi için tracking başlatabilirsin — sistem otomatik <code>gameId</code> üretir, SDK\'yı senin için hazırlar.',
         'mygames.title': 'Oyunlarım',
@@ -190,6 +193,8 @@ const I18N = {
 
         // ── Reviews ──
         'reviews.banner': 'Yorum sentiment\'ı şu an demo. Google Play Review API entegre edildiğinde gerçek yorumlar buraya akacak.',
+        'reviews.compareTitle': 'Yorum Sentiment Karşılaştırma',
+        'reviews.compareMeta': 'Bu oyun vs kategori top 3',
 
         // ── Performance ──
         'perf.fpsWarn24h': 'FPS Uyarısı (24h)',
@@ -301,6 +306,9 @@ const I18N = {
         'lang.en': 'English',
         'lang.switchTo': 'Switch language',
 
+        // ── Selector ──
+        'selector.noGames': 'No games yet — go to My Games > + Add New Game',
+
         // ── My Games ──
         'mygames.banner': 'Here you see your own games. Use <strong>"Add New Game"</strong> to start tracking a Unity project — the system generates a <code>gameId</code> automatically and prepares the SDK for you.',
         'mygames.title': 'My Games',
@@ -380,6 +388,8 @@ const I18N = {
 
         // ── Reviews ──
         'reviews.banner': 'Review sentiment is currently a demo. Real reviews will flow here once the Google Play Review API is integrated.',
+        'reviews.compareTitle': 'Review Sentiment Comparison',
+        'reviews.compareMeta': 'This game vs category top 3',
 
         // ── Performance ──
         'perf.fpsWarn24h': 'FPS Warnings (24h)',

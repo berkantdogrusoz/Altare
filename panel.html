@@ -962,8 +962,6 @@
                 <div class="topbar-logo">ALTARE</div>
                 <div class="topbar-tag" id="topbar-tag" data-i18n="topbar.tag">AI Panel · v1.0 · Live</div>
                 <select class="game-selector" id="game-selector">
-                    <option value="royal-dreams">Royal Dreams</option>
-                    <option value="crimson-scar">Crimson Scar</option>
                 </select>
             </div>
             <div class="topbar-right">
@@ -1008,7 +1006,7 @@
                 <div class="page-header">
                     <h1 class="page-title" id="page-title" data-i18n="tab.overview">Genel Bakış</h1>
                     <p class="page-sub">
-                        <span id="game-name-display">Royal Dreams</span> ·
+                        <span id="game-name-display">—</span> ·
                         <span class="mono" id="time-range" data-i18n="page.last24h">Son 24 saat</span> ·
                         <span class="mono" id="current-time">--:--</span>
                     </p>
@@ -1316,8 +1314,8 @@
                     </div>
                     <div class="section-block">
                         <div class="section-head">
-                            <h3>Yorum Sentiment Karşılaştırma</h3>
-                            <span class="head-meta">Royal Dreams vs kategori top 3</span>
+                            <h3 data-i18n="reviews.compareTitle">Yorum Sentiment Karşılaştırma</h3>
+                            <span class="head-meta" id="reviews-compare-meta" data-i18n="reviews.compareMeta">Bu oyun vs kategori top 3</span>
                         </div>
                         <div class="section-content">
                             <div class="bar-list">
@@ -1607,15 +1605,13 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
         // Tab basliklari i18n'den gelir, ama eski kod tab key -> baslik olarak kullaniyor
         function tabTitle(tab) { return t('tab.' + tab); }
 
-        const GAME_NAMES = {
-            'royal-dreams': 'Royal Dreams',
-            'crimson-scar': 'Crimson Scar',
-        };
+        // Game name lookup — listMyGames'den dolar (selector'a populated edilince)
+        const GAME_NAMES = {};
 
         const $ = (id) => document.getElementById(id);
 
         // ----- State -----
-        let currentGame = 'royal-dreams';
+        let currentGame = null;  // listMyGames sonrasi ilk oyuna set edilir
         let unsubEvents = null;
         let unsubStats = null;
         let unsubReport = null;
@@ -1633,13 +1629,55 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
             wireGameSelector();
             wireGenerateButton();
             startClock();
-            subscribeToGame(currentGame);
+            loadMyGamesIntoSelector();
             initLanguageToggle('lang-toggle');
             window.addEventListener('altare-lang-changed', () => {
                 const activeTab = document.querySelector('.nav-tab.active')?.getAttribute('data-tab');
                 const pageTitle = $('page-title');
                 if (pageTitle && activeTab) pageTitle.textContent = tabTitle(activeTab);
             });
+        }
+
+        window.altareReloadGameSelector = () => loadMyGamesIntoSelector();
+
+        async function loadMyGamesIntoSelector() {
+            const sel = $('game-selector');
+            const display = $('game-name-display');
+            if (!sel) return;
+            try {
+                const fn = httpsCallable(functions, 'listMyGames');
+                const result = await fn({});
+                const games = (result.data && result.data.games) || [];
+
+                sel.innerHTML = '';
+                if (games.length === 0) {
+                    const opt = document.createElement('option');
+                    opt.value = '';
+                    opt.textContent = t('selector.noGames') || 'Henüz oyun yok — Oyunlarım > Yeni Oyun Ekle';
+                    opt.disabled = true;
+                    opt.selected = true;
+                    sel.appendChild(opt);
+                    if (display) display.textContent = '—';
+                    currentGame = null;
+                    return;
+                }
+
+                for (const g of games) {
+                    GAME_NAMES[g.gameId] = g.gameName || g.gameId;
+                    const opt = document.createElement('option');
+                    opt.value = g.gameId;
+                    opt.textContent = g.gameName || g.gameId;
+                    sel.appendChild(opt);
+                }
+
+                currentGame = games[0].gameId;
+                sel.value = currentGame;
+                if (display) display.textContent = GAME_NAMES[currentGame];
+                subscribeToGame(currentGame);
+            } catch (err) {
+                console.error('loadMyGamesIntoSelector failed:', err);
+                sel.innerHTML = '<option disabled selected>' + t('empty.loading') + '</option>';
+            }
         }
 
         function wireUserChip(user) {
@@ -1701,6 +1739,7 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
         }
 
         function subscribeToGame(gameId) {
+            if (!gameId) return;
             if (unsubEvents) { unsubEvents(); unsubEvents = null; }
             if (unsubStats) { unsubStats(); unsubStats = null; }
             if (unsubReport) { unsubReport(); unsubReport = null; }
