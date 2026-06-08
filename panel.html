@@ -1624,13 +1624,14 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
 
         function bootstrap(user, claims, ctx) {
             const isAdmin = (ctx && ctx.isAdmin === true) || (claims && claims.admin === true);
+            _isAdminUser = isAdmin;
             // Hide admin-only UI for non-admins
             document.querySelectorAll('.admin-only').forEach(el => {
                 if (!isAdmin) el.hidden = true;
             });
-            // GA4 admin-only for now (shared analytics)
+            // GA4 section sadece admin icin; non-admin'de DOM'dan da kaldir
             const ga4Section = $('ga4-section');
-            if (!isAdmin && ga4Section) ga4Section.style.display = 'none';
+            if (!isAdmin && ga4Section) ga4Section.remove();
 
             wireUserChip(user);
             wireLogout();
@@ -1882,10 +1883,12 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
             renderTopDevices(stats && stats.topDevices);
         }
 
+        // Admin flag — bootstrap'ta set edilir, fetchGA4Overview'in admin-only olmasi icin
+        let _isAdminUser = false;
+
         async function fetchGA4Overview() {
+            if (!_isAdminUser) return;
             const section = $('ga4-section');
-            // Section gizliyse (non-admin), GA4 call yapma
-            if (section && section.style.display === 'none') return;
             try {
                 const fn = httpsCallable(functions, 'fetchAnalyticsOverview', { timeout: 30000 });
                 const result = await fn();
