@@ -1132,7 +1132,9 @@ async function buildSummaryData(gameId, sinceTs) {
     if (e.sessionId) sessions.add(e.sessionId);
 
     const p = e.eventParams || {};
-    const lvl = p.level != null ? String(p.level) : null;
+    // Level identifier — kabul edilenler: level, level_id, level_number, lvl
+    const lvlRaw = p.level ?? p.level_id ?? p.level_number ?? p.lvl;
+    const lvl = lvlRaw != null ? String(lvlRaw) : null;
     if (lvl) {
       if (!levelStats[lvl]) levelStats[lvl] = { starts: 0, completes: 0, fails: 0 };
       if (e.eventName === "level_start") levelStats[lvl].starts++;
@@ -1144,13 +1146,22 @@ async function buildSummaryData(gameId, sinceTs) {
     if (e.eventName === "rewarded_ad_watched") rewardedAdWatches++;
     if (e.eventName === "iap_purchase_success") {
       purchases++;
-      const amt = parseFloat(p.amount_usd ?? p.amount ?? 0);
+      // Yaygin naming convention'larin hepsini kabul et (musteri farkli isim
+      // kullanmis olsa bile gelir toplanir): amount_usd, amount, price_usd,
+      // price, value, revenue
+      const amt = parseFloat(
+        p.amount_usd ?? p.amount ?? p.price_usd ?? p.price ??
+        p.value ?? p.revenue ?? 0
+      );
       if (Number.isFinite(amt)) purchaseRevenueUsd += amt;
     }
     if (e.eventName === "crash_detected") crashes++;
     if (e.eventName === "fps_warning") fpsWarnings++;
     if (e.eventName === "session_end") {
-      const dur = parseFloat(p.duration_seconds ?? p.duration ?? 0);
+      // Yaygin naming: duration_seconds, duration, session_duration, duration_s
+      const dur = parseFloat(
+        p.duration_seconds ?? p.duration ?? p.session_duration ?? p.duration_s ?? 0
+      );
       if (Number.isFinite(dur) && dur > 0) {
         totalSessionMs += dur * 1000;
         sessionEnds++;
@@ -1158,8 +1169,9 @@ async function buildSummaryData(gameId, sinceTs) {
     }
     if (e.eventName === "player_feedback") {
       feedback.push({
-        rating: p.rating ?? null,
-        text: typeof p.text === "string" ? p.text.slice(0, 280) : "",
+        rating: p.rating ?? p.stars ?? p.score ?? null,
+        text: typeof (p.text ?? p.comment ?? p.message) === "string"
+              ? (p.text ?? p.comment ?? p.message).slice(0, 280) : "",
       });
     }
     if (e.deviceModel) {
