@@ -507,10 +507,17 @@ public class IAPManager : MonoBehaviour
 {
     public void OnPurchaseSuccess(string sku, float priceUsd)
     {
+        // Recommended (canonical) field names:
         AltareAnalytics.LogEvent("iap_purchase_success", new Dictionary<string, object> {
             { "sku", sku },
             { "amount_usd", priceUsd }
         });
+
+        // NOTE: The Altare backend also accepts these alternative names for
+        // backwards compatibility / different naming conventions:
+        //   - product_id / sku
+        //   - amount_usd / amount / price_usd / price / value / revenue
+        // Use whichever fits your existing IAP code; revenue will be aggregated.
     }
 }
 
