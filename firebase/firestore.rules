@@ -111,6 +111,27 @@ service cloud.firestore {
         allow read: if isAdmin() || isGameOwner(gameId);
         allow write: if false;
       }
+
+      // Sentinel alerts — Cloud Functions yazar, owner okur + 'read' alanini guncelleyebilir.
+      match /alerts/{alertId} {
+        allow read: if isAdmin() || isGameOwner(gameId);
+        allow create: if false;
+        allow update: if (isAdmin() || isGameOwner(gameId))
+                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+        allow delete: if isAdmin();
+      }
+
+      // Benchmark snapshots — Cloud Functions yazar.
+      match /benchmarks/{benchmarkId} {
+        allow read: if isAdmin() || isGameOwner(gameId);
+        allow write: if false;
+      }
+
+      // Copilot chat history — Cloud Functions yazar, owner okur.
+      match /copilot_chats/{chatId} {
+        allow read: if isAdmin() || isGameOwner(gameId);
+        allow write: if false;
+      }
     }
 
     // ---------- Market intel (Play Store data — okuyan herkes) ----------
