@@ -132,6 +132,20 @@ service cloud.firestore {
         allow read: if isAdmin() || isGameOwner(gameId);
         allow write: if false;
       }
+
+      // Auto-Heal prescriptions — Cloud Functions yazar, owner okur.
+      match /auto_heal/{prescriptionId} {
+        allow read: if isAdmin() || isGameOwner(gameId);
+        allow write: if false;
+      }
+
+      // Remote Config (Altare Closed-Loop) — Cloud Functions yazar.
+      // OYUN (anonymous) ve OWNER + ADMIN okuyabilir. Oyun bu doc'tan canli
+      // ayarlarini ceker (level zorluk, reklam sikligi, IAP vb.).
+      match /config/{configId} {
+        allow read: if isAnonGameClient() || isGameOwner(gameId) || isAdmin();
+        allow write: if false;
+      }
     }
 
     // ---------- Market intel (Play Store data — okuyan herkes) ----------

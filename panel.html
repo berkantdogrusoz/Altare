@@ -306,6 +306,103 @@
         }
         .alert-mark-read:hover { color: var(--text); border-color: var(--border-strong); }
 
+        .alert-prescribe {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            border: none;
+            color: white;
+            font-size: 0.74rem;
+            font-weight: 700;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            align-self: flex-start;
+            margin-top: 4px;
+            letter-spacing: 0.04em;
+        }
+        .alert-prescribe:hover { opacity: 0.92; }
+        .alert-prescribe:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* Auto-Heal */
+        .autoheal-list { display: flex; flex-direction: column; gap: 12px; }
+        .autoheal-card {
+            padding: 16px;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--border);
+            border-left: 3px solid #8b5cf6;
+            border-radius: 10px;
+        }
+        .autoheal-card .head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .autoheal-card .head .title { font-weight: 700; font-size: 0.95rem; }
+        .autoheal-card .head .status {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            padding: 3px 8px;
+            border-radius: 8px;
+        }
+        .autoheal-card .head .status.proposed { background: rgba(250, 204, 21, 0.15); color: #facc15; }
+        .autoheal-card .head .status.applied  { background: rgba(74, 222, 128, 0.15); color: #4ade80; }
+        .autoheal-card .head .status.rolled_back { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+        .autoheal-card .diagnosis { color: var(--text-dim); font-size: 0.88rem; margin-bottom: 10px; line-height: 1.5; }
+        .autoheal-changes { font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; background: rgba(0,0,0,0.3); padding: 10px 12px; border-radius: 6px; margin: 6px 0; }
+        .autoheal-changes .ch { display: flex; gap: 8px; padding: 2px 0; }
+        .autoheal-changes .ch .key { color: var(--text); }
+        .autoheal-changes .ch .arrow { color: var(--text-faint); }
+        .autoheal-changes .ch .old { color: #f87171; text-decoration: line-through; }
+        .autoheal-changes .ch .new { color: #4ade80; font-weight: 700; }
+        .autoheal-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+        .autoheal-actions button {
+            font-size: 0.78rem;
+            font-weight: 700;
+            padding: 8px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            border: none;
+        }
+        .autoheal-apply { background: linear-gradient(135deg, #10b981, #34d399); color: white; }
+        .autoheal-rollback { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+        .autoheal-meta { font-size: 0.72rem; color: var(--text-faint); margin-top: 8px; }
+        .autoheal-risk { font-size: 0.7rem; font-weight: 700; padding: 2px 7px; border-radius: 4px; margin-left: 6px; }
+        .autoheal-risk.low { background: rgba(74,222,128,0.15); color: #4ade80; }
+        .autoheal-risk.medium { background: rgba(250,204,21,0.15); color: #facc15; }
+        .autoheal-risk.high { background: rgba(239,68,68,0.15); color: #ef4444; }
+
+        /* Auto-Heal Modal */
+        .autoheal-modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 10000;
+            display: flex; align-items: center; justify-content: center;
+            padding: 24px;
+        }
+        .autoheal-modal {
+            background: #0f0f10;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            max-width: 580px;
+            width: 100%;
+            max-height: 86vh;
+            overflow-y: auto;
+            padding: 26px 30px;
+            position: relative;
+        }
+        .autoheal-modal h2 { font-size: 1.2rem; margin-bottom: 4px; }
+        .autoheal-modal .subtitle { font-size: 0.82rem; color: var(--text-dim); margin-bottom: 18px; }
+        .autoheal-modal .block { margin-bottom: 14px; }
+        .autoheal-modal .label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-faint); margin-bottom: 4px; }
+        .autoheal-modal .value { font-size: 0.9rem; color: var(--text); line-height: 1.5; }
+        .autoheal-modal .close-x {
+            position: absolute; top: 12px; right: 16px;
+            background: transparent; border: none;
+            color: var(--text-dim); font-size: 1.4rem; cursor: pointer;
+        }
+
         /* Benchmark */
         .benchmark-grid {
             display: grid;
@@ -1245,6 +1342,9 @@
                         <span class="dot"></span> <span data-i18n="tab.alerts">Sentinel Uyarıları</span>
                         <span class="alert-badge" id="alert-badge" style="display:none;">0</span>
                     </button>
+                    <button class="nav-tab" data-tab="auto-heal">
+                        <span class="dot"></span> <span data-i18n="tab.auto-heal">Auto-Heal</span>
+                    </button>
                     <button class="nav-tab" data-tab="events"><span class="dot"></span> <span data-i18n="tab.events">Canlı Event Stream</span></button>
                     <button class="nav-tab" data-tab="levels"><span class="dot"></span> <span data-i18n="tab.levels">Level Intelligence</span></button>
                     <button class="nav-tab" data-tab="performance"><span class="dot"></span> <span data-i18n="tab.performance">Crash & Performance</span></button>
@@ -1861,6 +1961,24 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
                     </div>
                 </section>
 
+                <!-- Auto-Heal History -->
+                <section class="tab-view" data-tab="auto-heal">
+                    <div class="info-banner" data-i18n-html="autoheal.banner">
+                        <strong>🩺 AI Auto-Heal</strong> — Sentinel uyarısı tetiklendiğinde AI Doctor (Claude Opus 4.8) somut bir Remote Config reçetesi üretir. <strong>"Uygula"</strong> dediğinde değişiklik anlık oyuna gider — yeni APK gerekmez. Snapshot ile rollback garantili.
+                    </div>
+                    <div class="section-block">
+                        <div class="section-head">
+                            <h3 data-i18n="autoheal.history">Reçete Geçmişi</h3>
+                            <span class="head-meta" id="autoheal-meta">—</span>
+                        </div>
+                        <div class="section-content">
+                            <div class="autoheal-list" id="autoheal-list">
+                                <div class="empty-state" data-i18n="autoheal.empty">Henüz reçete yok. Sentinel sekmesinde bir uyarıya tıklayıp "AI Çözüm Öner" butonuna bas.</div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
                 <!-- Benchmark -->
                 <section class="tab-view" data-tab="benchmark">
                     <div class="info-banner" data-i18n-html="benchmark.banner">
@@ -1969,6 +2087,7 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
         let unsubStats = null;
         let unsubReport = null;
         let unsubAlerts = null;
+        let unsubAutoHeal = null;
         let copilotChatId = null;
 
         // ----- Auth gate -----
@@ -2111,6 +2230,7 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
             if (unsubStats) { unsubStats(); unsubStats = null; }
             if (unsubReport) { unsubReport(); unsubReport = null; }
             if (unsubAlerts) { unsubAlerts(); unsubAlerts = null; }
+            if (unsubAutoHeal) { unsubAutoHeal(); unsubAutoHeal = null; }
 
             // Sentinel Alerts (real-time)
             const alertsQ = query(
@@ -2123,6 +2243,18 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
                 renderAlerts(alerts);
                 updateAlertBadge(alerts);
             }, (err) => console.warn('alerts listener:', err.message));
+
+            // Auto-Heal prescriptions (real-time)
+            const autoHealQ = query(
+                collection(db, 'games', gameId, 'auto_heal'),
+                orderBy('createdAt', 'desc'),
+                limit(30)
+            );
+            unsubAutoHeal = onSnapshot(autoHealQ, (snap) => {
+                const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                renderAutoHealList(list);
+            }, (err) => console.warn('autoheal listener:', err.message));
+
             copilotChatId = null; // reset per-game
 
             const eventsQ = query(
@@ -2204,6 +2336,7 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
             const unreadCount = alerts.filter(a => !a.read).length;
             if (meta) meta.textContent = `${alerts.length} total · ${unreadCount} ${t('alerts.unread')}`;
             const sevIcon = { critical: '🚨', high: '⚠️', medium: '⚡', info: 'ℹ️' };
+            const prescribable = new Set(['critical', 'high', 'medium']);
             root.innerHTML = alerts.map(a => {
                 const title = lang === 'en' ? (a.title_en || a.title_tr) : (a.title_tr || a.title_en);
                 const rationale = lang === 'en'
@@ -2212,6 +2345,7 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
                 const sevLabel = t('alerts.severity.' + (a.severity || 'info'));
                 const ts = a.createdAt && a.createdAt.toDate ? a.createdAt.toDate() : null;
                 const tsStr = ts ? ts.toLocaleString(lang === 'en' ? 'en-US' : 'tr-TR', { dateStyle: 'short', timeStyle: 'short' }) : '';
+                const canPrescribe = prescribable.has(a.severity) && !a.autoHealedBy;
                 return `
                     <div class="alert-card ${a.read ? '' : 'unread'}" data-severity="${escapeHtml(a.severity)}">
                         <div class="alert-icon">${sevIcon[a.severity] || '•'}</div>
@@ -2223,6 +2357,9 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
                                 <span>${escapeHtml(a.gameName || '')}</span>
                                 <span>${escapeHtml(tsStr)}</span>
                             </div>
+                            ${canPrescribe
+                                ? `<button class="alert-prescribe" data-alert-id="${escapeHtml(a.id)}">🩺 ${t('autoheal.prescribe')}</button>`
+                                : ''}
                         </div>
                         ${a.read ? '' : `<button class="alert-mark-read" data-alert-id="${escapeHtml(a.id)}">${t('alerts.markRead')}</button>`}
                     </div>`;
@@ -2234,6 +2371,30 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
                         const fn = httpsCallable(functions, 'markAlertRead');
                         await fn({ gameId: currentGame, alertId: btn.dataset.alertId, read: true });
                     } catch (err) { console.warn('markAlertRead failed', err); btn.disabled = false; }
+                });
+            });
+            root.querySelectorAll('.alert-prescribe').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    btn.disabled = true;
+                    const original = btn.textContent;
+                    btn.textContent = '🩺 ' + t('autoheal.thinking');
+                    try {
+                        const fn = httpsCallable(functions, 'generateAutoHeal', { timeout: 120000 });
+                        const res = await fn({
+                            gameId: currentGame,
+                            alertId: btn.dataset.alertId,
+                            language: getLanguage(),
+                        });
+                        if (res.data && res.data.prescription) {
+                            openAutoHealModal(res.data.prescriptionId, res.data.prescription);
+                        }
+                    } catch (err) {
+                        console.error('autoheal failed', err);
+                        alert(t('autoheal.error') + '\n' + (err.message || ''));
+                    } finally {
+                        btn.disabled = false;
+                        btn.textContent = original;
+                    }
                 });
             });
         }
@@ -2248,6 +2409,181 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
             } else {
                 badge.style.display = 'none';
             }
+        }
+
+        // ─────────────────────────────────────────────────────────────────
+        // Auto-Heal
+        // ─────────────────────────────────────────────────────────────────
+        function renderAutoHealList(items) {
+            const root = $('autoheal-list');
+            const meta = $('autoheal-meta');
+            if (!root) return;
+            if (!items || items.length === 0) {
+                root.innerHTML = `<div class="empty-state">${t('autoheal.empty')}</div>`;
+                if (meta) meta.textContent = '0';
+                return;
+            }
+            const lang = getLanguage();
+            const applied = items.filter(x => x.status === 'applied').length;
+            const proposed = items.filter(x => x.status === 'proposed').length;
+            if (meta) meta.textContent = `${items.length} total · ${applied} applied · ${proposed} pending`;
+
+            root.innerHTML = items.map(p => {
+                const presc = p.prescription || {};
+                const changes = Array.isArray(presc.changes) ? presc.changes : [];
+                const ts = p.createdAt && p.createdAt.toDate ? p.createdAt.toDate() : null;
+                const tsStr = ts ? ts.toLocaleString(lang === 'en' ? 'en-US' : 'tr-TR', { dateStyle: 'short', timeStyle: 'short' }) : '';
+                const status = p.status || 'proposed';
+                const statusLabel = t('autoheal.status.' + status);
+                const risk = presc.risk_level || 'low';
+                const riskLabel = t('autoheal.risk.' + risk);
+                return `
+                    <div class="autoheal-card">
+                        <div class="head">
+                            <div class="title">${escapeHtml(presc.diagnosis || '—')}<span class="autoheal-risk ${escapeHtml(risk)}">${escapeHtml(riskLabel)}</span></div>
+                            <div class="status ${escapeHtml(status)}">${escapeHtml(statusLabel)}</div>
+                        </div>
+                        ${presc.root_cause_hypothesis ? `<div class="diagnosis">${escapeHtml(presc.root_cause_hypothesis)}</div>` : ''}
+                        ${changes.length > 0 ? `
+                            <div class="autoheal-changes">
+                                ${changes.map(c => `
+                                    <div class="ch">
+                                        <span class="key">${escapeHtml(c.key || '?')}</span>
+                                        <span class="old">${escapeHtml(String(c.current_value))}</span>
+                                        <span class="arrow">→</span>
+                                        <span class="new">${escapeHtml(String(c.new_value))}</span>
+                                    </div>
+                                `).join('')}
+                            </div>` : ''}
+                        <div class="autoheal-meta">${escapeHtml(tsStr)} · ${escapeHtml(p.model || 'opus-4.8')}</div>
+                        ${status === 'proposed' ? `
+                            <div class="autoheal-actions">
+                                <button class="autoheal-apply" data-presc-id="${escapeHtml(p.id)}">⚡ ${t('autoheal.apply')}</button>
+                            </div>` : ''}
+                        ${status === 'applied' ? `
+                            <div class="autoheal-actions">
+                                <button class="autoheal-rollback" data-presc-id="${escapeHtml(p.id)}">↺ ${t('autoheal.rollback')}</button>
+                            </div>` : ''}
+                    </div>`;
+            }).join('');
+
+            root.querySelectorAll('.autoheal-apply').forEach(btn => {
+                btn.addEventListener('click', () => applyAutoHeal(btn.dataset.prescId, btn));
+            });
+            root.querySelectorAll('.autoheal-rollback').forEach(btn => {
+                btn.addEventListener('click', () => rollbackAutoHeal(btn.dataset.prescId, btn));
+            });
+        }
+
+        async function applyAutoHeal(prescriptionId, btn) {
+            if (!confirm(t('autoheal.confirmApply'))) return;
+            if (btn) { btn.disabled = true; btn.textContent = t('autoheal.applying'); }
+            try {
+                const fn = httpsCallable(functions, 'applyAutoHeal', { timeout: 30000 });
+                await fn({ gameId: currentGame, prescriptionId });
+                showToast(t('autoheal.applySuccess'));
+            } catch (err) {
+                alert(t('autoheal.error') + '\n' + (err.message || ''));
+                if (btn) { btn.disabled = false; btn.textContent = '⚡ ' + t('autoheal.apply'); }
+            }
+        }
+
+        async function rollbackAutoHeal(prescriptionId, btn) {
+            if (!confirm(t('autoheal.confirmRollback'))) return;
+            if (btn) { btn.disabled = true; btn.textContent = t('autoheal.rollingBack'); }
+            try {
+                const fn = httpsCallable(functions, 'rollbackAutoHeal', { timeout: 30000 });
+                await fn({ gameId: currentGame, prescriptionId });
+                showToast(t('autoheal.rollbackSuccess'));
+            } catch (err) {
+                alert(t('autoheal.error') + '\n' + (err.message || ''));
+                if (btn) { btn.disabled = false; btn.textContent = '↺ ' + t('autoheal.rollback'); }
+            }
+        }
+
+        function openAutoHealModal(prescriptionId, prescription) {
+            closeAutoHealModal();
+            const lang = getLanguage();
+            const overlay = document.createElement('div');
+            overlay.className = 'autoheal-modal-overlay';
+            overlay.id = 'autoheal-modal-overlay';
+            const presc = prescription || {};
+            const changes = Array.isArray(presc.changes) ? presc.changes : [];
+            const risk = presc.risk_level || 'low';
+            const dataSuf = presc.data_sufficient !== false;
+            overlay.innerHTML = `
+                <div class="autoheal-modal">
+                    <button class="close-x" data-close>×</button>
+                    <h2>🩺 ${t('autoheal.modalTitle')}</h2>
+                    <p class="subtitle">${escapeHtml(presc.diagnosis || '')}<span class="autoheal-risk ${escapeHtml(risk)}">${escapeHtml(t('autoheal.risk.' + risk))}</span></p>
+
+                    ${presc.root_cause_hypothesis ? `
+                        <div class="block">
+                            <div class="label">${t('autoheal.label.rootCause')}</div>
+                            <div class="value">${escapeHtml(presc.root_cause_hypothesis)}</div>
+                        </div>` : ''}
+
+                    ${dataSuf && changes.length > 0 ? `
+                        <div class="block">
+                            <div class="label">${t('autoheal.label.changes')}</div>
+                            <div class="autoheal-changes" style="margin-top:6px;">
+                                ${changes.map(c => `
+                                    <div class="ch">
+                                        <span class="key">${escapeHtml(c.key || '?')}</span>
+                                        <span class="old">${escapeHtml(String(c.current_value))}</span>
+                                        <span class="arrow">→</span>
+                                        <span class="new">${escapeHtml(String(c.new_value))}</span>
+                                    </div>
+                                    <div style="font-size:0.78rem; color: var(--text-dim); padding-left:12px; padding-bottom:4px;">
+                                        ${escapeHtml(c.rationale || '')}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>` : `
+                        <div class="block">
+                            <div class="value" style="color: var(--text-faint);">${t('autoheal.dataInsufficient')}</div>
+                        </div>`}
+
+                    ${presc.success_criteria ? `
+                        <div class="block">
+                            <div class="label">${t('autoheal.label.success')}</div>
+                            <div class="value">${escapeHtml(presc.success_criteria)}</div>
+                        </div>` : ''}
+
+                    ${presc.rollback_trigger ? `
+                        <div class="block">
+                            <div class="label">${t('autoheal.label.rollback')}</div>
+                            <div class="value">${escapeHtml(presc.rollback_trigger)}</div>
+                        </div>` : ''}
+
+                    ${(Array.isArray(presc.warnings) && presc.warnings.length > 0) ? `
+                        <div class="block" style="padding: 10px 14px; background: rgba(239,68,68,0.08); border-left: 3px solid #ef4444; border-radius: 6px;">
+                            <div class="label">${t('autoheal.label.warnings')}</div>
+                            <ul style="margin: 6px 0 0; padding-left: 18px; font-size: 0.85rem; color: var(--text-dim);">
+                                ${presc.warnings.map(w => `<li>${escapeHtml(w)}</li>`).join('')}
+                            </ul>
+                        </div>` : ''}
+
+                    <div style="display:flex; gap:8px; margin-top: 22px;">
+                        ${dataSuf && changes.length > 0 ? `
+                            <button class="autoheal-apply" data-presc-id="${escapeHtml(prescriptionId)}" style="font-weight:700; padding:10px 18px; border-radius:8px; border:none; cursor:pointer; background: linear-gradient(135deg, #10b981, #34d399); color:white;">⚡ ${t('autoheal.apply')}</button>` : ''}
+                        <button data-close style="font-weight:700; padding:10px 18px; border-radius:8px; border:1px solid var(--border); background:transparent; color:var(--text-dim); cursor:pointer;">${t('autoheal.later')}</button>
+                    </div>
+                </div>`;
+            document.body.appendChild(overlay);
+            overlay.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', closeAutoHealModal));
+            overlay.addEventListener('click', (e) => { if (e.target === overlay) closeAutoHealModal(); });
+            const applyBtn = overlay.querySelector('.autoheal-apply');
+            if (applyBtn) {
+                applyBtn.addEventListener('click', async () => {
+                    await applyAutoHeal(prescriptionId, applyBtn);
+                    closeAutoHealModal();
+                });
+            }
+        }
+        function closeAutoHealModal() {
+            const o = $('autoheal-modal-overlay');
+            if (o) o.remove();
         }
 
         // ─────────────────────────────────────────────────────────────────
