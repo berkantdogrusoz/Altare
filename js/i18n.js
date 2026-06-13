@@ -39,7 +39,6 @@ const I18N = {
         'tab.market': 'Pazar Analizi',
         'tab.benchmark': 'Benchmark',
         'tab.reviews': 'Yorum & Sentiment',
-        'tab.copilot': 'AI Copilot',
         'tab.ai-report': 'AI Raporu',
         'tab.roadmap': 'Roadmap Önerileri',
 
@@ -68,8 +67,9 @@ const I18N = {
         // ── Copilot ──
         'copilot.banner': '<strong>AI Copilot</strong> oyunun verileriyle sohbet etmeni sağlar. "Retention neden düştü?", "Level 18\'i nasıl optimize ederim?", "Hangi cihazda en çok crash var?" gibi sorular sor.',
         'copilot.title': 'AI Copilot',
-        'copilot.greeting': 'Merhaba! Oyununun verileriyle ilgili bir şey sor. Event\'leri, level istatistiklerini ve son AI raporunu görebiliyorum.',
-        'copilot.placeholder': 'Sorunu yaz... (Enter ile gönder, Shift+Enter yeni satır)',
+        'copilot.online': 'Çevrimiçi · Claude Sonnet 4.5',
+        'copilot.greeting': 'Merhaba! 👋 Oyununun verileriyle ilgili bir şey sor. Event\'leri, level istatistiklerini ve son AI raporunu görebiliyorum.',
+        'copilot.placeholder': 'Sorunu yaz...',
         'copilot.send': 'Gönder',
         'copilot.sending': 'Düşünüyor...',
         'copilot.q1': 'Retention neden düşüyor?',
@@ -272,7 +272,6 @@ const I18N = {
         'tab.market': 'Market Analysis',
         'tab.benchmark': 'Benchmark',
         'tab.reviews': 'Reviews & Sentiment',
-        'tab.copilot': 'AI Copilot',
         'tab.ai-report': 'AI Report',
         'tab.roadmap': 'Roadmap Suggestions',
 
@@ -301,8 +300,9 @@ const I18N = {
         // ── Copilot ──
         'copilot.banner': '<strong>AI Copilot</strong> lets you chat with your game data. Ask things like "Why is retention dropping?", "How can I optimize Level 18?", "Which device crashes most?"',
         'copilot.title': 'AI Copilot',
-        'copilot.greeting': 'Hi! Ask anything about your game data. I can see events, level stats and the latest AI report.',
-        'copilot.placeholder': 'Type your question... (Enter to send, Shift+Enter for newline)',
+        'copilot.online': 'Online · Claude Sonnet 4.5',
+        'copilot.greeting': 'Hi! 👋 Ask anything about your game data. I can see events, level stats and the latest AI report.',
+        'copilot.placeholder': 'Type your question...',
         'copilot.send': 'Send',
         'copilot.sending': 'Thinking...',
         'copilot.q1': 'Why is retention dropping?',
