@@ -376,6 +376,446 @@ exports.aggregateDailyStats = onSchedule(
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
+// detectAnomalies — scheduled every 30 min
+// Altare Sentinel: oyunculari 7/24 izler, anomali tespit ederse uyari atar.
+// Uyarilar games/{gameId}/alerts altina yazilir, panel'de Uyarilar sekmesinde
+// gosterilir + okunmamis sayisi bildirim olarak akar.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const ANOMALY_RULES = [
+  {
+    id: "crash_spike",
+    severity: "critical",
+    title_tr: "Crash patlamasi tespit edildi",
+    title_en: "Crash spike detected",
+    check: (now, baseline) => {
+      if (now.crashes < 5) return null;
+      const baseRate = baseline.crashes / Math.max(baseline.uniqueSessions, 1);
+      const nowRate = now.crashes / Math.max(now.uniqueSessions, 1);
+      if (baseRate > 0 && nowRate > baseRate * 3) {
+        return {
+          metric: "crashes",
+          delta_pct: Math.round((nowRate / baseRate - 1) * 100),
+          rationale_tr: `Crash orani son aralikta %${Math.round(nowRate * 100)} (baseline %${Math.round(baseRate * 100)})`,
+          rationale_en: `Crash rate spiked to ${Math.round(nowRate * 100)}% (baseline ${Math.round(baseRate * 100)}%)`,
+        };
+      }
+      return null;
+    },
+  },
+  {
+    id: "dau_drop",
+    severity: "high",
+    title_tr: "DAU son 14 gun dibinde",
+    title_en: "DAU at 14-day low",
+    check: (now, baseline) => {
+      if (baseline.uniquePlayers < 10) return null;
+      const drop = (baseline.uniquePlayers - now.uniquePlayers) / baseline.uniquePlayers;
+      if (drop > 0.4) {
+        return {
+          metric: "uniquePlayers",
+          delta_pct: -Math.round(drop * 100),
+          rationale_tr: `Aktif oyuncu ${baseline.uniquePlayers} -> ${now.uniquePlayers} (%${Math.round(drop * 100)} dusus)`,
+          rationale_en: `Active players ${baseline.uniquePlayers} -> ${now.uniquePlayers} (${Math.round(drop * 100)}% drop)`,
+        };
+      }
+      return null;
+    },
+  },
+  {
+    id: "fps_degradation",
+    severity: "high",
+    title_tr: "Performans bozulmasi",
+    title_en: "Performance degradation",
+    check: (now, baseline) => {
+      const fpsRate = now.fpsWarnings / Math.max(now.uniqueSessions, 1);
+      const baseFpsRate = baseline.fpsWarnings / Math.max(baseline.uniqueSessions, 1);
+      if (now.fpsWarnings < 20) return null;
+      if (baseFpsRate > 0 && fpsRate > baseFpsRate * 2) {
+        return {
+          metric: "fpsWarnings",
+          delta_pct: Math.round((fpsRate / baseFpsRate - 1) * 100),
+          rationale_tr: `FPS uyarilari oturum basina ${baseFpsRate.toFixed(1)} -> ${fpsRate.toFixed(1)}`,
+          rationale_en: `FPS warnings per session ${baseFpsRate.toFixed(1)} -> ${fpsRate.toFixed(1)}`,
+        };
+      }
+      return null;
+    },
+  },
+  {
+    id: "session_length_drop",
+    severity: "medium",
+    title_tr: "Ortalama oturum suresi dusuyor",
+    title_en: "Average session length dropping",
+    check: (now, baseline) => {
+      if (now.avgSessionSeconds < 30 || baseline.avgSessionSeconds < 30) return null;
+      const drop = (baseline.avgSessionSeconds - now.avgSessionSeconds) / baseline.avgSessionSeconds;
+      if (drop > 0.3) {
+        return {
+          metric: "avgSessionSeconds",
+          delta_pct: -Math.round(drop * 100),
+          rationale_tr: `Ort. oturum ${baseline.avgSessionSeconds}sn -> ${now.avgSessionSeconds}sn (%${Math.round(drop * 100)} dusus)`,
+          rationale_en: `Avg. session ${baseline.avgSessionSeconds}s -> ${now.avgSessionSeconds}s (${Math.round(drop * 100)}% drop)`,
+        };
+      }
+      return null;
+    },
+  },
+  {
+    id: "whale_detected",
+    severity: "info",
+    title_tr: "Whale tespit edildi",
+    title_en: "Whale player detected",
+    check: (now, baseline) => {
+      if (now.purchaseRevenueUsd >= 50 && now.purchases <= 5) {
+        return {
+          metric: "purchaseRevenueUsd",
+          delta_pct: null,
+          rationale_tr: `Tek aralikta $${now.purchaseRevenueUsd.toFixed(2)} gelir, sadece ${now.purchases} satin alma — whale aday adayi`,
+          rationale_en: `$${now.purchaseRevenueUsd.toFixed(2)} revenue from only ${now.purchases} purchases — likely whale`,
+        };
+      }
+      return null;
+    },
+  },
+  {
+    id: "first_revenue",
+    severity: "info",
+    title_tr: "Ilk gelir tespit edildi",
+    title_en: "First revenue detected",
+    check: (now, baseline) => {
+      if (baseline.purchaseRevenueUsd === 0 && now.purchaseRevenueUsd > 0) {
+        return {
+          metric: "purchaseRevenueUsd",
+          delta_pct: null,
+          rationale_tr: `Oyununuz ilk kez para kazandi: $${now.purchaseRevenueUsd.toFixed(2)} (${now.purchases} satin alma)`,
+          rationale_en: `Your game just made its first money: $${now.purchaseRevenueUsd.toFixed(2)} (${now.purchases} purchases)`,
+        };
+      }
+      return null;
+    },
+  },
+];
+
+exports.detectAnomalies = onSchedule(
+  { schedule: "every 30 minutes", timeZone: "Europe/Istanbul" },
+  async () => {
+    const gamesSnap = await db.collection("games").get();
+
+    const tasks = gamesSnap.docs.map(async (gameDoc) => {
+      const gameId = gameDoc.id;
+      const gameData = gameDoc.data();
+      try {
+        // Now window: last 2h. Baseline window: previous 7 days (24h chunk).
+        const nowSince = admin.firestore.Timestamp.fromMillis(Date.now() - 2 * 3600e3);
+        const baselineSince = admin.firestore.Timestamp.fromMillis(Date.now() - 7 * 24 * 3600e3);
+
+        const [nowStats, baselineStats] = await Promise.all([
+          buildSummaryData(gameId, nowSince),
+          buildSummaryData(gameId, baselineSince),
+        ]);
+
+        if (nowStats.totalEvents < 10) {
+          // not enough signal
+          return;
+        }
+
+        for (const rule of ANOMALY_RULES) {
+          // Dedupe: same rule fired within last 6h -> skip
+          const recentDedupe = await db
+            .collection("games").doc(gameId)
+            .collection("alerts")
+            .where("ruleId", "==", rule.id)
+            .where("createdAt", ">", admin.firestore.Timestamp.fromMillis(Date.now() - 6 * 3600e3))
+            .limit(1).get();
+          if (!recentDedupe.empty) continue;
+
+          const result = rule.check(nowStats, baselineStats);
+          if (!result) continue;
+
+          await db.collection("games").doc(gameId).collection("alerts").add({
+            gameId,
+            gameName: gameData.gameName || gameId,
+            ruleId: rule.id,
+            severity: rule.severity,
+            title_tr: rule.title_tr,
+            title_en: rule.title_en,
+            ...result,
+            read: false,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+
+          logger.info("sentinel alert fired", { gameId, ruleId: rule.id, severity: rule.severity });
+        }
+      } catch (err) {
+        logger.error("anomaly detection failed", { gameId, error: err.message });
+      }
+    });
+
+    await Promise.all(tasks);
+  }
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// markAlertRead — callable, kullanici uyariyi okudu olarak isaretler
+// ─────────────────────────────────────────────────────────────────────────────
+
+exports.markAlertRead = onCall(async (request) => {
+  assertSignedIn(request);
+  const { gameId, alertId, read = true } = request.data || {};
+  await assertOwnsGameOrAdmin(request, gameId);
+  if (!alertId) {
+    throw new HttpsError("invalid-argument", "alertId is required.");
+  }
+  await db.collection("games").doc(gameId).collection("alerts").doc(alertId)
+    .set({ read: read === true }, { merge: true });
+  return { success: true };
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// generateBenchmark — callable
+// First-party metrics + Play Store kategori verisini birlestirir, Claude'a
+// "kategori medyani vs top %10 vs sen" karsilastirmasi yaptirir.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const BENCHMARK_SYSTEM_PROMPT_TR = `Sen Altare AI'in Benchmark Analyst rolusun.
+Bir oyunun gercek metrikleri ve ayni kategorinin Play Store top oyunlarinin
+ortalama install/rating verisi sana verilir. Cikti olarak metrik bazli
+karsilastirma + tek bir "next action" cikartmalisin.
+
+KATI KURALLAR
+- Tum metinler Turkce. JSON anahtarlari Ingilizce sabit.
+- Sadece JSON dondur, açiklayici metin ekleme.
+- Spesifik sayilarla destekle. "Ortalama" gibi mubhem kelime yok.
+
+OUTPUT JSON SHAPE
+{
+  "headline": string,
+  "summary": string,
+  "metrics": [
+    {
+      "name": string,
+      "you": number,
+      "median": number,
+      "top10": number,
+      "verdict": "leading"|"on_par"|"lagging"|"critical",
+      "note": string
+    }
+  ],
+  "biggest_gap": {
+    "metric": string,
+    "you_value": string,
+    "category_value": string,
+    "lift_needed": string
+  },
+  "next_action": {
+    "title": string,
+    "rationale": string,
+    "expected_lift": string
+  }
+}`;
+
+exports.generateBenchmark = onCall(
+  { secrets: [ANTHROPIC_API_KEY], timeoutSeconds: 90 },
+  async (request) => {
+    try {
+      const { gameId, gameType = "puzzle", country = "tr", language = "tr" } = request.data || {};
+      await assertOwnsGameOrAdmin(request, gameId);
+      const lang = language === "en" ? "en" : "tr";
+
+      // First-party stats (last 7d)
+      const since = admin.firestore.Timestamp.fromMillis(Date.now() - 7 * 24 * 3600e3);
+      const summary = await buildSummaryData(gameId, since);
+
+      // Market intel
+      const collectionId = `${gameType}-${country}`;
+      const marketDocRef = db.collection("market_intel").doc(collectionId);
+      const marketSnap = await marketDocRef.get();
+      let competitors = [];
+      if (marketSnap.exists) {
+        const compsRef = marketDocRef.collection("competitors").orderBy("rank").limit(20);
+        const compsSnap = await compsRef.get();
+        competitors = compsSnap.docs.map((d) => {
+          const c = d.data();
+          return {
+            name: c.title || c.appId,
+            rating: parseFloat(c.score) || null,
+            installs: parseInt(c.minInstalls, 10) || null,
+            ratingCount: parseInt(c.ratings, 10) || null,
+          };
+        }).filter((c) => c.rating && c.installs);
+      }
+
+      if (competitors.length < 3) {
+        throw new HttpsError(
+          "failed-precondition",
+          lang === "en"
+            ? "Not enough market data for this category. Go to Market Analysis tab and fetch competitors first."
+            : "Bu kategori için yeterli pazar verisi yok. Önce Pazar Analizi sekmesinden rakipleri çek."
+        );
+      }
+
+      // Compute medians + top10
+      const ratings = competitors.map((c) => c.rating).sort((a, b) => a - b);
+      const installs = competitors.map((c) => c.installs).sort((a, b) => a - b);
+      const median = (arr) => arr[Math.floor(arr.length / 2)];
+      const top10 = (arr) => arr[Math.floor(arr.length * 0.9)];
+
+      const benchmarkInput = {
+        you: {
+          uniquePlayers: summary.uniquePlayers,
+          uniqueSessions: summary.uniqueSessions,
+          avgSessionSeconds: summary.avgSessionSeconds,
+          totalEvents: summary.totalEvents,
+          fpsWarnings: summary.fpsWarnings,
+          crashes: summary.crashes,
+          adWatches: summary.adWatches,
+          purchaseRevenueUsd: summary.purchaseRevenueUsd,
+          failRate: (() => {
+            const fails = (summary.eventCounts && summary.eventCounts.level_fail) || 0;
+            const completes = (summary.eventCounts && summary.eventCounts.level_complete) || 0;
+            const denom = fails + completes;
+            return denom > 0 ? Math.round((fails / denom) * 100) : null;
+          })(),
+        },
+        category: {
+          gameType,
+          country,
+          competitor_count: competitors.length,
+          rating_median: median(ratings).toFixed(2),
+          rating_top10: top10(ratings).toFixed(2),
+          installs_median: median(installs),
+          installs_top10: top10(installs),
+          top_3_names: competitors.slice(0, 3).map((c) => c.name),
+        },
+      };
+
+      const userPrompt = [
+        lang === "en" ? "YOUR GAME + CATEGORY DATA (JSON):" : "OYUN VE KATEGORI VERİSİ (JSON):",
+        JSON.stringify(benchmarkInput, null, 2),
+        "",
+        lang === "en"
+          ? "Generate a benchmark report comparing the player to category median and top 10%. Return JSON only."
+          : "Oyunun durumunu kategori medyanı ve top %10 ile karşılaştır. Sadece JSON dön.",
+      ].join("\n");
+
+      const aiJson = await callAnthropic(
+        ANTHROPIC_API_KEY.value(),
+        localizeSystemPrompt(BENCHMARK_SYSTEM_PROMPT_TR, lang),
+        userPrompt,
+        { maxTokens: 2048 }
+      );
+
+      // Save snapshot
+      const bRef = await db.collection("games").doc(gameId).collection("benchmarks").add({
+        gameId,
+        gameType, country, language: lang,
+        input: benchmarkInput,
+        report: aiJson,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        createdBy: request.auth.uid,
+      });
+
+      return { success: true, benchmarkId: bRef.id, report: aiJson, input: benchmarkInput };
+    } catch (err) {
+      if (err instanceof HttpsError) throw err;
+      logger.error("generateBenchmark unhandled", { message: err.message });
+      throw new HttpsError("internal", "Benchmark uretilemedi: " + err.message);
+    }
+  }
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// askCopilot — callable
+// Live-Ops Copilot: kullanici serbest soru sorar, Claude oyununun gercek
+// verisine bakarak cevap verir. Bu, surekli rapor uretmenin yerine "ne
+// sorarsan sor" deneyimi sunar.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const COPILOT_SYSTEM_PROMPT_TR = `Sen Altare AI Live-Ops Copilot'sun.
+Bir indie/midcore studio'nun bir oyununun first-party event verisine
+erisimin var. Geliştirici ile sohbet ediyorsun.
+
+KATI KURALLAR
+- Cevap kisa, doğrudan ve eylem-odakli. Asla "genel" tavsiye yok.
+- Her tespiti verideki bir sayiya/orana baglar.
+- Veri yetersizse acikca soyle.
+- Cevap maksimum 5-6 cumle. Madde kullanabilirsin.
+- Tum metinler Turkce. Markdown kullanma.
+- Soru oyun verisiyle alakali degilse nazikce yonlendir.
+
+CEVAP STILI
+- Once tespit (veriden) → sonra eylem (ne yapilmali)
+- Sayilari belirgin yaz: "Level 18'de 412 baslangic, 38 tamamlama (%9 win rate)"
+- Cihaz/level/event ismi varsa code style ile yaz (` + "`Level 18`, `Samsung SM-A908`" + `)`;
+
+exports.askCopilot = onCall(
+  { secrets: [ANTHROPIC_API_KEY], timeoutSeconds: 60 },
+  async (request) => {
+    try {
+      const { gameId, question, language = "tr", chatId = null } = request.data || {};
+      await assertOwnsGameOrAdmin(request, gameId);
+      const lang = language === "en" ? "en" : "tr";
+
+      if (!question || typeof question !== "string" || question.trim().length < 3) {
+        throw new HttpsError("invalid-argument", "Question too short.");
+      }
+
+      const since = admin.firestore.Timestamp.fromMillis(Date.now() - 7 * 24 * 3600e3);
+      const summary = await buildSummaryData(gameId, since);
+
+      // Latest AI report context (optional)
+      let latestReport = null;
+      try {
+        const repSnap = await db.collection("games").doc(gameId).collection("ai_reports")
+          .orderBy("createdAt", "desc").limit(1).get();
+        if (!repSnap.empty) {
+          const d = repSnap.docs[0].data();
+          latestReport = d.report;
+        }
+      } catch {}
+
+      const ctx = {
+        summary_7d: summary,
+        latest_ai_report: latestReport,
+      };
+
+      const userPrompt = [
+        lang === "en" ? "GAME CONTEXT (JSON):" : "OYUN BAĞLAMI (JSON):",
+        JSON.stringify(ctx, null, 2),
+        "",
+        lang === "en" ? "DEVELOPER QUESTION:" : "GELİŞTİRİCİNİN SORUSU:",
+        question.trim().slice(0, 800),
+      ].join("\n");
+
+      const answer = await callAnthropic(
+        ANTHROPIC_API_KEY.value(),
+        localizeSystemPrompt(COPILOT_SYSTEM_PROMPT_TR, lang),
+        userPrompt,
+        { maxTokens: 1024, raw: true }
+      );
+
+      // Persist
+      const chatRef = chatId
+        ? db.collection("games").doc(gameId).collection("copilot_chats").doc(chatId)
+        : db.collection("games").doc(gameId).collection("copilot_chats").doc();
+      await chatRef.set({
+        gameId, language: lang,
+        question, answer,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        uid: request.auth.uid,
+      }, { merge: true });
+
+      return { success: true, answer, chatId: chatRef.id };
+    } catch (err) {
+      if (err instanceof HttpsError) throw err;
+      logger.error("askCopilot unhandled", { message: err.message });
+      throw new HttpsError("internal", "Copilot cevap uretemedi: " + err.message);
+    }
+  }
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
 // fetchAnalyticsOverview — callable, admin-only
 // GA4 Data API'den gerçek Firebase Analytics verisi çeker (DAU, WAU, MAU,
 // aktif kullanıcılar, ortalama etkileşim süresi, ülke dağılımı).
@@ -1328,6 +1768,11 @@ async function callAnthropic(apiKey, systemPrompt, userPrompt, options) {
 
   const data = await res.json();
   const text = data?.content?.[0]?.text || "";
+
+  // Raw mode: text cevap istenmis (Copilot gibi free-form yanitlar icin)
+  if (options && options.raw === true) {
+    return text.trim();
+  }
 
   // Strip ```json fences if model added them despite instructions
   const cleaned = text

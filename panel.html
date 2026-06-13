@@ -259,6 +259,116 @@
             opacity: 0.6;
         }
 
+        .alert-badge {
+            margin-left: auto;
+            background: #ef4444;
+            color: white;
+            font-size: 0.65rem;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 10px;
+            min-width: 18px;
+            text-align: center;
+            line-height: 1.3;
+        }
+
+        /* Alerts */
+        .alert-list { display: flex; flex-direction: column; gap: 10px; }
+        .alert-card {
+            display: flex;
+            gap: 14px;
+            padding: 14px 16px;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--border-strong);
+            border-radius: 10px;
+            transition: background 0.15s;
+        }
+        .alert-card.unread { background: rgba(239, 68, 68, 0.06); }
+        .alert-card[data-severity="critical"] { border-left-color: #ef4444; }
+        .alert-card[data-severity="high"] { border-left-color: #f97316; }
+        .alert-card[data-severity="medium"] { border-left-color: #facc15; }
+        .alert-card[data-severity="info"] { border-left-color: #38bdf8; }
+        .alert-icon { font-size: 1.4rem; line-height: 1; padding-top: 2px; }
+        .alert-body { flex: 1; }
+        .alert-title { font-weight: 700; font-size: 0.95rem; color: var(--text); margin-bottom: 4px; }
+        .alert-rationale { font-size: 0.85rem; color: var(--text-dim); line-height: 1.45; }
+        .alert-meta { font-size: 0.72rem; color: var(--text-faint); margin-top: 6px; display: flex; gap: 14px; }
+        .alert-mark-read {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            font-size: 0.7rem;
+            padding: 5px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            align-self: flex-start;
+        }
+        .alert-mark-read:hover { color: var(--text); border-color: var(--border-strong); }
+
+        /* Benchmark */
+        .benchmark-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 12px;
+        }
+        .benchmark-card {
+            padding: 16px;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+        }
+        .benchmark-card .b-metric { font-size: 0.72rem; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+        .benchmark-card .b-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 0.85rem; }
+        .benchmark-card .b-row .label { color: var(--text-dim); }
+        .benchmark-card .b-row .val { font-family: 'JetBrains Mono', monospace; color: var(--text); }
+        .benchmark-card .b-row.you { font-weight: 700; }
+        .benchmark-card .b-row.you .val { color: #4ade80; }
+        .benchmark-card .b-row.gap { border-top: 1px solid var(--border); margin-top: 6px; padding-top: 8px; color: var(--text-faint); font-size: 0.75rem; }
+
+        /* Copilot chat */
+        .copilot-shell {
+            display: flex;
+            flex-direction: column;
+            height: 70vh;
+            min-height: 480px;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .copilot-messages { flex: 1; overflow-y: auto; padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+        .copilot-msg { max-width: 80%; padding: 12px 16px; border-radius: 12px; font-size: 0.92rem; line-height: 1.55; white-space: pre-wrap; word-wrap: break-word; }
+        .copilot-msg.user { align-self: flex-end; background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.3); }
+        .copilot-msg.assistant { align-self: flex-start; background: rgba(255,255,255,0.04); border: 1px solid var(--border); }
+        .copilot-msg.system { align-self: center; font-size: 0.78rem; color: var(--text-faint); padding: 6px 12px; }
+        .copilot-input-row { display: flex; gap: 10px; padding: 14px; border-top: 1px solid var(--border); background: rgba(0,0,0,0.2); }
+        .copilot-input-row textarea {
+            flex: 1;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 11px 14px;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.92rem;
+            resize: none;
+            min-height: 44px;
+            max-height: 120px;
+        }
+        .copilot-input-row textarea:focus { outline: none; border-color: var(--border-strong); }
+        .copilot-suggestions { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 18px 14px; }
+        .copilot-suggestion {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            padding: 6px 12px;
+            border-radius: 16px;
+            font-size: 0.78rem;
+            cursor: pointer;
+        }
+        .copilot-suggestion:hover { color: var(--text); border-color: var(--border-strong); }
+
         /* Main content */
         .main {
             padding: 32px 40px 80px;
@@ -986,6 +1096,10 @@
                 <div class="sidebar-section">
                     <div class="sidebar-label" data-i18n="sidebar.gameIntel">Game Intelligence</div>
                     <button class="nav-tab active" data-tab="overview"><span class="dot"></span> <span data-i18n="tab.overview">Genel Bakış</span></button>
+                    <button class="nav-tab" data-tab="alerts">
+                        <span class="dot"></span> <span data-i18n="tab.alerts">Sentinel Uyarıları</span>
+                        <span class="alert-badge" id="alert-badge" style="display:none;">0</span>
+                    </button>
                     <button class="nav-tab" data-tab="events"><span class="dot"></span> <span data-i18n="tab.events">Canlı Event Stream</span></button>
                     <button class="nav-tab" data-tab="levels"><span class="dot"></span> <span data-i18n="tab.levels">Level Intelligence</span></button>
                     <button class="nav-tab" data-tab="performance"><span class="dot"></span> <span data-i18n="tab.performance">Crash & Performance</span></button>
@@ -993,10 +1107,12 @@
                 <div class="sidebar-section">
                     <div class="sidebar-label" data-i18n="sidebar.marketIntel">Market Intelligence</div>
                     <button class="nav-tab" data-tab="market"><span class="dot"></span> <span data-i18n="tab.market">Pazar Analizi</span></button>
+                    <button class="nav-tab" data-tab="benchmark"><span class="dot"></span> <span data-i18n="tab.benchmark">Benchmark</span></button>
                     <button class="nav-tab" data-tab="reviews"><span class="dot"></span> <span data-i18n="tab.reviews">Yorum & Sentiment</span></button>
                 </div>
                 <div class="sidebar-section">
                     <div class="sidebar-label" data-i18n="sidebar.ai">AI</div>
+                    <button class="nav-tab" data-tab="copilot"><span class="dot"></span> <span data-i18n="tab.copilot">AI Copilot</span></button>
                     <button class="nav-tab" data-tab="ai-report"><span class="dot"></span> <span data-i18n="tab.ai-report">AI Raporu</span></button>
                     <button class="nav-tab" data-tab="roadmap"><span class="dot"></span> <span data-i18n="tab.roadmap">Roadmap Önerileri</span></button>
                 </div>
@@ -1582,6 +1698,76 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
                         </div>
                     </div>
                 </section>
+
+                <!-- Sentinel Alerts -->
+                <section class="tab-view" data-tab="alerts">
+                    <div class="info-banner" data-i18n-html="alerts.banner">
+                        <strong>Altare Sentinel</strong> oyununu 7/24 izler. Crash patlamasi, DAU düşüşü, performans bozulması veya whale tespiti gibi anomalilerde otomatik uyarı atar — panel açmana gerek yok.
+                    </div>
+                    <div class="section-block">
+                        <div class="section-head">
+                            <h3 data-i18n="alerts.recent">Son Uyarılar</h3>
+                            <span class="head-meta" id="alerts-meta">—</span>
+                        </div>
+                        <div class="section-content">
+                            <div class="alert-list" id="alert-list">
+                                <div class="empty-state" data-i18n="alerts.empty">Henüz uyarı yok. Sentinel her 30 dakikada bir oyununu kontrol ediyor — anomali tespit ederse burada görürsün.</div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Benchmark -->
+                <section class="tab-view" data-tab="benchmark">
+                    <div class="info-banner" data-i18n-html="benchmark.banner">
+                        Senin oyununun metriklerini <strong>kategori medyanı</strong> ve <strong>top %10</strong> ile karşılaştırır. Hangi alanda geride kaldığını ve hangi alanda öndesin görürsün.
+                    </div>
+                    <div class="section-block">
+                        <div class="section-head">
+                            <h3 data-i18n="benchmark.title">Kategori Karşılaştırması</h3>
+                            <span class="head-meta">
+                                <button class="primary-btn" id="benchmark-refresh-btn" style="padding: 5px 12px; font-size: 0.8rem;" data-i18n="benchmark.run">⚡ Benchmark Çalıştır</button>
+                            </span>
+                        </div>
+                        <div class="section-content">
+                            <div id="benchmark-status" style="font-size: 0.84rem; color: var(--text-dim); margin-bottom: 12px;"></div>
+                            <div class="benchmark-grid" id="benchmark-grid">
+                                <div class="empty-state" data-i18n="benchmark.empty">Önce "Pazar Analizi" sekmesinden ilgili kategori için rakipleri çek, sonra burada "Benchmark Çalıştır" bas.</div>
+                            </div>
+                            <div id="benchmark-narrative" style="margin-top: 16px;"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- AI Copilot -->
+                <section class="tab-view" data-tab="copilot">
+                    <div class="info-banner" data-i18n-html="copilot.banner">
+                        <strong>AI Copilot</strong> oyunun verileriyle sohbet etmeni sağlar. "Retention neden düştü?", "Level 18'i nasıl optimize ederim?", "Hangi cihazda en çok crash var?" gibi sorular sor.
+                    </div>
+                    <div class="section-block">
+                        <div class="section-head">
+                            <h3 data-i18n="copilot.title">AI Copilot</h3>
+                            <span class="head-meta" id="copilot-meta">Claude Sonnet 4.5</span>
+                        </div>
+                        <div class="section-content" style="padding: 0;">
+                            <div class="copilot-shell">
+                                <div class="copilot-messages" id="copilot-messages">
+                                    <div class="copilot-msg assistant" data-i18n="copilot.greeting">Merhaba! Oyununun verileriyle ilgili bir şey sor. Event'leri, level istatistiklerini ve son AI raporunu görebiliyorum.</div>
+                                </div>
+                                <div class="copilot-suggestions" id="copilot-suggestions">
+                                    <button class="copilot-suggestion" data-q="retention" data-i18n="copilot.q1">Retention neden düşüyor?</button>
+                                    <button class="copilot-suggestion" data-q="problem-level" data-i18n="copilot.q2">En problemli level hangisi?</button>
+                                    <button class="copilot-suggestion" data-q="crash-devices" data-i18n="copilot.q3">Hangi cihazda crash var?</button>
+                                    <button class="copilot-suggestion" data-q="ad-strategy" data-i18n="copilot.q4">Reklam stratejimi nasıl iyileştiririm?</button>
+                                </div>
+                                <div class="copilot-input-row">
+                                    <textarea id="copilot-input" rows="1" data-i18n-placeholder="copilot.placeholder" placeholder="Sorunu yaz..."></textarea>
+                                    <button class="primary-btn" id="copilot-send" data-i18n="copilot.send" style="padding: 0 18px;">Gönder</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
             </main>
         </div>
     </div>
@@ -1615,6 +1801,8 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
         let unsubEvents = null;
         let unsubStats = null;
         let unsubReport = null;
+        let unsubAlerts = null;
+        let copilotChatId = null;
 
         // ----- Auth gate -----
         requirePanelAccess({
@@ -1638,6 +1826,8 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
             wireTabs();
             wireGameSelector();
             wireGenerateButton();
+            wireBenchmark();
+            wireCopilot();
             startClock();
             loadMyGamesIntoSelector();
             initLanguageToggle('lang-toggle');
@@ -1753,6 +1943,20 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
             if (unsubEvents) { unsubEvents(); unsubEvents = null; }
             if (unsubStats) { unsubStats(); unsubStats = null; }
             if (unsubReport) { unsubReport(); unsubReport = null; }
+            if (unsubAlerts) { unsubAlerts(); unsubAlerts = null; }
+
+            // Sentinel Alerts (real-time)
+            const alertsQ = query(
+                collection(db, 'games', gameId, 'alerts'),
+                orderBy('createdAt', 'desc'),
+                limit(30)
+            );
+            unsubAlerts = onSnapshot(alertsQ, (snap) => {
+                const alerts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                renderAlerts(alerts);
+                updateAlertBadge(alerts);
+            }, (err) => console.warn('alerts listener:', err.message));
+            copilotChatId = null; // reset per-game
 
             const eventsQ = query(
                 collection(db, 'games', gameId, 'events'),
@@ -1815,6 +2019,227 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
             const root = $('event-stream');
             if (!root) return;
             root.innerHTML = `<div class="ai-error">Event akışı yüklenemedi: ${escapeHtml(err.message || String(err))}</div>`;
+        }
+
+        // ─────────────────────────────────────────────────────────────────
+        // Sentinel Alerts
+        // ─────────────────────────────────────────────────────────────────
+        function renderAlerts(alerts) {
+            const root = $('alert-list');
+            const meta = $('alerts-meta');
+            if (!root) return;
+            if (!alerts || alerts.length === 0) {
+                root.innerHTML = `<div class="empty-state">${t('alerts.empty')}</div>`;
+                if (meta) meta.textContent = '0';
+                return;
+            }
+            const lang = getLanguage();
+            const unreadCount = alerts.filter(a => !a.read).length;
+            if (meta) meta.textContent = `${alerts.length} total · ${unreadCount} ${t('alerts.unread')}`;
+            const sevIcon = { critical: '🚨', high: '⚠️', medium: '⚡', info: 'ℹ️' };
+            root.innerHTML = alerts.map(a => {
+                const title = lang === 'en' ? (a.title_en || a.title_tr) : (a.title_tr || a.title_en);
+                const rationale = lang === 'en'
+                    ? (a.rationale_en || a.rationale_tr || '')
+                    : (a.rationale_tr || a.rationale_en || '');
+                const sevLabel = t('alerts.severity.' + (a.severity || 'info'));
+                const ts = a.createdAt && a.createdAt.toDate ? a.createdAt.toDate() : null;
+                const tsStr = ts ? ts.toLocaleString(lang === 'en' ? 'en-US' : 'tr-TR', { dateStyle: 'short', timeStyle: 'short' }) : '';
+                return `
+                    <div class="alert-card ${a.read ? '' : 'unread'}" data-severity="${escapeHtml(a.severity)}">
+                        <div class="alert-icon">${sevIcon[a.severity] || '•'}</div>
+                        <div class="alert-body">
+                            <div class="alert-title">${escapeHtml(title)}</div>
+                            <div class="alert-rationale">${escapeHtml(rationale)}</div>
+                            <div class="alert-meta">
+                                <span>${escapeHtml(sevLabel)}</span>
+                                <span>${escapeHtml(a.gameName || '')}</span>
+                                <span>${escapeHtml(tsStr)}</span>
+                            </div>
+                        </div>
+                        ${a.read ? '' : `<button class="alert-mark-read" data-alert-id="${escapeHtml(a.id)}">${t('alerts.markRead')}</button>`}
+                    </div>`;
+            }).join('');
+            root.querySelectorAll('.alert-mark-read').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    btn.disabled = true;
+                    try {
+                        const fn = httpsCallable(functions, 'markAlertRead');
+                        await fn({ gameId: currentGame, alertId: btn.dataset.alertId, read: true });
+                    } catch (err) { console.warn('markAlertRead failed', err); btn.disabled = false; }
+                });
+            });
+        }
+
+        function updateAlertBadge(alerts) {
+            const badge = $('alert-badge');
+            if (!badge) return;
+            const unread = (alerts || []).filter(a => !a.read).length;
+            if (unread > 0) {
+                badge.style.display = 'inline-block';
+                badge.textContent = unread > 99 ? '99+' : String(unread);
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+
+        // ─────────────────────────────────────────────────────────────────
+        // Benchmark
+        // ─────────────────────────────────────────────────────────────────
+        async function runBenchmark() {
+            const grid = $('benchmark-grid');
+            const status = $('benchmark-status');
+            const narrative = $('benchmark-narrative');
+            const btn = $('benchmark-refresh-btn');
+            if (!grid || !currentGame) return;
+            if (btn) { btn.disabled = true; btn.textContent = t('benchmark.running'); }
+            if (status) status.textContent = t('benchmark.running');
+            try {
+                const gameType = $('market-gametype')?.value || 'puzzle';
+                const country = $('market-country')?.value || 'tr';
+                const fn = httpsCallable(functions, 'generateBenchmark', { timeout: 90000 });
+                const res = await fn({
+                    gameId: currentGame,
+                    gameType, country,
+                    language: getLanguage(),
+                });
+                renderBenchmark(res.data);
+                if (status) status.textContent = '';
+            } catch (err) {
+                console.error('benchmark failed', err);
+                grid.innerHTML = `<div class="ai-error">${escapeHtml(err.message || String(err))}</div>`;
+                if (narrative) narrative.innerHTML = '';
+                if (status) status.textContent = '';
+            } finally {
+                if (btn) { btn.disabled = false; btn.textContent = t('benchmark.run'); }
+            }
+        }
+
+        function renderBenchmark(data) {
+            const grid = $('benchmark-grid');
+            const narrative = $('benchmark-narrative');
+            if (!grid || !data || !data.report) return;
+            const r = data.report;
+            if (r.raw) {
+                grid.innerHTML = `<div class="empty-state">${escapeHtml(r.raw)}</div>`;
+                return;
+            }
+            const metrics = Array.isArray(r.metrics) ? r.metrics : [];
+            const verdictColor = {
+                leading: '#4ade80',
+                on_par: '#facc15',
+                lagging: '#f97316',
+                critical: '#ef4444',
+            };
+            grid.innerHTML = metrics.map(m => `
+                <div class="benchmark-card" style="border-top: 2px solid ${verdictColor[m.verdict] || '#666'};">
+                    <div class="b-metric">${escapeHtml(m.name || '')}</div>
+                    <div class="b-row you">
+                        <span class="label">${t('benchmark.you')}</span>
+                        <span class="val">${escapeHtml(String(m.you ?? '—'))}</span>
+                    </div>
+                    <div class="b-row">
+                        <span class="label">${t('benchmark.median')}</span>
+                        <span class="val">${escapeHtml(String(m.median ?? '—'))}</span>
+                    </div>
+                    <div class="b-row">
+                        <span class="label">${t('benchmark.top10')}</span>
+                        <span class="val">${escapeHtml(String(m.top10 ?? '—'))}</span>
+                    </div>
+                    ${m.note ? `<div class="b-row gap">${escapeHtml(m.note)}</div>` : ''}
+                </div>`).join('');
+            const lang = getLanguage();
+            let html = '';
+            if (r.headline) html += `<h3 style="margin-bottom:8px;">${escapeHtml(r.headline)}</h3>`;
+            if (r.summary) html += `<p style="color:var(--text-dim); margin-bottom:14px;">${escapeHtml(r.summary)}</p>`;
+            if (r.biggest_gap) {
+                const g = r.biggest_gap;
+                html += `<div style="padding:12px 16px; background: rgba(239,68,68,0.08); border-left:3px solid #ef4444; border-radius:8px; margin-bottom:12px;">
+                    <strong>${escapeHtml(g.metric || '')}:</strong> ${escapeHtml(g.you_value || '')} → ${escapeHtml(g.category_value || '')}<br>
+                    <small style="color:var(--text-dim);">${escapeHtml(g.lift_needed || '')}</small>
+                </div>`;
+            }
+            if (r.next_action) {
+                const na = r.next_action;
+                html += `<div style="padding:14px 18px; background: rgba(74,222,128,0.08); border-left:3px solid #4ade80; border-radius:8px;">
+                    <strong>${escapeHtml(na.title || '')}</strong>
+                    <p style="margin-top:6px; color:var(--text-dim); font-size:0.88rem;">${escapeHtml(na.rationale || '')}</p>
+                    ${na.expected_lift ? `<small style="color:#4ade80;">${lang==='en'?'Expected:':'Beklenen:'} ${escapeHtml(na.expected_lift)}</small>` : ''}
+                </div>`;
+            }
+            if (narrative) narrative.innerHTML = html;
+        }
+
+        // ─────────────────────────────────────────────────────────────────
+        // Copilot
+        // ─────────────────────────────────────────────────────────────────
+        function appendCopilotMessage(role, text) {
+            const root = $('copilot-messages');
+            if (!root) return;
+            const div = document.createElement('div');
+            div.className = 'copilot-msg ' + role;
+            div.textContent = text;
+            root.appendChild(div);
+            root.scrollTop = root.scrollHeight;
+            return div;
+        }
+
+        async function sendCopilotMessage(question) {
+            if (!currentGame) {
+                appendCopilotMessage('system', t('selector.noGames'));
+                return;
+            }
+            const q = (question || '').trim();
+            if (q.length < 3) return;
+            appendCopilotMessage('user', q);
+            const thinking = appendCopilotMessage('system', t('copilot.sending'));
+            try {
+                const fn = httpsCallable(functions, 'askCopilot', { timeout: 60000 });
+                const res = await fn({
+                    gameId: currentGame,
+                    question: q,
+                    language: getLanguage(),
+                    chatId: copilotChatId,
+                });
+                if (res.data && res.data.chatId) copilotChatId = res.data.chatId;
+                if (thinking) thinking.remove();
+                appendCopilotMessage('assistant', res.data?.answer || t('copilot.error'));
+            } catch (err) {
+                if (thinking) thinking.remove();
+                appendCopilotMessage('system', t('copilot.error') + ' ' + (err.message || ''));
+            }
+        }
+
+        function wireCopilot() {
+            const input = $('copilot-input');
+            const send = $('copilot-send');
+            const suggestions = $('copilot-suggestions');
+            if (!input || !send) return;
+            const doSend = () => {
+                const q = input.value.trim();
+                if (!q) return;
+                input.value = '';
+                sendCopilotMessage(q);
+            };
+            send.addEventListener('click', doSend);
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    doSend();
+                }
+            });
+            if (suggestions) {
+                suggestions.querySelectorAll('.copilot-suggestion').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        sendCopilotMessage(btn.textContent);
+                    });
+                });
+            }
+        }
+
+        function wireBenchmark() {
+            const btn = $('benchmark-refresh-btn');
+            if (btn) btn.addEventListener('click', runBenchmark);
         }
 
         const EVENT_CLS = {
