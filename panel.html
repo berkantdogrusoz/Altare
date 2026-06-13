@@ -350,12 +350,19 @@
         }
         .copilot-fab:hover { transform: scale(1.06); box-shadow: 0 12px 36px rgba(99, 102, 241, 0.6), 0 2px 8px rgba(0,0,0,0.35); }
         .copilot-fab:active { transform: scale(0.96); }
-        .copilot-fab-face { font-size: 1.8rem; display: block; animation: copilot-bounce 4s ease-in-out infinite; }
-        @keyframes copilot-bounce {
-            0%, 100% { transform: translateY(0); }
-            10%      { transform: translateY(-3px) rotate(-5deg); }
-            20%      { transform: translateY(0) rotate(5deg); }
-            30%      { transform: translateY(0); }
+        .copilot-mark {
+            width: 32px;
+            height: 32px;
+            display: block;
+            animation: copilot-tilt 5s ease-in-out infinite;
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.25));
+        }
+        @keyframes copilot-tilt {
+            0%, 100% { transform: rotate(0); }
+            45%      { transform: rotate(0); }
+            50%      { transform: rotate(-6deg); }
+            55%      { transform: rotate(6deg); }
+            60%      { transform: rotate(0); }
         }
         .copilot-fab-pulse {
             position: absolute;
@@ -409,7 +416,7 @@
             border-radius: 50%;
             background: linear-gradient(135deg, #6366f1, #8b5cf6);
             display: flex; align-items: center; justify-content: center;
-            font-size: 1.1rem;
+            box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
         }
         .copilot-header-title { font-weight: 700; font-size: 0.95rem; color: var(--text); }
         .copilot-header-sub { font-size: 0.7rem; color: var(--text-dim); display: flex; align-items: center; gap: 5px; }
@@ -1879,16 +1886,36 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
             </main>
         </div>
 
-        <!-- Floating AI Copilot Widget (sag alt kose, robot ikon) -->
+        <!-- Floating AI Copilot Widget (sag alt kose, ozel Altare mark) -->
         <div id="copilot-widget" class="copilot-widget">
             <button id="copilot-fab" class="copilot-fab" title="AI Copilot" aria-label="AI Copilot">
-                <span class="copilot-fab-face">🤖</span>
+                <svg class="copilot-mark" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <!-- Altare hexagonal shield -->
+                    <path d="M20 4 L34 12 L34 28 L20 36 L6 28 L6 12 Z" fill="white" opacity="0.97"/>
+                    <!-- Sol goz -->
+                    <ellipse cx="14.5" cy="19" rx="2.1" ry="2.4" fill="#6366f1">
+                        <animate attributeName="ry" values="2.4;2.4;0.25;2.4" dur="4.5s" repeatCount="indefinite" keyTimes="0;0.9;0.93;1"/>
+                    </ellipse>
+                    <!-- Sag goz -->
+                    <ellipse cx="25.5" cy="19" rx="2.1" ry="2.4" fill="#6366f1">
+                        <animate attributeName="ry" values="2.4;2.4;0.25;2.4" dur="4.5s" repeatCount="indefinite" keyTimes="0;0.9;0.93;1"/>
+                    </ellipse>
+                    <!-- Gulumseme -->
+                    <path d="M14 25.5 Q20 29 26 25.5" stroke="#6366f1" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+                </svg>
                 <span class="copilot-fab-pulse"></span>
             </button>
             <div id="copilot-panel" class="copilot-panel" aria-hidden="true">
                 <div class="copilot-header">
                     <div class="copilot-header-left">
-                        <div class="copilot-header-avatar">🤖</div>
+                        <div class="copilot-header-avatar">
+                            <svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" style="width:24px;height:24px;" aria-hidden="true">
+                                <path d="M20 4 L34 12 L34 28 L20 36 L6 28 L6 12 Z" fill="white" opacity="0.97"/>
+                                <ellipse cx="14.5" cy="19" rx="2.1" ry="2.4" fill="#6366f1"/>
+                                <ellipse cx="25.5" cy="19" rx="2.1" ry="2.4" fill="#6366f1"/>
+                                <path d="M14 25.5 Q20 29 26 25.5" stroke="#6366f1" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+                            </svg>
+                        </div>
                         <div>
                             <div class="copilot-header-title" data-i18n="copilot.title">AI Copilot</div>
                             <div class="copilot-header-sub" data-i18n="copilot.online">Çevrimiçi · Claude Sonnet 4.5</div>
