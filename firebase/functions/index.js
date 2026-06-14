@@ -43,7 +43,16 @@ setGlobalOptions({ region: "europe-west1", maxInstances: 10 });
 
 const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
 const GA4_PROPERTY_ID = defineString("GA4_PROPERTY_ID", { default: "" });
-const ANTHROPIC_MODEL = "claude-sonnet-4-5"; // Anthropic Sonnet 4.5 (latest stable)
+const ANTHROPIC_MODELS = {
+  // Sonnet 4.5 — default, hizli, JSON sema icin mukemmel
+  SONNET: "claude-sonnet-4-5",
+  // Opus 4.8 — daha pahali (5x) ama causal reasoning + cok adimli plan + risk
+  // degerlendirme cok daha iyi. Auto-Heal recetelerinde ve kritik strategy AI'da.
+  OPUS:   "claude-opus-4-8",
+  // Haiku 4.5 — en ucuz + en hizli, basit kararlar icin (ileri kullanim)
+  HAIKU:  "claude-haiku-4-5-20251001",
+};
+const ANTHROPIC_MODEL = ANTHROPIC_MODELS.SONNET; // genel default (geriye uyum)
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -569,6 +578,267 @@ exports.markAlertRead = onCall(async (request) => {
   }
   await db.collection("games").doc(gameId).collection("alerts").doc(alertId)
     .set({ read: read === true }, { merge: true });
+  return { success: true };
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AUTO-HEAL: closed-loop AI live-ops
+// Sentinel uyarisi tetiklendiginde, AI Doctor causalcause analizi yapip,
+// somut Remote Config degisikligi onerir. Kullanici "Uygula" derse degisiklik
+// games/{gameId}/config/active doc'una yazilir; oyun anlik okur (rebuild yok).
+// Snapshot ile rollback garantili.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const AUTO_HEAL_SYSTEM_PROMPT_TR = `Sen Altare AI'in Live-Ops Doctor rolusun.
+Bir oyun anomalisini (Sentinel uyarisi) ve oyunun gerçek metriklerini alirsin.
+Cikti olarak guvenli, geri alinabilir bir Remote Config recetesi onerirsin.
+
+KATI KURALLAR
+- Asla kod degisikligi onerme. Sadece config value (Remote Config) degisikligi.
+- Her degisiklik: yeni deger + eski deger + neden + hedef metrik + beklenen etki.
+- Risk seviyesi degerlendir: low / medium / high. High ise A/B test zorunlu.
+- Eger veri yetersizse "veri_yetersiz: true" donderr, change array bos olsun.
+- Tum dogal dil metinleri Turkce. JSON anahtarlari Ingilizce sabit.
+- Sadece JSON dondur, oncesinde/sonrasinda metin yok.
+
+NEDEN-SONUC ZINCIRI (zihninde):
+1. Hangi metrik bozuldu? Sayisi ne?
+2. Bu metrik hangi config key'lerden etkilenir? (level zorlugu, reklam sikligi,
+   IAP fiyati, FPS limit, particle count, vb.)
+3. Hangi degisiklik bu metrigi en az risk ile iyilestirir?
+4. Yan etki nedir? (Level 18'i kolaylastirmak level 19 retention'a etki yapar)
+5. Geri alma plani: hangi sinyali gormeyince geri al? (kac saat sonra?)
+
+CONFIG KEY ISIM CONVENTION (musteri bunlari kendi koduyla esler):
+- level_{N}_target_score, level_{N}_moves_limit, level_{N}_time_limit
+- ad_frequency_interstitial, ad_frequency_rewarded, ad_cooldown_seconds
+- iap_starter_discount_pct, iap_currency_inflation_factor
+- fps_target, particle_quality_low_end, low_end_device_threshold_mb
+
+OUTPUT JSON SHAPE (kati)
+{
+  "diagnosis": string,
+  "root_cause_hypothesis": string,
+  "confidence": "low"|"medium"|"high",
+  "risk_level": "low"|"medium"|"high",
+  "data_sufficient": boolean,
+  "changes": [
+    {
+      "key": string,
+      "current_value": number|string,
+      "new_value": number|string,
+      "value_type": "int"|"float"|"string"|"bool",
+      "rationale": string,
+      "target_metric": string,
+      "expected_delta": string
+    }
+  ],
+  "side_effects": string,
+  "monitor_window_hours": number,
+  "success_criteria": string,
+  "rollback_trigger": string,
+  "ab_test_required": boolean,
+  "warnings": [ string ]
+}`;
+
+exports.generateAutoHeal = onCall(
+  { secrets: [ANTHROPIC_API_KEY], timeoutSeconds: 120, memory: "512MiB" },
+  async (request) => {
+    try {
+      const { gameId, alertId, language = "tr" } = request.data || {};
+      await assertOwnsGameOrAdmin(request, gameId);
+      const lang = language === "en" ? "en" : "tr";
+
+      // Load alert
+      if (!alertId) throw new HttpsError("invalid-argument", "alertId required");
+      const alertSnap = await db.collection("games").doc(gameId)
+        .collection("alerts").doc(alertId).get();
+      if (!alertSnap.exists) throw new HttpsError("not-found", "Alert not found");
+      const alert = { id: alertSnap.id, ...alertSnap.data() };
+
+      // Load recent stats (24h)
+      const since = admin.firestore.Timestamp.fromMillis(Date.now() - 24 * 3600e3);
+      const summary = await buildSummaryData(gameId, since);
+
+      // Current active config (if any)
+      let currentConfig = {};
+      try {
+        const cfgSnap = await db.collection("games").doc(gameId)
+          .collection("config").doc("active").get();
+        if (cfgSnap.exists) currentConfig = cfgSnap.data().values || {};
+      } catch {}
+
+      // Latest AI report context (helps causal reasoning)
+      let latestReport = null;
+      try {
+        const repSnap = await db.collection("games").doc(gameId).collection("ai_reports")
+          .orderBy("createdAt", "desc").limit(1).get();
+        if (!repSnap.empty) latestReport = repSnap.docs[0].data().report;
+      } catch {}
+
+      const ctx = {
+        alert: {
+          id: alert.id,
+          ruleId: alert.ruleId,
+          severity: alert.severity,
+          title: lang === "en" ? alert.title_en : alert.title_tr,
+          rationale: lang === "en" ? alert.rationale_en : alert.rationale_tr,
+          metric: alert.metric,
+          delta_pct: alert.delta_pct,
+        },
+        recent_stats_24h: summary,
+        active_config: currentConfig,
+        latest_ai_report: latestReport,
+      };
+
+      const userPrompt = [
+        lang === "en" ? "GAME CONTEXT (JSON):" : "OYUN BAĞLAMI (JSON):",
+        JSON.stringify(ctx, null, 2),
+        "",
+        lang === "en"
+          ? "Generate a safe, reversible Remote Config prescription to address this alert. Return JSON only."
+          : "Bu uyariyi cozecek guvenli, geri alinabilir bir Remote Config recetesi uret. Sadece JSON dondur.",
+      ].join("\n");
+
+      const aiJson = await callAnthropic(
+        ANTHROPIC_API_KEY.value(),
+        localizeSystemPrompt(AUTO_HEAL_SYSTEM_PROMPT_TR, lang),
+        userPrompt,
+        { model: ANTHROPIC_MODELS.OPUS, maxTokens: 3072 }
+      );
+
+      // Persist as proposed prescription
+      const prescRef = await db.collection("games").doc(gameId)
+        .collection("auto_heal").add({
+          alertId, gameId,
+          gameName: alert.gameName || gameId,
+          language: lang,
+          prescription: aiJson,
+          status: "proposed",
+          model: ANTHROPIC_MODELS.OPUS,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          createdBy: request.auth.uid,
+        });
+
+      logger.info("auto-heal proposed", {
+        gameId, alertId, prescriptionId: prescRef.id,
+        risk: aiJson.risk_level, changes: (aiJson.changes || []).length,
+      });
+
+      return { success: true, prescriptionId: prescRef.id, prescription: aiJson };
+    } catch (err) {
+      if (err instanceof HttpsError) throw err;
+      logger.error("generateAutoHeal unhandled", { message: err.message });
+      throw new HttpsError("internal", "Auto-heal recetesi uretilemedi: " + err.message);
+    }
+  }
+);
+
+// applyAutoHeal — receteyi games/{gameId}/config/active'a uygular,
+// snapshot ile rollback'i garantiler.
+exports.applyAutoHeal = onCall(async (request) => {
+  assertSignedIn(request);
+  const { gameId, prescriptionId } = request.data || {};
+  await assertOwnsGameOrAdmin(request, gameId);
+  if (!prescriptionId) throw new HttpsError("invalid-argument", "prescriptionId required");
+
+  const prescRef = db.collection("games").doc(gameId).collection("auto_heal").doc(prescriptionId);
+  const prescSnap = await prescRef.get();
+  if (!prescSnap.exists) throw new HttpsError("not-found", "Prescription not found");
+  const presc = prescSnap.data();
+
+  if (presc.status !== "proposed") {
+    throw new HttpsError("failed-precondition", "Prescription is not in 'proposed' state.");
+  }
+  const changes = (presc.prescription && presc.prescription.changes) || [];
+  if (!changes.length) {
+    throw new HttpsError("failed-precondition", "Prescription has no changes to apply.");
+  }
+  if (presc.prescription.data_sufficient === false) {
+    throw new HttpsError("failed-precondition", "Prescription marked data-insufficient by AI.");
+  }
+
+  // High risk + a/b required ama biz simdilik direkt apply ediyoruz —
+  // A/B test feature'i v2'de. Yine de high-risk'i admin'e zorla.
+  if (presc.prescription.risk_level === "high" && request.auth.token.admin !== true) {
+    throw new HttpsError(
+      "permission-denied",
+      "High-risk receteler sadece admin tarafindan onaylanabilir (A/B test v2'de gelecek)."
+    );
+  }
+
+  const configRef = db.collection("games").doc(gameId).collection("config").doc("active");
+  const currentSnap = await configRef.get();
+  const currentValues = currentSnap.exists ? (currentSnap.data().values || {}) : {};
+
+  // Build new config
+  const newValues = { ...currentValues };
+  for (const c of changes) {
+    if (typeof c.key === "string" && c.key.length > 0) {
+      newValues[c.key] = c.new_value;
+    }
+  }
+
+  await configRef.set({
+    values: newValues,
+    snapshot_before: currentValues,
+    appliedFrom: prescriptionId,
+    appliedAt: admin.firestore.FieldValue.serverTimestamp(),
+    appliedBy: request.auth.uid,
+    version: admin.firestore.FieldValue.increment(1),
+  }, { merge: true });
+
+  await prescRef.update({
+    status: "applied",
+    appliedAt: admin.firestore.FieldValue.serverTimestamp(),
+    appliedBy: request.auth.uid,
+  });
+
+  // Mark linked alert as read
+  if (presc.alertId) {
+    try {
+      await db.collection("games").doc(gameId).collection("alerts")
+        .doc(presc.alertId).set({ read: true, autoHealedBy: prescriptionId }, { merge: true });
+    } catch {}
+  }
+
+  logger.info("auto-heal applied", { gameId, prescriptionId, changeCount: changes.length });
+  return { success: true, applied: changes.length };
+});
+
+// rollbackAutoHeal — snapshot_before'a geri don.
+exports.rollbackAutoHeal = onCall(async (request) => {
+  assertSignedIn(request);
+  const { gameId, prescriptionId } = request.data || {};
+  await assertOwnsGameOrAdmin(request, gameId);
+  if (!prescriptionId) throw new HttpsError("invalid-argument", "prescriptionId required");
+
+  const configRef = db.collection("games").doc(gameId).collection("config").doc("active");
+  const configSnap = await configRef.get();
+  if (!configSnap.exists) {
+    throw new HttpsError("failed-precondition", "No active config to roll back.");
+  }
+  const cfg = configSnap.data();
+  if (!cfg.snapshot_before) {
+    throw new HttpsError("failed-precondition", "No snapshot available for rollback.");
+  }
+
+  await configRef.set({
+    values: cfg.snapshot_before,
+    rolledBackFrom: prescriptionId,
+    rolledBackAt: admin.firestore.FieldValue.serverTimestamp(),
+    rolledBackBy: request.auth.uid,
+    version: admin.firestore.FieldValue.increment(1),
+  }, { merge: true });
+
+  await db.collection("games").doc(gameId).collection("auto_heal").doc(prescriptionId)
+    .update({
+      status: "rolled_back",
+      rolledBackAt: admin.firestore.FieldValue.serverTimestamp(),
+      rolledBackBy: request.auth.uid,
+    });
+
+  logger.info("auto-heal rolled back", { gameId, prescriptionId });
   return { success: true };
 });
 
@@ -1720,6 +1990,9 @@ async function callAnthropic(apiKey, systemPrompt, userPrompt, options) {
   }
 
   const maxTokens = (options && Number.isFinite(options.maxTokens)) ? options.maxTokens : 4096;
+  const model = (options && typeof options.model === "string" && options.model.length > 5)
+    ? options.model
+    : ANTHROPIC_MODEL;
 
   let res;
   try {
@@ -1731,7 +2004,7 @@ async function callAnthropic(apiKey, systemPrompt, userPrompt, options) {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: ANTHROPIC_MODEL,
+        model: model,
         max_tokens: maxTokens,
         system: systemPrompt,
         messages: [{ role: "user", content: userPrompt }],
@@ -1747,7 +2020,7 @@ async function callAnthropic(apiKey, systemPrompt, userPrompt, options) {
 
   if (!res.ok) {
     const errBody = await res.text();
-    logger.error("anthropic error", { status: res.status, body: errBody, model: ANTHROPIC_MODEL });
+    logger.error("anthropic error", { status: res.status, body: errBody, model });
     let detail = `Anthropic API ${res.status}`;
     try {
       const parsed = JSON.parse(errBody);
@@ -1763,7 +2036,7 @@ async function callAnthropic(apiKey, systemPrompt, userPrompt, options) {
         : res.status === 429
           ? "resource-exhausted"
           : "internal";
-    throw new HttpsError(code, detail, { httpStatus: res.status, model: ANTHROPIC_MODEL });
+    throw new HttpsError(code, detail, { httpStatus: res.status, model });
   }
 
   const data = await res.json();
