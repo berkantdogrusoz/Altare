@@ -146,6 +146,30 @@ service cloud.firestore {
         allow read: if isAnonGameClient() || isGameOwner(gameId) || isAdmin();
         allow write: if false;
       }
+
+      // Player state snapshots — Yigit Ozturk'un onerisi (DB rollback)
+      // Oyun yazar (anonymous), owner/admin okur, restore Cloud Function ile.
+      match /player_snapshots/{playerAnonId} {
+        allow read: if isAnonGameClient() || isGameOwner(gameId) || isAdmin();
+        allow write: if false; // Cloud Functions araciligiyla
+
+        match /history/{snapshotId} {
+          allow read: if isAnonGameClient() || isGameOwner(gameId) || isAdmin();
+          allow write: if false;
+        }
+      }
+    }
+
+    // Industry benchmarks (Cross-Tenant Network Effect)
+    // Anonim toplu veri — her signed-in developer okur, Cloud Functions yazar.
+    match /industry_benchmarks/{gameType} {
+      allow read: if isSignedIn();
+      allow write: if false;
+
+      match /daily/{dayKey} {
+        allow read: if isSignedIn();
+        allow write: if false;
+      }
     }
 
     // ---------- Market intel (Play Store data — okuyan herkes) ----------

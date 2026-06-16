@@ -5,7 +5,6 @@
       "firebase.json",
       ".firebaserc",
       "firebase/**",
-      "unity-sdk/**",
       "docs/**",
       "**/node_modules/**",
       ".git/**",
