@@ -1,18 +1,20 @@
 // =============================================================================
-// AltareAnalytics.cs  —  v2.1.0
+// AltareAnalytics.cs  —  v2.3.0
 // -----------------------------------------------------------------------------
 // Drop-in Unity client for the Altare AI Live Game Intelligence platform.
-// Authenticates the device anonymously with Firebase Auth and writes events
-// into Firestore at  games/{gameId}/events/{eventId}.
+//
+// v2.3 highlights:
+//   - Memory pressure tracking (memory_warning when low/anomalous)
+//   - ANR (Android Not Responding) detection via main-thread heartbeat
+//   - GPU model + RAM fingerprinting per event (deviceParams)
+//   - Circuit breaker: if Firebase fails repeatedly, SDK disables itself
+//     and never blocks the game. Stability above analytics.
+//   - LogMemoryWarning / LogANR public APIs for engine-level hooks
 //
 // Usage:
 //   void Start() {
 //       AltareAnalytics.Initialize("your-game-id", "Your Game Name");
 //   }
-//
-//   AltareAnalytics.LogEvent("level_start", new Dictionary<string, object> {
-//       { "level", currentLevel }
-//   });
 //
 // Required Unity packages:
 //   - Firebase Authentication
@@ -20,7 +22,7 @@
 //
 // Privacy notes:
 //   - Stores only an anonymous UUID (playerAnonId) in PlayerPrefs.
-//   - Never collects email, phone, location, or 3rd-party app data.
+//   - GPU/RAM are coarse device fingerprint — never PII.
 // =============================================================================
 
 using System;
@@ -57,6 +59,11 @@ namespace Altare.Analytics
                 Debug.LogWarning("[Altare] LogEvent called before Initialize — dropping: " + eventName);
                 return;
             }
+            if (_instance._circuitOpen)
+            {
+                // Circuit breaker open — silently drop. Game must not be blocked.
+                return;
+            }
             _instance.EnqueueEvent(eventName, parameters);
         }
 
@@ -69,13 +76,33 @@ namespace Altare.Analytics
             });
         }
 
+        /// <summary>Manuel memory warning — kullanici kendi MemoryProfiler'indan tetikleyebilir.</summary>
+        public static void LogMemoryWarning(long usedMb = -1, long totalMb = -1, string source = "manual")
+        {
+            var p = new Dictionary<string, object> { { "source", source } };
+            if (usedMb > 0) p["used_mb"] = usedMb;
+            if (totalMb > 0) p["total_memory_mb"] = totalMb;
+            LogEvent("memory_warning", p);
+        }
+
+        /// <summary>Manuel ANR — uzun frame veya main-thread block tetikleyici.</summary>
+        public static void LogANR(float frameTimeMs, string source = "auto")
+        {
+            LogEvent("anr_detected", new Dictionary<string, object> {
+                { "frame_time_ms", Mathf.RoundToInt(frameTimeMs) },
+                { "source", source },
+            });
+        }
+
         public static void SubmitFeedback(int rating, string text)
         {
-            if (_instance == null) return;
+            if (_instance == null || _instance._circuitOpen) return;
             _instance.WriteFeedback(rating, text);
         }
 
         public static string PlayerAnonId => _instance != null ? _instance._playerAnonId : null;
+        public static string GameId => _instance != null ? _instance._gameId : null;
+        public static bool IsHealthy => _instance != null && _instance._ready && !_instance._circuitOpen;
 
         private const string PrefsPlayerIdKey = "altare.playerAnonId";
 
@@ -88,11 +115,18 @@ namespace Altare.Analytics
         private string _platform;
         private string _appVersion;
         private string _deviceModel;
+        private string _gpuModel;
+        private long _totalMemoryMb;
         private bool _isFirstOpen;
 
         private FirebaseFirestore _db;
         private bool _ready;
         private bool _initFailed;
+
+        // Circuit breaker (Mücahit'in stability endişesi)
+        private bool _circuitOpen = false;
+        private int _consecutiveWriteFailures = 0;
+        private const int CircuitBreakerThreshold = 10;
 
         private readonly Queue<PendingEvent> _buffer = new Queue<PendingEvent>(64);
 
@@ -107,21 +141,46 @@ namespace Altare.Analytics
         private float _fpsCheckTimer;
         private float _lastFpsWarnAt = -999f;
 
+        // ANR detection (Umut Can'in onerisi)
+        private const float AnrFrameThresholdSec = 5f;  // Android ANR threshold
+        private float _lastFrameTime;
+        private float _lastAnrAt = -999f;
+
+        // Memory tracking (Umut Can'in onerisi)
+        private const float MemoryCheckIntervalSec = 30f;
+        private float _memoryCheckTimer;
+        private long _lastReportedMemoryMb = 0;
+        private float _lastMemoryWarnAt = -999f;
+        private const long MemoryWarningGrowthMb = 100;  // >100MB pressure jump
+
         private void Boot()
         {
-            _playerAnonId = LoadOrCreatePlayerId(out _isFirstOpen);
-            _sessionId = Guid.NewGuid().ToString("N");
-            _platform = Application.platform.ToString();
-            _appVersion = Application.version;
-            _deviceModel = SystemInfo.deviceModel;
-            _sessionStartTime = Time.realtimeSinceStartup;
+            try
+            {
+                _playerAnonId = LoadOrCreatePlayerId(out _isFirstOpen);
+                _sessionId = Guid.NewGuid().ToString("N");
+                _platform = Application.platform.ToString();
+                _appVersion = Application.version;
+                _deviceModel = SystemInfo.deviceModel;
+                _gpuModel = SystemInfo.graphicsDeviceName;
+                _totalMemoryMb = SystemInfo.systemMemorySize;
+                _sessionStartTime = Time.realtimeSinceStartup;
+                _lastFrameTime = Time.realtimeSinceStartup;
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("[Altare] Boot init failed (non-fatal): " + e.Message);
+                TripCircuit("boot");
+                return;
+            }
 
             FirebaseApp.CheckAndFixDependenciesAsync().ContinueWithOnMainThread(task =>
             {
                 if (task.Result != DependencyStatus.Available)
                 {
                     _initFailed = true;
-                    Debug.LogError("[Altare] Firebase deps unavailable: " + task.Result);
+                    Debug.LogWarning("[Altare] Firebase deps unavailable: " + task.Result + " — SDK disabled, game continues.");
+                    TripCircuit("firebase_deps");
                     return;
                 }
                 FirebaseAuth.DefaultInstance.SignInAnonymouslyAsync()
@@ -130,23 +189,33 @@ namespace Altare.Analytics
                         if (authTask.IsFaulted || authTask.IsCanceled)
                         {
                             _initFailed = true;
-                            Debug.LogError("[Altare] Anonymous auth failed: " + authTask.Exception);
+                            Debug.LogWarning("[Altare] Anonymous auth failed — SDK disabled, game continues.");
+                            TripCircuit("auth");
                             return;
                         }
                         _db = FirebaseFirestore.DefaultInstance;
                         _ready = true;
-                        Debug.Log("[Altare] Ready. uid=" + authTask.Result.User.UserId
+                        Debug.Log("[Altare] Ready. gameId=" + _gameId
                                   + " playerAnonId=" + _playerAnonId
                                   + " sessionId=" + _sessionId);
                         if (_isFirstOpen)
                             LogEvent("first_open", null);
                         LogEvent("app_open", new Dictionary<string, object> {
-                            { "is_first_open", _isFirstOpen }
+                            { "is_first_open", _isFirstOpen },
+                            { "gpu", _gpuModel },
+                            { "ram_mb", _totalMemoryMb },
                         });
                         LogSessionStart();
                         FlushBuffer();
                     });
             });
+        }
+
+        private void TripCircuit(string reason)
+        {
+            _circuitOpen = true;
+            _ready = false;
+            Debug.LogWarning("[Altare] Circuit breaker tripped: " + reason + ". Analytics disabled for this session.");
         }
 
         private string LoadOrCreatePlayerId(out bool created)
@@ -194,39 +263,68 @@ namespace Altare.Analytics
 
         private void WriteEvent(PendingEvent pending)
         {
-            if (_db == null) return;
+            if (_db == null || _circuitOpen) return;
 
-            var payload = new Dictionary<string, object>
+            try
             {
-                { "gameId",        _gameId },
-                { "gameName",      _gameName },
-                { "playerAnonId",  _playerAnonId },
-                { "sessionId",     _sessionId },
-                { "eventName",     pending.eventName },
-                { "eventParams",   pending.parameters ?? new Dictionary<string, object>() },
-                { "timestamp",     FieldValue.ServerTimestamp },
-                { "clientTimestamp", Timestamp.FromDateTime(pending.clientTimestampUtc) },
-                { "platform",      _platform },
-                { "appVersion",    _appVersion },
-                { "deviceModel",   _deviceModel },
-            };
+                var payload = new Dictionary<string, object>
+                {
+                    { "gameId",        _gameId },
+                    { "gameName",      _gameName },
+                    { "playerAnonId",  _playerAnonId },
+                    { "sessionId",     _sessionId },
+                    { "eventName",     pending.eventName },
+                    { "eventParams",   EnrichParams(pending.parameters) },
+                    { "timestamp",     FieldValue.ServerTimestamp },
+                    { "clientTimestamp", Timestamp.FromDateTime(pending.clientTimestampUtc) },
+                    { "platform",      _platform },
+                    { "appVersion",    _appVersion },
+                    { "deviceModel",   _deviceModel },
+                    { "gpuModel",      _gpuModel },
+                    { "totalMemoryMb", _totalMemoryMb },
+                };
 
-            _db.Collection("games").Document(_gameId)
-               .Collection("events").Document()
-               .SetAsync(payload)
-               .ContinueWithOnMainThread(t =>
-               {
-                   if (t.IsFaulted)
+                _db.Collection("games").Document(_gameId)
+                   .Collection("events").Document()
+                   .SetAsync(payload)
+                   .ContinueWithOnMainThread(t =>
                    {
-                       Debug.LogWarning("[Altare] event write failed (" + pending.eventName
-                                        + "): " + t.Exception?.GetBaseException()?.Message);
-                   }
-               });
+                       if (t.IsFaulted)
+                       {
+                           _consecutiveWriteFailures++;
+                           Debug.LogWarning("[Altare] event write failed (" + pending.eventName
+                                            + "): " + t.Exception?.GetBaseException()?.Message);
+                           if (_consecutiveWriteFailures >= CircuitBreakerThreshold)
+                           {
+                               TripCircuit("write_failures_threshold");
+                           }
+                       }
+                       else
+                       {
+                           _consecutiveWriteFailures = 0;
+                       }
+                   });
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("[Altare] WriteEvent exception (non-fatal): " + e.Message);
+                _consecutiveWriteFailures++;
+                if (_consecutiveWriteFailures >= CircuitBreakerThreshold) TripCircuit("write_exceptions");
+            }
+        }
+
+        private Dictionary<string, object> EnrichParams(Dictionary<string, object> p)
+        {
+            // Ensure gpu and ram are always available for device-tier analysis
+            if (p == null) p = new Dictionary<string, object>();
+            if (!p.ContainsKey("gpu_model")) p["gpu_model"] = _gpuModel;
+            if (!p.ContainsKey("total_memory_mb")) p["total_memory_mb"] = _totalMemoryMb;
+            return p;
         }
 
         private void WriteFeedback(int rating, string text)
         {
-            if (_db == null)
+            if (_db == null || _circuitOpen)
             {
                 LogEvent("player_feedback", new Dictionary<string, object> {
                     { "rating", rating },
@@ -258,8 +356,9 @@ namespace Altare.Analytics
 
         private void Update()
         {
-            if (!_ready) return;
+            if (!_ready || _circuitOpen) return;
 
+            // FPS check
             _fpsAccum += Time.unscaledDeltaTime;
             _fpsFrames++;
             _fpsCheckTimer += Time.unscaledDeltaTime;
@@ -279,11 +378,46 @@ namespace Altare.Analytics
                     });
                 }
             }
+
+            // ANR check — measure frame duration; if >5sn (ANR threshold) report
+            float dt = Time.realtimeSinceStartup - _lastFrameTime;
+            _lastFrameTime = Time.realtimeSinceStartup;
+            if (dt > AnrFrameThresholdSec && Time.realtimeSinceStartup - _lastAnrAt > 60f)
+            {
+                _lastAnrAt = Time.realtimeSinceStartup;
+                LogANR(dt * 1000f, "auto");
+            }
+
+            // Memory check
+            _memoryCheckTimer += Time.unscaledDeltaTime;
+            if (_memoryCheckTimer >= MemoryCheckIntervalSec)
+            {
+                _memoryCheckTimer = 0;
+                long usedMb = (long)(UnityEngine.Profiling.Profiler.GetTotalAllocatedMemoryLong() / (1024L * 1024L));
+                if (_lastReportedMemoryMb > 0 &&
+                    usedMb - _lastReportedMemoryMb > MemoryWarningGrowthMb &&
+                    Time.realtimeSinceStartup - _lastMemoryWarnAt > 120f)
+                {
+                    _lastMemoryWarnAt = Time.realtimeSinceStartup;
+                    LogMemoryWarning(usedMb, _totalMemoryMb, "growth");
+                }
+                _lastReportedMemoryMb = usedMb;
+            }
+        }
+
+        private void OnApplicationLowMemory()
+        {
+            // Unity'nin native low-memory signal'i
+            if (_ready && !_circuitOpen)
+            {
+                long usedMb = (long)(UnityEngine.Profiling.Profiler.GetTotalAllocatedMemoryLong() / (1024L * 1024L));
+                LogMemoryWarning(usedMb, _totalMemoryMb, "system");
+            }
         }
 
         private void OnApplicationPause(bool pauseStatus)
         {
-            if (!_ready) return;
+            if (!_ready || _circuitOpen) return;
             if (pauseStatus)
             {
                 LogSessionEnd(Time.realtimeSinceStartup - _sessionStartTime);
@@ -292,6 +426,7 @@ namespace Altare.Analytics
             {
                 _sessionId = Guid.NewGuid().ToString("N");
                 _sessionStartTime = Time.realtimeSinceStartup;
+                _lastFrameTime = Time.realtimeSinceStartup;
                 LogSessionStart();
             }
         }
@@ -299,7 +434,7 @@ namespace Altare.Analytics
         private void OnApplicationQuit()
         {
             _quitting = true;
-            if (!_ready) return;
+            if (!_ready || _circuitOpen) return;
             LogSessionEnd(Time.realtimeSinceStartup - _sessionStartTime);
         }
 

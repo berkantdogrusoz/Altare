@@ -226,6 +226,19 @@ function showGameCredentials(gameId) {
 // SDK Download — client-side zip generation
 // ─────────────────────────────────────────────────────────────────────────────
 
+// SDK dosyalarini /unity-sdk/ kanonik yolundan ceker — JS gomulu kopyalardan
+// tek-kaynak guvenligi (drift olmaz). Fallback: embedded copies.
+async function fetchSdkFile(filename, fallback) {
+    try {
+        const res = await fetch(`/unity-sdk/${filename}?v=${Date.now()}`, { cache: 'no-store' });
+        if (res.ok) {
+            const text = await res.text();
+            if (text && text.length > 100) return text;
+        }
+    } catch (e) { /* fallthrough */ }
+    return typeof fallback === 'function' ? fallback() : fallback;
+}
+
 async function downloadSDK(gameId) {
     const game = myGamesCache.find(g => g.gameId === gameId);
     if (!game) { alert('Oyun bulunamadi.'); return; }
@@ -240,9 +253,24 @@ async function downloadSDK(gameId) {
     const zip = new JSZip();
     const folder = zip.folder(`AltareSDK_${sanitizeFileName(game.gameName)}`);
 
-    folder.file('AltareAnalytics.cs', generateSDKScript());
-    folder.file('AltareAnalyticsBootstrap.cs', generateBootstrapScript(game));
-    folder.file('AltareConfig.cs', generateAltareConfigScript());
+    // Canonical SDK files — fetched from /unity-sdk/ (always latest version)
+    const [analyticsCs, bootstrapCs, configCs, playerStateCs] = await Promise.all([
+        fetchSdkFile('AltareAnalytics.cs', generateSDKScript),
+        fetchSdkFile('AltareAnalyticsBootstrap.cs', () => generateBootstrapScript(game)),
+        fetchSdkFile('AltareConfig.cs', generateAltareConfigScript),
+        fetchSdkFile('AltarePlayerState.cs', generatePlayerStateScript),
+    ]);
+
+    // Bootstrap is per-game (gameId + gameName injected). If fetched canonical
+    // version has placeholder strings, replace with game-specific values.
+    const bootstrapFilled = bootstrapCs
+        .replace(/private const string GameId = ".*?";/g, `private const string GameId = "${game.gameId}";`)
+        .replace(/private const string GameName = ".*?";/g, `private const string GameName = "${(game.gameName || '').replace(/"/g, '\\"')}";`);
+
+    folder.file('AltareAnalytics.cs', analyticsCs);
+    folder.file('AltareAnalyticsBootstrap.cs', bootstrapFilled);
+    folder.file('AltareConfig.cs', configCs);
+    folder.file('AltarePlayerState.cs', playerStateCs);
     folder.file('AltareConfig.json', generateConfig(game));
     folder.file('SampleUsage.cs', generateSampleUsage(game));
     folder.file('KURULUM_REHBERI_TR.txt', generateSetupGuide(game));
@@ -392,6 +420,17 @@ public static class AltareAnalyticsBootstrap
     }
 }
 `;
+}
+
+function generatePlayerStateScript() {
+    // Fallback minimal — gercek versiyon /unity-sdk/AltarePlayerState.cs uzerinden fetched
+    return `// AltarePlayerState.cs (fallback stub) — Lutfen guncel versiyonu altarestudio.com.tr/unity-sdk/AltarePlayerState.cs adresinden indirin.
+// Bu modul oyuncu state'i snapshot + rollback icin kullanilir.
+namespace Altare.Analytics { public static class AltarePlayerState {
+    public static void Initialize() { UnityEngine.Debug.LogWarning("[AltarePlayerState] stub — guncel versiyonu sitedeki SDK paketinden indirin."); }
+    public static void SaveSnapshot(System.Collections.Generic.Dictionary<string,object> state, string label = "auto") {}
+    public static event System.Action<System.Collections.Generic.Dictionary<string,object>> OnRestoreRequested;
+} }`;
 }
 
 function generateAltareConfigScript() {
@@ -1350,16 +1389,56 @@ async function handleDeleteGame(gameId) {
 function openNewGameModal() {
     showModal(`
         <h3>Yeni Oyun Ekle</h3>
+        <p style="color: var(--text-dim); font-size: 0.85rem; margin-bottom: 14px;">
+            AI'in oyununa özgü içgörü üretebilmesi için aşağıdaki birkaç soruyu cevapla.
+            Bu bilgiler tür bazlı baseline'lar ve doğru yorumlama için kullanılır.
+        </p>
         <form id="new-game-form" class="form-stack">
             <label>
                 <span>Oyun Adı *</span>
                 <input type="text" name="gameName" required minlength="2" maxlength="60" placeholder="Royal Dreams">
             </label>
             <label>
-                <span>Tür</span>
-                <select name="gameType">
+                <span>Tür *</span>
+                <select name="gameType" required>
                     ${GAME_TYPES.map(t => `<option value="${t.value}">${t.label}</option>`).join('')}
                 </select>
+            </label>
+            <label>
+                <span>Core Loop *</span>
+                <select name="coreLoop" required>
+                    <option value="level-based">Level-based (Match-3, Puzzle, vb.)</option>
+                    <option value="session-based">Session-based (Casual, Idle)</option>
+                    <option value="endless">Endless (Sonsuz runner, arcade)</option>
+                    <option value="roguelike">Roguelike (Permadeath, run-based)</option>
+                    <option value="open-world">Open-world / sandbox</option>
+                    <option value="other">Diğer</option>
+                </select>
+            </label>
+            <label>
+                <span>Monetizasyon *</span>
+                <select name="monetization" required>
+                    <option value="hybrid">Hybrid (IAP + Reklam)</option>
+                    <option value="iap-heavy">IAP odaklı</option>
+                    <option value="ad-heavy">Reklam odaklı</option>
+                    <option value="premium">Premium (ücretli)</option>
+                    <option value="free-to-play">Free-to-play (monetize yok)</option>
+                </select>
+            </label>
+            <label>
+                <span>Hedef Cihaz Segmenti</span>
+                <select name="deviceTier">
+                    <option value="cross-platform">Tüm cihazlar</option>
+                    <option value="low-end">Alt seviye Android (2GB RAM ve altı)</option>
+                    <option value="mid-range">Orta seviye</option>
+                    <option value="flagship">Üst seviye (flagship)</option>
+                </select>
+            </label>
+            <label>
+                <span>Kısa Açıklama (opsiyonel)</span>
+                <textarea name="description" maxlength="500" rows="2"
+                    placeholder="Cozy Match-3 + Tetris hybrid where players restore a kingdom..."
+                    style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: rgba(255,255,255,0.03); color: var(--text); font-family: inherit; resize: vertical;"></textarea>
             </label>
             <fieldset>
                 <legend>Platform</legend>
@@ -1386,6 +1465,10 @@ async function handleCreateGame(e) {
     const form = e.target;
     const gameName = form.gameName.value.trim();
     const gameType = form.gameType.value;
+    const coreLoop = form.coreLoop?.value || 'level-based';
+    const monetization = form.monetization?.value || 'hybrid';
+    const deviceTier = form.deviceTier?.value || 'cross-platform';
+    const description = form.description?.value?.trim() || '';
     const platforms = Array.from(form.querySelectorAll('input[name="platforms"]:checked'))
         .map(cb => cb.value);
 
@@ -1394,7 +1477,7 @@ async function handleCreateGame(e) {
 
     try {
         const fn = httpsCallable(functions, 'createGame');
-        const result = await fn({ gameName, gameType, platforms });
+        const result = await fn({ gameName, gameType, coreLoop, monetization, deviceTier, description, platforms });
         const data = result.data || {};
         const resultDiv = document.getElementById('new-game-result');
         if (resultDiv) {

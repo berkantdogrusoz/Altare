@@ -1348,11 +1348,14 @@
                     <button class="nav-tab" data-tab="events"><span class="dot"></span> <span data-i18n="tab.events">Canlı Event Stream</span></button>
                     <button class="nav-tab" data-tab="levels"><span class="dot"></span> <span data-i18n="tab.levels">Level Intelligence</span></button>
                     <button class="nav-tab" data-tab="performance"><span class="dot"></span> <span data-i18n="tab.performance">Crash & Performance</span></button>
+                    <button class="nav-tab" data-tab="device-intel"><span class="dot"></span> <span data-i18n="tab.device-intel">Device Intelligence</span></button>
+                    <button class="nav-tab" data-tab="player-rollback"><span class="dot"></span> <span data-i18n="tab.player-rollback">Oyuncu State Rollback</span></button>
                 </div>
                 <div class="sidebar-section">
                     <div class="sidebar-label" data-i18n="sidebar.marketIntel">Market Intelligence</div>
                     <button class="nav-tab" data-tab="market"><span class="dot"></span> <span data-i18n="tab.market">Pazar Analizi</span></button>
                     <button class="nav-tab" data-tab="benchmark"><span class="dot"></span> <span data-i18n="tab.benchmark">Benchmark</span></button>
+                    <button class="nav-tab" data-tab="industry-benchmark"><span class="dot"></span> <span data-i18n="tab.industry-benchmark">Sektör Benchmark</span></button>
                     <button class="nav-tab" data-tab="reviews"><span class="dot"></span> <span data-i18n="tab.reviews">Yorum & Sentiment</span></button>
                 </div>
                 <div class="sidebar-section">
@@ -1966,6 +1969,9 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
                     <div class="info-banner" data-i18n-html="autoheal.banner">
                         <strong>🩺 AI Auto-Heal</strong> — Sentinel uyarısı tetiklendiğinde AI Doctor (Claude Opus 4.8) somut bir Remote Config reçetesi üretir. <strong>"Uygula"</strong> dediğinde değişiklik anlık oyuna gider — yeni APK gerekmez. Snapshot ile rollback garantili.
                     </div>
+                    <div class="info-banner" style="background: rgba(250, 204, 21, 0.08); border-left: 3px solid #facc15;" data-i18n-html="autoheal.scope">
+                        <strong>Kapsam:</strong> Auto-Heal <strong>config-driven sorunları</strong> çözer (level zorluk, reklam frekansı, IAP fiyatı, FPS limiti, particle quality). Kod kaynaklı bug'lar için <strong>Crash & Performance</strong> sekmesine + AI Copilot'a sor. State bozulmaları için <strong>Oyuncu State Rollback</strong> kullan.
+                    </div>
                     <div class="section-block">
                         <div class="section-head">
                             <h3 data-i18n="autoheal.history">Reçete Geçmişi</h3>
@@ -1974,6 +1980,98 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
                         <div class="section-content">
                             <div class="autoheal-list" id="autoheal-list">
                                 <div class="empty-state" data-i18n="autoheal.empty">Henüz reçete yok. Sentinel sekmesinde bir uyarıya tıklayıp "AI Çözüm Öner" butonuna bas.</div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Device Intelligence (Umut Can'in onerisi) -->
+                <section class="tab-view" data-tab="device-intel">
+                    <div class="info-banner" data-i18n-html="device.banner">
+                        <strong>🎮 Device Intelligence</strong> — Hangi GPU ailesi, RAM tier veya cihaz modelinde crash/ANR/FPS uyarısı yığılıyor? AI optimizasyon önerileri için somut hedefler.
+                    </div>
+                    <div class="kpi-grid">
+                        <div class="kpi-card">
+                            <div class="kpi-label" data-i18n="device.anrs">ANR (24h)</div>
+                            <div class="kpi-value mono" id="kpi-anrs">—</div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-label" data-i18n="device.memWarn">Bellek Uyarısı</div>
+                            <div class="kpi-value mono" id="kpi-mem-warn">—</div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-label" data-i18n="device.avgFps">Ort. FPS</div>
+                            <div class="kpi-value mono" id="kpi-avg-fps">—</div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-label" data-i18n="device.lowEndRatio">Düşük RAM Cihaz Oranı</div>
+                            <div class="kpi-value mono" id="kpi-lowend-ratio">—</div>
+                        </div>
+                    </div>
+                    <div class="section-block">
+                        <div class="section-head"><h3 data-i18n="device.gpuFamily">GPU Ailesi Breakdown</h3></div>
+                        <div class="section-content">
+                            <div class="bar-list" id="gpu-family-list">
+                                <div class="empty-state" data-i18n="device.empty">SDK v2.3+ ile event toplandığında burada GPU ailesine göre crash/ANR/FPS dağılımı görürsün.</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="section-block">
+                        <div class="section-head"><h3 data-i18n="device.problemDevices">Problemli Cihaz Modelleri</h3></div>
+                        <div class="section-content">
+                            <div class="bar-list" id="problem-devices-list">
+                                <div class="empty-state" data-i18n="device.problemEmpty">Crash/ANR event'leri toplandığında en problemli cihazlar buraya gelir.</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="section-block">
+                        <div class="section-head"><h3 data-i18n="device.memoryTier">RAM Tier Dağılımı</h3></div>
+                        <div class="section-content">
+                            <div class="bar-list" id="memory-tier-list">
+                                <div class="empty-state" data-i18n="device.memoryEmpty">Bellek dağılımı verisi henüz yok.</div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Player State Rollback (Yigit Ozturk'un onerisi) -->
+                <section class="tab-view" data-tab="player-rollback">
+                    <div class="info-banner" data-i18n-html="rollback.banner">
+                        <strong>↺ Oyuncu State Rollback</strong> — Whale oyuncu progress kaybetti? Bug'lı patch oyuncuları broken state'e attı? Buradan oyuncunun anonim ID'siyle önceki snapshot'larını listele, tek tıkla geri yükle. Oyun anlık çeker.
+                    </div>
+                    <div class="section-block">
+                        <div class="section-head">
+                            <h3 data-i18n="rollback.lookup">Oyuncu Ara</h3>
+                        </div>
+                        <div class="section-content">
+                            <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                                <input type="text" id="rollback-player-id" placeholder="playerAnonId (örn: a3f9c2...)" data-i18n-placeholder="rollback.idPlaceholder"
+                                    style="flex:1; padding: 10px 12px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 0.85rem;">
+                                <button class="primary-btn" id="rollback-lookup-btn" data-i18n="rollback.search">Ara</button>
+                            </div>
+                            <div id="rollback-snapshot-list">
+                                <div class="empty-state" data-i18n="rollback.empty">playerAnonId yapıştırıp Ara'ya bas — oyuncunun snapshot geçmişi listelenir.</div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Industry Benchmark (Cross-Tenant Network Effect) -->
+                <section class="tab-view" data-tab="industry-benchmark">
+                    <div class="info-banner" data-i18n-html="industry.banner">
+                        <strong>📊 Sektör Benchmark</strong> — Altare platformundaki tüm <em>aynı tür</em> oyunların anonimleştirilmiş ortalamaları. Senin metriklerin sektör medyanı + top %10 ile karşılaştırılır. Min 3 oyun gerekli (privacy).
+                    </div>
+                    <div class="section-block">
+                        <div class="section-head">
+                            <h3 data-i18n="industry.title">Sektör Karşılaştırması</h3>
+                            <span class="head-meta">
+                                <button class="primary-btn" id="industry-refresh-btn" style="padding: 5px 12px; font-size: 0.8rem;" data-i18n="industry.refresh">↻ Güncel Veriyi Çek</button>
+                            </span>
+                        </div>
+                        <div class="section-content">
+                            <div id="industry-status" style="font-size: 0.84rem; color: var(--text-dim); margin-bottom: 12px;"></div>
+                            <div class="benchmark-grid" id="industry-grid">
+                                <div class="empty-state" data-i18n="industry.empty">"Güncel Veriyi Çek" tıklayınca sektörel benchmark yüklenir.</div>
                             </div>
                         </div>
                     </div>
@@ -2114,6 +2212,8 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
             wireGenerateButton();
             wireBenchmark();
             wireCopilot();
+            wirePlayerRollback();
+            wireIndustryBenchmark();
             startClock();
             loadMyGamesIntoSelector();
             initLanguageToggle('lang-toggle');
@@ -2773,6 +2873,144 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
             if (btn) btn.addEventListener('click', runBenchmark);
         }
 
+        // ─────────────────────────────────────────────────────────────────
+        // Player State Rollback (Yigit Ozturk'un onerisi)
+        // ─────────────────────────────────────────────────────────────────
+        function wirePlayerRollback() {
+            const btn = $('rollback-lookup-btn');
+            const input = $('rollback-player-id');
+            const list = $('rollback-snapshot-list');
+            if (!btn || !input || !list) return;
+            btn.addEventListener('click', async () => {
+                const pid = (input.value || '').trim();
+                if (!pid) { list.innerHTML = '<div class="empty-state">' + t('rollback.idRequired') + '</div>'; return; }
+                if (!currentGame) { list.innerHTML = '<div class="empty-state">' + t('selector.noGames') + '</div>'; return; }
+                btn.disabled = true;
+                list.innerHTML = '<div class="empty-state">Yükleniyor…</div>';
+                try {
+                    const fn = httpsCallable(functions, 'listPlayerSnapshots');
+                    const res = await fn({ gameId: currentGame, playerAnonId: pid, limit: 30 });
+                    const snapshots = (res.data && res.data.snapshots) || [];
+                    if (snapshots.length === 0) {
+                        list.innerHTML = '<div class="empty-state">' + t('rollback.noneFound') + '</div>';
+                        return;
+                    }
+                    renderPlayerSnapshots(pid, snapshots);
+                } catch (err) {
+                    list.innerHTML = '<div class="ai-error">' + escapeHtml(err.message || String(err)) + '</div>';
+                } finally {
+                    btn.disabled = false;
+                }
+            });
+        }
+
+        function renderPlayerSnapshots(playerId, snapshots) {
+            const list = $('rollback-snapshot-list');
+            if (!list) return;
+            list.innerHTML = `
+                <div style="margin-bottom: 10px; font-size: 0.84rem; color: var(--text-dim);">
+                    <strong>${escapeHtml(playerId)}</strong> · ${snapshots.length} snapshot
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                ${snapshots.map(s => {
+                    const date = s.createdAt ? new Date(s.createdAt).toLocaleString(getLanguage() === 'en' ? 'en-US' : 'tr-TR') : '—';
+                    return `
+                        <div class="alert-card" data-severity="info">
+                            <div class="alert-icon">💾</div>
+                            <div class="alert-body">
+                                <div class="alert-title">${escapeHtml(s.label || 'auto')} · <span style="color: var(--text-dim); font-weight: 400; font-size: 0.85rem;">${escapeHtml(s.id)}</span></div>
+                                <div class="alert-rationale">${escapeHtml(date)} · ${formatInt(s.sizeBytes || 0)} byte</div>
+                            </div>
+                            <button class="alert-prescribe" data-snap-id="${escapeHtml(s.id)}">↺ ${t('rollback.restore')}</button>
+                        </div>`;
+                }).join('')}
+                </div>`;
+            list.querySelectorAll('.alert-prescribe').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    if (!confirm(t('rollback.confirmRestore'))) return;
+                    btn.disabled = true;
+                    btn.textContent = '...';
+                    try {
+                        const fn = httpsCallable(functions, 'restorePlayerSnapshot');
+                        await fn({
+                            gameId: currentGame,
+                            playerAnonId: playerId,
+                            snapshotId: btn.dataset.snapId,
+                        });
+                        showToast(t('rollback.restored'));
+                    } catch (err) {
+                        alert((t('autoheal.error') + ': ' + (err.message || '')));
+                        btn.disabled = false;
+                        btn.textContent = '↺ ' + t('rollback.restore');
+                    }
+                });
+            });
+        }
+
+        // ─────────────────────────────────────────────────────────────────
+        // Industry Benchmark (Cross-Tenant Network Effect)
+        // ─────────────────────────────────────────────────────────────────
+        function wireIndustryBenchmark() {
+            const btn = $('industry-refresh-btn');
+            if (btn) btn.addEventListener('click', runIndustryBenchmark);
+        }
+
+        async function runIndustryBenchmark() {
+            const grid = $('industry-grid');
+            const status = $('industry-status');
+            const btn = $('industry-refresh-btn');
+            if (!grid || !currentGame) return;
+            if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
+            if (status) status.textContent = t('industry.loading');
+            try {
+                const fn = httpsCallable(functions, 'getIndustryBenchmark');
+                const res = await fn({ gameId: currentGame });
+                if (status) status.textContent = '';
+                renderIndustryBenchmark(res.data);
+            } catch (err) {
+                grid.innerHTML = `<div class="ai-error">${escapeHtml(err.message || String(err))}</div>`;
+                if (status) status.textContent = '';
+            } finally {
+                if (btn) { btn.disabled = false; btn.textContent = t('industry.refresh'); }
+            }
+        }
+
+        function renderIndustryBenchmark(data) {
+            const grid = $('industry-grid');
+            if (!grid) return;
+            if (!data || data.success === false) {
+                grid.innerHTML = `<div class="empty-state">${escapeHtml(data?.message || t('industry.empty'))}</div>`;
+                return;
+            }
+            const b = data.latest || data;
+            if (!b || !b.sampleSize) {
+                grid.innerHTML = `<div class="empty-state">${t('industry.empty')}</div>`;
+                return;
+            }
+            const fmt2 = (n) => n == null ? '—' : (typeof n === 'number' ? n.toFixed(2) : String(n));
+            const fmtPct = (n) => n == null ? '—' : (n * 100).toFixed(1) + '%';
+            const fmtUsd = (n) => n == null ? '—' : '$' + n.toFixed(2);
+            const card = (label, m, formatter) => `
+                <div class="benchmark-card">
+                    <div class="b-metric">${label}</div>
+                    <div class="b-row"><span class="label">${t('benchmark.median')}</span><span class="val">${formatter(m.median)}</span></div>
+                    <div class="b-row"><span class="label">${t('benchmark.top10')}</span><span class="val">${formatter(m.top10)}</span></div>
+                    <div class="b-row gap">avg: ${formatter(m.avg)}</div>
+                </div>`;
+            grid.innerHTML = `
+                <div style="grid-column: 1 / -1; margin-bottom: 8px; color: var(--text-dim); font-size: 0.85rem;">
+                    <strong>${escapeHtml(data.gameType || 'unknown')}</strong> kategorisi · ${b.gameCount} oyun · ${b.sampleSize} veri noktası
+                </div>
+                ${card(t('industry.avgSession'), b.avgSessionSeconds, (v) => v == null ? '—' : Math.round(v) + 's')}
+                ${card(t('industry.failRate'), b.levelFailRate, fmtPct)}
+                ${card(t('industry.crashRate'), b.crashRate, fmtPct)}
+                ${card(t('industry.fpsWarnRate'), b.fpsWarnRate, fmtPct)}
+                ${card(t('industry.adsPerSession'), b.adsPerSession, fmt2)}
+                ${card(t('industry.iapPerPlayer'), b.iapRevenuePerPlayer, fmtUsd)}
+                ${card(t('industry.sessionsPerPlayer'), b.sessionsPerPlayer, fmt2)}
+            `;
+        }
+
         const EVENT_CLS = {
             level_fail: 'fail',
             crash_detected: 'crash',
@@ -2837,6 +3075,90 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
             renderTopProblemLevels(stats && stats.topProblemLevels);
             renderLevelFunnel(stats && stats.allLevelStats);
             renderTopDevices(stats && stats.topDevices);
+
+            // Device Intelligence (Umut Can'in onerisi)
+            setKpi('kpi-anrs', stats ? formatInt(stats.anrs || 0) : '—');
+            setKpi('kpi-mem-warn', stats ? formatInt(stats.memoryWarnings || 0) : '—');
+            setKpi('kpi-avg-fps', stats && stats.avgFps != null ? String(stats.avgFps) : '—');
+            if (stats && stats.memoryBuckets) {
+                const total = (stats.memoryBuckets.low || 0) + (stats.memoryBuckets.mid || 0) +
+                              (stats.memoryBuckets.high || 0) + (stats.memoryBuckets.unknown || 0);
+                const lowPct = total > 0 ? Math.round(((stats.memoryBuckets.low || 0) / total) * 100) : 0;
+                setKpi('kpi-lowend-ratio', total > 0 ? lowPct + '%' : '—');
+            } else { setKpi('kpi-lowend-ratio', '—'); }
+            renderGpuFamily(stats && stats.gpuBreakdown);
+            renderProblemDevices(stats && stats.topProblemDevices);
+            renderMemoryTiers(stats && stats.memoryBuckets);
+        }
+
+        function renderGpuFamily(items) {
+            const root = $('gpu-family-list');
+            if (!root) return;
+            if (!items || items.length === 0) {
+                root.innerHTML = '<div class="empty-state">' + t('device.empty') + '</div>';
+                return;
+            }
+            const maxCount = Math.max(...items.map(x => x.eventCount || 0), 1);
+            root.innerHTML = items.map(g => {
+                const w = Math.min(100, ((g.eventCount || 0) / maxCount) * 100);
+                const crashRate = g.eventCount > 0 ? ((g.crashes || 0) / g.eventCount * 100).toFixed(1) : '0';
+                const color = parseFloat(crashRate) > 5 ? '#ef4444' : (parseFloat(crashRate) > 2 ? '#facc15' : '#4ade80');
+                return `
+                    <div class="bar-row">
+                        <div class="label">${escapeHtml(g.family || '?')}<span class="sub">${formatInt(g.eventCount)} event · ${formatInt(g.crashes)} crash · ${formatInt(g.anrs)} ANR · ${formatInt(g.fps_warnings)} FPS warn</span></div>
+                        <div class="bar-track"><div class="bar-fill" style="width: ${w}%; background: ${color};"></div></div>
+                        <div class="pct">${crashRate}% crash</div>
+                    </div>`;
+            }).join('');
+        }
+
+        function renderProblemDevices(items) {
+            const root = $('problem-devices-list');
+            if (!root) return;
+            if (!items || items.length === 0) {
+                root.innerHTML = '<div class="empty-state">' + t('device.problemEmpty') + '</div>';
+                return;
+            }
+            const maxScore = Math.max(...items.map(x => (x.crashes || 0) + (x.anrs || 0) * 2), 1);
+            root.innerHTML = items.map(d => {
+                const score = (d.crashes || 0) + (d.anrs || 0) * 2;
+                const w = Math.min(100, (score / maxScore) * 100);
+                return `
+                    <div class="bar-row">
+                        <div class="label">${escapeHtml(d.device || '?')}<span class="sub">${formatInt(d.crashes)} crash · ${formatInt(d.anrs)} ANR · ${formatInt(d.fps_warnings)} FPS warn · ${formatInt(d.sessions)} session</span></div>
+                        <div class="bar-track"><div class="bar-fill" style="width: ${w}%; background: linear-gradient(90deg, #ef4444, #f97316);"></div></div>
+                        <div class="pct">${(d.crashRate * 100).toFixed(1)}%</div>
+                    </div>`;
+            }).join('');
+        }
+
+        function renderMemoryTiers(buckets) {
+            const root = $('memory-tier-list');
+            if (!root) return;
+            if (!buckets) {
+                root.innerHTML = '<div class="empty-state">' + t('device.memoryEmpty') + '</div>';
+                return;
+            }
+            const total = (buckets.low || 0) + (buckets.mid || 0) + (buckets.high || 0) + (buckets.unknown || 0);
+            if (total === 0) {
+                root.innerHTML = '<div class="empty-state">' + t('device.memoryEmpty') + '</div>';
+                return;
+            }
+            const tiers = [
+                { name: '<2GB (Düşük RAM)', count: buckets.low || 0, color: '#ef4444' },
+                { name: '2-4GB (Orta RAM)', count: buckets.mid || 0, color: '#facc15' },
+                { name: '4GB+ (Yüksek RAM)', count: buckets.high || 0, color: '#4ade80' },
+                { name: 'Bilinmiyor', count: buckets.unknown || 0, color: '#6b7280' },
+            ];
+            root.innerHTML = tiers.filter(t => t.count > 0).map(t => {
+                const pct = ((t.count / total) * 100).toFixed(1);
+                return `
+                    <div class="bar-row">
+                        <div class="label">${t.name}<span class="sub">${formatInt(t.count)} event</span></div>
+                        <div class="bar-track"><div class="bar-fill" style="width: ${pct}%; background: ${t.color};"></div></div>
+                        <div class="pct">${pct}%</div>
+                    </div>`;
+            }).join('');
         }
 
         // Admin flag — bootstrap'ta set edilir, fetchGA4Overview'in admin-only olmasi icin

@@ -293,7 +293,8 @@ exports.generateAIReport = onCall(
         );
       }
 
-      const userPrompt = buildUserPrompt(gameId, gameName, timeRange, summary, lang);
+      const gameCtx = await getGameContext(gameId);
+      const userPrompt = buildUserPrompt(gameId, gameName, timeRange, summary, lang, gameCtx);
 
       const aiJson = await callAnthropic(
         ANTHROPIC_API_KEY.value(),
@@ -383,6 +384,167 @@ exports.aggregateDailyStats = onSchedule(
     await Promise.all(tasks);
   }
 );
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CROSS-TENANT BENCHMARK AGGREGATOR — network effect moat
+// Tum oyunlarin verisini (anonim) toplar, kategori bazli sektorel benchmark
+// hesaplar. Cikti industry_benchmarks/{gameType}/{day}.
+// Hicbir oyunun verisi kimliklendirilebilir degil — sadece quantile metrikler.
+// ─────────────────────────────────────────────────────────────────────────────
+
+exports.aggregateIndustryBenchmark = onSchedule(
+  { schedule: "every 6 hours", timeZone: "Europe/Istanbul" },
+  async () => {
+    const gamesSnap = await db.collection("games").get();
+    const todayKey = new Date().toISOString().slice(0, 10);
+
+    // Group games by type
+    const byType = {};
+    for (const gameDoc of gamesSnap.docs) {
+      const g = gameDoc.data();
+      const type = g.gameType || "unknown";
+      if (!byType[type]) byType[type] = [];
+      byType[type].push(g.gameId || gameDoc.id);
+    }
+
+    function quantile(arr, q) {
+      if (!arr.length) return null;
+      const sorted = [...arr].sort((a, b) => a - b);
+      const idx = Math.floor(sorted.length * q);
+      return sorted[Math.min(idx, sorted.length - 1)];
+    }
+    function avg(arr) {
+      if (!arr.length) return null;
+      return arr.reduce((s, x) => s + x, 0) / arr.length;
+    }
+
+    for (const [gameType, gameIds] of Object.entries(byType)) {
+      if (gameIds.length < 3) {
+        // Privacy: need at least 3 games per category to anonymize
+        logger.info("skipping benchmark — too few games", { gameType, count: gameIds.length });
+        continue;
+      }
+
+      // Pull each game's latest daily stats (last 7 days avg)
+      const metrics = {
+        avgSessionSeconds: [],
+        failRates: [],
+        crashRates: [],
+        fpsWarnRates: [],
+        adsPerSession: [],
+        iapRevenuePerPlayer: [],
+        retentionD1Proxy: [], // uniquePlayers / uniqueSessions as a weak proxy
+      };
+
+      for (const gameId of gameIds) {
+        try {
+          const statsSnap = await db.collection("games").doc(gameId)
+            .collection("stats").orderBy("updatedAt", "desc").limit(7).get();
+          if (statsSnap.empty) continue;
+          for (const s of statsSnap.docs) {
+            const d = s.data();
+            if (d.uniqueSessions > 5) {
+              if (Number.isFinite(d.avgSessionSeconds) && d.avgSessionSeconds > 0)
+                metrics.avgSessionSeconds.push(d.avgSessionSeconds);
+              const fails = (d.eventCounts && d.eventCounts.level_fail) || 0;
+              const completes = (d.eventCounts && d.eventCounts.level_complete) || 0;
+              if (fails + completes >= 10) metrics.failRates.push(fails / (fails + completes));
+              if (d.uniqueSessions > 0) {
+                metrics.crashRates.push((d.crashes || 0) / d.uniqueSessions);
+                metrics.fpsWarnRates.push((d.fpsWarnings || 0) / d.uniqueSessions);
+                metrics.adsPerSession.push(
+                  ((d.adWatches || 0) + (d.rewardedAdWatches || 0)) / d.uniqueSessions
+                );
+              }
+              if (d.uniquePlayers > 0) {
+                metrics.iapRevenuePerPlayer.push((d.purchaseRevenueUsd || 0) / d.uniquePlayers);
+                if (d.uniqueSessions > 0) {
+                  metrics.retentionD1Proxy.push(d.uniqueSessions / d.uniquePlayers);
+                }
+              }
+            }
+          }
+        } catch (e) {
+          logger.warn("benchmark fetch failed", { gameId, error: e.message });
+        }
+      }
+
+      const benchmark = {
+        gameType,
+        gameCount: gameIds.length,
+        sampleSize: metrics.avgSessionSeconds.length,
+        avgSessionSeconds: {
+          median: quantile(metrics.avgSessionSeconds, 0.5),
+          top10: quantile(metrics.avgSessionSeconds, 0.9),
+          avg: avg(metrics.avgSessionSeconds),
+        },
+        levelFailRate: {
+          median: quantile(metrics.failRates, 0.5),
+          top10: quantile(metrics.failRates, 0.1), // lower fail rate is better
+          avg: avg(metrics.failRates),
+        },
+        crashRate: {
+          median: quantile(metrics.crashRates, 0.5),
+          top10: quantile(metrics.crashRates, 0.1), // lower is better
+          avg: avg(metrics.crashRates),
+        },
+        fpsWarnRate: {
+          median: quantile(metrics.fpsWarnRates, 0.5),
+          top10: quantile(metrics.fpsWarnRates, 0.1),
+          avg: avg(metrics.fpsWarnRates),
+        },
+        adsPerSession: {
+          median: quantile(metrics.adsPerSession, 0.5),
+          top10: quantile(metrics.adsPerSession, 0.9),
+          avg: avg(metrics.adsPerSession),
+        },
+        iapRevenuePerPlayer: {
+          median: quantile(metrics.iapRevenuePerPlayer, 0.5),
+          top10: quantile(metrics.iapRevenuePerPlayer, 0.9),
+          avg: avg(metrics.iapRevenuePerPlayer),
+        },
+        sessionsPerPlayer: {
+          median: quantile(metrics.retentionD1Proxy, 0.5),
+          top10: quantile(metrics.retentionD1Proxy, 0.9),
+          avg: avg(metrics.retentionD1Proxy),
+        },
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      };
+
+      await db.collection("industry_benchmarks").doc(gameType)
+        .collection("daily").doc(todayKey).set(benchmark);
+      await db.collection("industry_benchmarks").doc(gameType).set({
+        latestKey: todayKey,
+        latest: benchmark,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      }, { merge: true });
+      logger.info("industry benchmark updated", { gameType, sample: benchmark.sampleSize });
+    }
+  }
+);
+
+// Callable: kullanici kendi gameType'inin industry benchmark'ini cekebilir
+exports.getIndustryBenchmark = onCall(async (request) => {
+  assertSignedIn(request);
+  const { gameId } = request.data || {};
+  if (!gameId) throw new HttpsError("invalid-argument", "gameId required");
+  await assertOwnsGameOrAdmin(request, gameId);
+
+  const gameSnap = await db.collection("games").doc(gameId).get();
+  if (!gameSnap.exists) throw new HttpsError("not-found", "Game not found");
+  const gameType = gameSnap.data().gameType || "unknown";
+
+  const benchSnap = await db.collection("industry_benchmarks").doc(gameType).get();
+  if (!benchSnap.exists) {
+    return {
+      success: false,
+      reason: "not_enough_data",
+      message: "Yeterli oyun sayısı yok (min 3). Bu kategori için sektörel benchmark henüz hazır değil.",
+      gameType,
+    };
+  }
+  return { success: true, gameType, ...benchSnap.data() };
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // detectAnomalies — scheduled every 30 min
@@ -500,6 +662,73 @@ const ANOMALY_RULES = [
           rationale_tr: `Oyununuz ilk kez para kazandi: $${now.purchaseRevenueUsd.toFixed(2)} (${now.purchases} satin alma)`,
           rationale_en: `Your game just made its first money: $${now.purchaseRevenueUsd.toFixed(2)} (${now.purchases} purchases)`,
         };
+      }
+      return null;
+    },
+  },
+  // Umut Can'in onerisi: ANR spike (Android Not Responding)
+  {
+    id: "anr_spike",
+    severity: "critical",
+    title_tr: "ANR (uygulama yaniti yok) patlamasi",
+    title_en: "ANR spike detected",
+    check: (now, baseline) => {
+      if (now.anrs < 3) return null;
+      const baseRate = (baseline.anrs || 0) / Math.max(baseline.uniqueSessions, 1);
+      const nowRate = now.anrs / Math.max(now.uniqueSessions, 1);
+      if (nowRate > Math.max(baseRate * 3, 0.02)) {
+        return {
+          metric: "anrs",
+          delta_pct: baseRate > 0 ? Math.round((nowRate / baseRate - 1) * 100) : null,
+          rationale_tr: `Son aralikta ${now.anrs} ANR (oturum basina %${(nowRate*100).toFixed(2)}). Genelde alt seviye cihaz veya thread blocking sebep.`,
+          rationale_en: `${now.anrs} ANRs in window (per session: ${(nowRate*100).toFixed(2)}%). Usually low-end device or thread blocking.`,
+        };
+      }
+      return null;
+    },
+  },
+  // Umut Can'in onerisi: Memory pressure (low memory cihazlarda)
+  {
+    id: "memory_pressure",
+    severity: "high",
+    title_tr: "Bellek baskisi tespit edildi",
+    title_en: "Memory pressure detected",
+    check: (now, baseline) => {
+      const memWarn = now.memoryWarnings || 0;
+      if (memWarn < 10) return null;
+      const baseRate = (baseline.memoryWarnings || 0) / Math.max(baseline.uniqueSessions, 1);
+      const nowRate = memWarn / Math.max(now.uniqueSessions, 1);
+      if (nowRate > Math.max(baseRate * 2, 0.05)) {
+        return {
+          metric: "memoryWarnings",
+          delta_pct: baseRate > 0 ? Math.round((nowRate / baseRate - 1) * 100) : null,
+          rationale_tr: `${memWarn} bellek uyarisi (oturum basina ${(nowRate).toFixed(2)}). Alt seviye RAM'li cihazlar etkileniyor olabilir.`,
+          rationale_en: `${memWarn} memory warnings (${(nowRate).toFixed(2)} per session). Low-RAM devices likely affected.`,
+        };
+      }
+      return null;
+    },
+  },
+  // GPU-specific anomaly — Umut Can: "Adreno vs Mali vs PowerVR farkli davranis"
+  {
+    id: "gpu_family_crash",
+    severity: "high",
+    title_tr: "Belirli GPU ailesinde crash yogunlugu",
+    title_en: "GPU-family crash concentration",
+    check: (now, baseline) => {
+      if (!Array.isArray(now.gpuBreakdown) || now.gpuBreakdown.length < 2) return null;
+      // Bir GPU ailesinde crash yogunluğu varsa tetikle
+      for (const g of now.gpuBreakdown) {
+        if (g.count < 20) continue;
+        const crashRate = g.crashes / g.count;
+        if (g.crashes >= 5 && crashRate > 0.05) {
+          return {
+            metric: "gpuCrash",
+            delta_pct: null,
+            rationale_tr: `${g.family} GPU'lu cihazlarda %${(crashRate*100).toFixed(1)} crash orani (${g.crashes}/${g.count} event). Diger GPU ailelerine kiyasla anormal.`,
+            rationale_en: `${g.family} GPU devices show ${(crashRate*100).toFixed(1)}% crash rate (${g.crashes}/${g.count} events). Anomalous vs other GPU families.`,
+          };
+        }
       }
       return null;
     },
@@ -676,6 +905,7 @@ exports.generateAutoHeal = onCall(
         if (!repSnap.empty) latestReport = repSnap.docs[0].data().report;
       } catch {}
 
+      const gameCtxMeta = await getGameContext(gameId);
       const ctx = {
         alert: {
           id: alert.id,
@@ -692,7 +922,8 @@ exports.generateAutoHeal = onCall(
       };
 
       const userPrompt = [
-        lang === "en" ? "GAME CONTEXT (JSON):" : "OYUN BAĞLAMI (JSON):",
+        gameContextBlock(gameCtxMeta, lang),
+        lang === "en" ? "ALERT + STATS DATA (JSON):" : "UYARI + İSTATİSTİK VERİSİ (JSON):",
         JSON.stringify(ctx, null, 2),
         "",
         lang === "en"
@@ -843,6 +1074,95 @@ exports.rollbackAutoHeal = onCall(async (request) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// PLAYER STATE SNAPSHOT & ROLLBACK — Yigit Ozturk'un onerisi
+// Whale oyuncu progress kaybetti → tek tikla geri yukle.
+// Bugli patch oyunculari broken state'e atti → snapshot'tan restore.
+// Oyun her N dakikada bir snapshot atar (SDK: AltarePlayerState),
+// admin "rollback" tikladiginda eski state geri yazilir.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// writePlayerSnapshot: SDK'dan gelir, anonim uyumlu (oyun yazar)
+exports.writePlayerSnapshot = onCall(async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Sign-in required.");
+  const { gameId, playerAnonId, state, label } = request.data || {};
+  if (!gameId || !playerAnonId || !state) {
+    throw new HttpsError("invalid-argument", "gameId, playerAnonId, state required.");
+  }
+  if (typeof state !== "object" || Array.isArray(state)) {
+    throw new HttpsError("invalid-argument", "state must be a plain object.");
+  }
+  // Size cap — bigger snapshots should go through dedicated callable with chunking
+  const serialized = JSON.stringify(state);
+  if (serialized.length > 100 * 1024) {
+    throw new HttpsError("invalid-argument", "snapshot too large (>100KB).");
+  }
+  const docRef = db.collection("games").doc(gameId)
+    .collection("player_snapshots").doc(playerAnonId)
+    .collection("history").doc();
+  await docRef.set({
+    playerAnonId,
+    state,
+    label: typeof label === "string" ? label.slice(0, 80) : "auto",
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    sizeBytes: serialized.length,
+  });
+  // Maintain a "latest" pointer for fast lookups
+  await db.collection("games").doc(gameId)
+    .collection("player_snapshots").doc(playerAnonId)
+    .set({
+      latestSnapshotId: docRef.id,
+      latestAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+  return { success: true, snapshotId: docRef.id };
+});
+
+// listPlayerSnapshots: admin/owner browses available snapshots
+exports.listPlayerSnapshots = onCall(async (request) => {
+  assertSignedIn(request);
+  const { gameId, playerAnonId, limit: limitN = 20 } = request.data || {};
+  await assertOwnsGameOrAdmin(request, gameId);
+  if (!playerAnonId) throw new HttpsError("invalid-argument", "playerAnonId required.");
+  const snap = await db.collection("games").doc(gameId)
+    .collection("player_snapshots").doc(playerAnonId)
+    .collection("history").orderBy("createdAt", "desc").limit(Math.min(limitN, 50)).get();
+  const snapshots = snap.docs.map((d) => ({
+    id: d.id,
+    label: d.data().label,
+    sizeBytes: d.data().sizeBytes,
+    createdAt: d.data().createdAt?.toMillis ? d.data().createdAt.toMillis() : null,
+  }));
+  return { success: true, snapshots };
+});
+
+// restorePlayerSnapshot: owner/admin restore — writes the chosen state back as "active"
+exports.restorePlayerSnapshot = onCall(async (request) => {
+  assertSignedIn(request);
+  const { gameId, playerAnonId, snapshotId } = request.data || {};
+  await assertOwnsGameOrAdmin(request, gameId);
+  if (!playerAnonId || !snapshotId) {
+    throw new HttpsError("invalid-argument", "playerAnonId + snapshotId required.");
+  }
+  const snapRef = db.collection("games").doc(gameId)
+    .collection("player_snapshots").doc(playerAnonId)
+    .collection("history").doc(snapshotId);
+  const snap = await snapRef.get();
+  if (!snap.exists) throw new HttpsError("not-found", "Snapshot not found.");
+  // Write to /restore/active for the SDK to pick up
+  await db.collection("games").doc(gameId)
+    .collection("player_snapshots").doc(playerAnonId)
+    .set({
+      pendingRestore: {
+        snapshotId,
+        state: snap.data().state,
+        requestedAt: admin.firestore.FieldValue.serverTimestamp(),
+        requestedBy: request.auth.uid,
+      },
+    }, { merge: true });
+  logger.info("player state restore queued", { gameId, playerAnonId, snapshotId });
+  return { success: true };
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // generateBenchmark — callable
 // First-party metrics + Play Store kategori verisini birlestirir, Claude'a
 // "kategori medyani vs top %10 vs sen" karsilastirmasi yaptirir.
@@ -960,14 +1280,16 @@ exports.generateBenchmark = onCall(
         },
       };
 
+      const gameCtxMeta = await getGameContext(gameId);
       const userPrompt = [
+        gameContextBlock(gameCtxMeta, lang),
         lang === "en" ? "YOUR GAME + CATEGORY DATA (JSON):" : "OYUN VE KATEGORI VERİSİ (JSON):",
         JSON.stringify(benchmarkInput, null, 2),
         "",
         lang === "en"
           ? "Generate a benchmark report comparing the player to category median and top 10%. Return JSON only."
           : "Oyunun durumunu kategori medyanı ve top %10 ile karşılaştır. Sadece JSON dön.",
-      ].join("\n");
+      ].filter(Boolean).join("\n");
 
       const aiJson = await callAnthropic(
         ANTHROPIC_API_KEY.value(),
@@ -1045,18 +1367,20 @@ exports.askCopilot = onCall(
         }
       } catch {}
 
+      const gameCtxMeta = await getGameContext(gameId);
       const ctx = {
         summary_7d: summary,
         latest_ai_report: latestReport,
       };
 
       const userPrompt = [
-        lang === "en" ? "GAME CONTEXT (JSON):" : "OYUN BAĞLAMI (JSON):",
+        gameContextBlock(gameCtxMeta, lang),
+        lang === "en" ? "GAME STATS (JSON):" : "OYUN İSTATİSTİKLERİ (JSON):",
         JSON.stringify(ctx, null, 2),
         "",
         lang === "en" ? "DEVELOPER QUESTION:" : "GELİŞTİRİCİNİN SORUSU:",
         question.trim().slice(0, 800),
-      ].join("\n");
+      ].filter(Boolean).join("\n");
 
       const answer = await callAnthropic(
         ANTHROPIC_API_KEY.value(),
@@ -1202,7 +1526,15 @@ exports.createGame = onCall(async (request) => {
     throw new HttpsError("unauthenticated", "Sign-in required.");
   }
 
-  const { gameName, gameType, platforms } = request.data || {};
+  const {
+    gameName,
+    gameType,
+    platforms,
+    coreLoop,        // level-based | session-based | endless | roguelike | open-world
+    monetization,    // iap-heavy | ad-heavy | hybrid | premium
+    deviceTier,      // low-end | mid-range | flagship | cross-platform
+    description,     // free text, 2-3 sentence game description
+  } = request.data || {};
   if (!gameName || typeof gameName !== "string" || gameName.trim().length < 2) {
     throw new HttpsError("invalid-argument", "Oyun adi en az 2 karakter olmali.");
   }
@@ -1244,11 +1576,20 @@ exports.createGame = onCall(async (request) => {
     ? platforms.filter((p) => typeof p === "string").slice(0, 4)
     : ["Android"];
 
+  // Validate AI-context fields (whitelist for safety)
+  const validCoreLoops = ["level-based", "session-based", "endless", "roguelike", "open-world", "other"];
+  const validMonet = ["iap-heavy", "ad-heavy", "hybrid", "premium", "free-to-play", "other"];
+  const validDeviceTiers = ["low-end", "mid-range", "flagship", "cross-platform"];
+
   await db.collection("games").doc(gameId).set({
     gameId,
     developerId: uid,
     gameName: gameName.trim(),
     gameType: typeof gameType === "string" ? gameType : "unknown",
+    coreLoop: validCoreLoops.includes(coreLoop) ? coreLoop : "level-based",
+    monetization: validMonet.includes(monetization) ? monetization : "hybrid",
+    deviceTier: validDeviceTiers.includes(deviceTier) ? deviceTier : "cross-platform",
+    description: typeof description === "string" ? description.slice(0, 500) : "",
     platforms: platformsArr,
     apiKey,
     status: "active",
@@ -1830,11 +2171,38 @@ async function buildSummaryData(gameId, sinceTs) {
   let purchases = 0;
   let purchaseRevenueUsd = 0;
   let crashes = 0;
+  let anrs = 0;
   let fpsWarnings = 0;
+  let memoryWarnings = 0;
   let totalSessionMs = 0;
   let sessionEnds = 0;
   const feedback = [];
-  const devices = {};
+  const devices = {}; // deviceModel -> count
+  // Device intelligence — Umut Can'in onerisi: GPU + memory + tier breakdown
+  const gpuFamilies = {}; // "Adreno"|"Mali"|"PowerVR"|"Apple"|"unknown" -> { count, crashes, anrs }
+  const deviceCrashes = {}; // deviceModel -> { crashes, anrs, sessions }
+  const memoryBuckets = { low: 0, mid: 0, high: 0, unknown: 0 }; // <2GB / 2-4GB / >=4GB
+  let totalFpsSamples = 0, fpsSum = 0;
+  let minFps = Infinity, maxFps = 0;
+
+  function classifyGpu(gpuName) {
+    if (!gpuName || typeof gpuName !== "string") return "unknown";
+    const g = gpuName.toLowerCase();
+    if (g.includes("adreno")) return "Adreno";
+    if (g.includes("mali")) return "Mali";
+    if (g.includes("powervr") || g.includes("imagination")) return "PowerVR";
+    if (g.includes("apple")) return "Apple";
+    if (g.includes("nvidia") || g.includes("tegra")) return "NVIDIA";
+    if (g.includes("intel")) return "Intel";
+    return "other";
+  }
+
+  function classifyMemoryTier(mb) {
+    if (!mb || !Number.isFinite(mb)) return "unknown";
+    if (mb < 2048) return "low";    // <2GB
+    if (mb < 4096) return "mid";    // 2-4GB
+    return "high";                  // 4GB+
+  }
 
   for (const e of events) {
     counts[e.eventName] = (counts[e.eventName] || 0) + 1;
@@ -1856,9 +2224,6 @@ async function buildSummaryData(gameId, sinceTs) {
     if (e.eventName === "rewarded_ad_watched") rewardedAdWatches++;
     if (e.eventName === "iap_purchase_success") {
       purchases++;
-      // Yaygin naming convention'larin hepsini kabul et (musteri farkli isim
-      // kullanmis olsa bile gelir toplanir): amount_usd, amount, price_usd,
-      // price, value, revenue
       const amt = parseFloat(
         p.amount_usd ?? p.amount ?? p.price_usd ?? p.price ??
         p.value ?? p.revenue ?? 0
@@ -1866,9 +2231,18 @@ async function buildSummaryData(gameId, sinceTs) {
       if (Number.isFinite(amt)) purchaseRevenueUsd += amt;
     }
     if (e.eventName === "crash_detected") crashes++;
-    if (e.eventName === "fps_warning") fpsWarnings++;
+    if (e.eventName === "anr_detected") anrs++;
+    if (e.eventName === "memory_warning") memoryWarnings++;
+    if (e.eventName === "fps_warning") {
+      fpsWarnings++;
+      const avg = parseFloat(p.avg_fps ?? p.fps);
+      if (Number.isFinite(avg) && avg >= 0) {
+        fpsSum += avg; totalFpsSamples++;
+        if (avg < minFps) minFps = avg;
+        if (avg > maxFps) maxFps = avg;
+      }
+    }
     if (e.eventName === "session_end") {
-      // Yaygin naming: duration_seconds, duration, session_duration, duration_s
       const dur = parseFloat(
         p.duration_seconds ?? p.duration ?? p.session_duration ?? p.duration_s ?? 0
       );
@@ -1886,7 +2260,25 @@ async function buildSummaryData(gameId, sinceTs) {
     }
     if (e.deviceModel) {
       devices[e.deviceModel] = (devices[e.deviceModel] || 0) + 1;
+      if (!deviceCrashes[e.deviceModel]) {
+        deviceCrashes[e.deviceModel] = { crashes: 0, anrs: 0, sessions: 0, fps_warnings: 0 };
+      }
+      if (e.eventName === "crash_detected") deviceCrashes[e.deviceModel].crashes++;
+      if (e.eventName === "anr_detected") deviceCrashes[e.deviceModel].anrs++;
+      if (e.eventName === "session_start") deviceCrashes[e.deviceModel].sessions++;
+      if (e.eventName === "fps_warning") deviceCrashes[e.deviceModel].fps_warnings++;
     }
+    // GPU family aggregation
+    const gpu = p.gpu_model ?? p.gpu ?? e.gpuModel;
+    const fam = classifyGpu(gpu);
+    if (!gpuFamilies[fam]) gpuFamilies[fam] = { count: 0, crashes: 0, anrs: 0, fps_warnings: 0 };
+    gpuFamilies[fam].count++;
+    if (e.eventName === "crash_detected") gpuFamilies[fam].crashes++;
+    if (e.eventName === "anr_detected") gpuFamilies[fam].anrs++;
+    if (e.eventName === "fps_warning") gpuFamilies[fam].fps_warnings++;
+    // Memory tier (RAM)
+    const totalMb = parseFloat(p.total_memory_mb ?? p.ram_mb ?? e.totalMemoryMb);
+    memoryBuckets[classifyMemoryTier(totalMb)]++;
   }
 
   const topProblemLevels = Object.entries(levelStats)
@@ -1904,8 +2296,34 @@ async function buildSummaryData(gameId, sinceTs) {
     .slice(0, 5)
     .map(([device, count]) => ({ device, count }));
 
+  // Device crash-rate intelligence (Umut Can's ask)
+  const topProblemDevices = Object.entries(deviceCrashes)
+    .map(([device, s]) => ({
+      device,
+      crashes: s.crashes,
+      anrs: s.anrs,
+      fps_warnings: s.fps_warnings,
+      sessions: s.sessions,
+      crashRate: s.sessions > 0 ? s.crashes / s.sessions : 0,
+    }))
+    .filter((x) => x.crashes + x.anrs + x.fps_warnings >= 1)
+    .sort((a, b) => (b.crashes + b.anrs * 2) - (a.crashes + a.anrs * 2))
+    .slice(0, 10);
+
+  const gpuBreakdown = Object.entries(gpuFamilies)
+    .map(([family, s]) => ({
+      family,
+      eventCount: s.count,
+      crashes: s.crashes,
+      anrs: s.anrs,
+      fps_warnings: s.fps_warnings,
+    }))
+    .filter((x) => x.eventCount >= 1)
+    .sort((a, b) => b.eventCount - a.eventCount);
+
   const avgSessionSeconds =
     sessionEnds > 0 ? Math.round(totalSessionMs / sessionEnds / 1000) : 0;
+  const avgFps = totalFpsSamples > 0 ? Math.round(fpsSum / totalFpsSamples) : null;
 
   return {
     totalEvents: events.length,
@@ -1917,8 +2335,13 @@ async function buildSummaryData(gameId, sinceTs) {
     purchases,
     purchaseRevenueUsd: Math.round(purchaseRevenueUsd * 100) / 100,
     crashes,
+    anrs,
     fpsWarnings,
+    memoryWarnings,
     avgSessionSeconds,
+    avgFps,
+    minFps: minFps === Infinity ? null : minFps,
+    maxFps: maxFps || null,
     topProblemLevels,
     allLevelStats: Object.entries(levelStats)
       .map(([level, s]) => ({
@@ -1934,7 +2357,105 @@ async function buildSummaryData(gameId, sinceTs) {
         return a.level.localeCompare(b.level);
       }),
     topDevices,
+    topProblemDevices,
+    gpuBreakdown,
+    memoryBuckets,
     feedbackSamples: feedback.slice(0, 20),
+  };
+}
+
+// Game-type aware context — Umut Can'in onerisi: AI'a oyun turune ozel
+// baseline'lar ve yorum kalibi ver. Generic "level fail rate %30" cikartilmaz —
+// Match-3'te %30 yuksek, RPG'de cok dusuk olabilir.
+async function getGameContext(gameId) {
+  try {
+    const snap = await db.collection("games").doc(gameId).get();
+    if (!snap.exists) return null;
+    const g = snap.data();
+    return {
+      gameName: g.gameName || gameId,
+      gameType: g.gameType || "unknown",
+      coreLoop: g.coreLoop || "level-based",
+      monetization: g.monetization || "hybrid",
+      deviceTier: g.deviceTier || "cross-platform",
+      description: g.description || "",
+      platforms: g.platforms || [],
+    };
+  } catch (e) {
+    logger.warn("getGameContext failed", { gameId, error: e.message });
+    return null;
+  }
+}
+
+// Returns a paragraph to prepend to the user prompt with game-specific context.
+function gameContextBlock(ctx, lang) {
+  if (!ctx) return "";
+  const baseline = gameTypeBaseline(ctx.gameType, ctx.coreLoop);
+  if (lang === "en") {
+    return [
+      "=== GAME CONTEXT ===",
+      `Game: ${ctx.gameName}`,
+      `Type: ${ctx.gameType} · Core Loop: ${ctx.coreLoop} · Monetization: ${ctx.monetization} · Target Device Tier: ${ctx.deviceTier}`,
+      ctx.description ? `Description: ${ctx.description}` : "",
+      `Industry baselines for this type: ${JSON.stringify(baseline)}`,
+      "IMPORTANT: Interpret metrics in the context of this game type. A 'high fail rate' means different things for Match-3 vs Idle vs RPG. Use the baselines above as reference.",
+      "",
+    ].filter(Boolean).join("\n");
+  }
+  return [
+    "=== OYUN BAĞLAMI ===",
+    `Oyun: ${ctx.gameName}`,
+    `Tür: ${ctx.gameType} · Core Loop: ${ctx.coreLoop} · Monetizasyon: ${ctx.monetization} · Hedef Cihaz: ${ctx.deviceTier}`,
+    ctx.description ? `Açıklama: ${ctx.description}` : "",
+    `Bu tür için sektör baseline'ları: ${JSON.stringify(baseline)}`,
+    "ÖNEMLİ: Metrikleri bu oyun türü bağlamında yorumla. 'Yüksek fail rate' Match-3 ile Idle veya RPG için farklı anlam taşır. Yukarıdaki baseline'ları referans al.",
+    "",
+  ].filter(Boolean).join("\n");
+}
+
+// Type-specific industry baselines (sektörel ortalama beklentiler).
+// Bunlar generic — ileride cross-tenant verisinden gerçek hesaplanacak.
+function gameTypeBaseline(gameType, coreLoop) {
+  const T = (gameType || "").toLowerCase();
+  if (T === "match3" || T === "puzzle") {
+    return {
+      d1_retention_target: "30-40%", d7_retention_target: "12-18%",
+      avg_session_minutes: "5-10", level_fail_rate_normal: "15-30%",
+      ad_per_session_typical: "2-4", iap_conversion_rate: "1-3%",
+    };
+  }
+  if (T === "idle" || T === "hyper-casual" || T === "hypercasual") {
+    return {
+      d1_retention_target: "35-45%", d7_retention_target: "8-12%",
+      avg_session_minutes: "2-5", level_fail_rate_normal: "5-15%",
+      ad_per_session_typical: "4-8", iap_conversion_rate: "0.5-1.5%",
+    };
+  }
+  if (T === "midcore" || T === "rpg" || T === "strategy") {
+    return {
+      d1_retention_target: "40-50%", d7_retention_target: "20-28%",
+      avg_session_minutes: "12-25", level_fail_rate_normal: "10-25%",
+      ad_per_session_typical: "1-3", iap_conversion_rate: "3-7%",
+    };
+  }
+  if (T === "action" || T === "fps" || T === "racing") {
+    return {
+      d1_retention_target: "35-45%", d7_retention_target: "15-22%",
+      avg_session_minutes: "8-15", level_fail_rate_normal: "20-35%",
+      ad_per_session_typical: "2-4", iap_conversion_rate: "2-5%",
+    };
+  }
+  if (T === "casino" || T === "slots") {
+    return {
+      d1_retention_target: "45-55%", d7_retention_target: "25-35%",
+      avg_session_minutes: "10-20", level_fail_rate_normal: "n/a",
+      ad_per_session_typical: "1-3", iap_conversion_rate: "5-10%",
+    };
+  }
+  return {
+    d1_retention_target: "30-40%", d7_retention_target: "12-18%",
+    avg_session_minutes: "5-10", level_fail_rate_normal: "15-25%",
+    ad_per_session_typical: "2-4", iap_conversion_rate: "1-3%",
   };
 }
 
@@ -1955,9 +2476,11 @@ function localizeSystemPrompt(prompt, language) {
     "- Tone: professional, data-driven, B2B SaaS.\n";
 }
 
-function buildUserPrompt(gameId, gameName, timeRange, summary, language) {
+function buildUserPrompt(gameId, gameName, timeRange, summary, language, gameCtx) {
+  const ctxBlock = gameContextBlock(gameCtx, language);
   if (language === "en") {
     return [
+      ctxBlock,
       `GAME: ${gameName || gameId} (id: ${gameId})`,
       `TIME RANGE: ${timeRange}`,
       "",
@@ -1966,9 +2489,10 @@ function buildUserPrompt(gameId, gameName, timeRange, summary, language) {
       "",
       "Based on the real data above, generate a Live-Ops report in the specified JSON schema.",
       "Return JSON only — no explanatory text before or after. All natural-language fields in English.",
-    ].join("\n");
+    ].filter(Boolean).join("\n");
   }
   return [
+    ctxBlock,
     `OYUN: ${gameName || gameId} (id: ${gameId})`,
     `ZAMAN ARALIĞI: ${timeRange}`,
     "",
@@ -1977,7 +2501,7 @@ function buildUserPrompt(gameId, gameName, timeRange, summary, language) {
     "",
     "Yukarıdaki gerçek veriye dayanarak istenen JSON şemasında bir Live-Ops raporu üret.",
     "Sadece JSON döndür, açıklayıcı metin ekleme.",
-  ].join("\n");
+  ].filter(Boolean).join("\n");
 }
 
 async function callAnthropic(apiKey, systemPrompt, userPrompt, options) {
