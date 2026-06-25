@@ -2531,6 +2531,18 @@ async function callAnthropic(apiKey, systemPrompt, userPrompt, options) {
   const model = (options && typeof options.model === "string" && options.model.length > 5)
     ? options.model
     : ANTHROPIC_MODEL;
+  const rawMode = options && options.raw === true;
+
+  // JSON GARANTISI: raw mode degilse "assistant prefill" teknigi kullan.
+  // Son mesaji { role: "assistant", content: "{" } yaparsak Claude yanitini
+  // "{" ile devam ettirmek ZORUNDA kalir — markdown fence (```json) veya
+  // onek/sonek metin EKLEYEMEZ. Industry-standard JSON enforcement.
+  const messages = rawMode
+    ? [{ role: "user", content: userPrompt }]
+    : [
+        { role: "user", content: userPrompt },
+        { role: "assistant", content: "{" },
+      ];
 
   let res;
   try {
@@ -2545,7 +2557,8 @@ async function callAnthropic(apiKey, systemPrompt, userPrompt, options) {
         model: model,
         max_tokens: maxTokens,
         system: systemPrompt,
-        messages: [{ role: "user", content: userPrompt }],
+        messages: messages,
+        // stop_sequences yok — JSON tam donsun
       }),
     });
   } catch (netErr) {
@@ -2578,15 +2591,23 @@ async function callAnthropic(apiKey, systemPrompt, userPrompt, options) {
   }
 
   const data = await res.json();
-  const text = data?.content?.[0]?.text || "";
+  let text = data?.content?.[0]?.text || "";
 
   // Raw mode: text cevap istenmis (Copilot gibi free-form yanitlar icin)
-  if (options && options.raw === true) {
+  if (rawMode) {
     return text.trim();
   }
 
-  // ROBUST JSON extraction — Claude bazen onek/sonek metin ekliyor.
-  // Strateji:
+  // PREFILL FIX: yanit "{" prefill'i ile baslatilmisti. Response prefill'i
+  // ICERMEZ, yani Claude'un cevabi ilk "{"-sonrasi karakterlerle basliyor.
+  // Basina "{" geri ekle ki tam JSON olsun. Defensive: eger Claude zaten
+  // "{" ile baslamissa (nadiren) cift ekleme.
+  const trimmedText = text.trimStart();
+  if (!trimmedText.startsWith("{")) {
+    text = "{" + text;
+  }
+
+  // ROBUST JSON extraction — prefill sonrasi yine de defansif ol.
   // 1) Cevabin tamamini JSON.parse dene
   // 2) Markdown fence (```json ... ```) icindeki ilk bloğu cikar, dene
   // 3) İlk '{' ile son '}' arasini dene (greedy substring)
