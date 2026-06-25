@@ -3332,14 +3332,35 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
         function renderReport(_reportId, data) {
             const root = $('ai-report-container');
             const lastEl = $('last-report');
-            const r = data.report || {};
+            let r = data.report || {};
             const created = data.createdAt && data.createdAt.toDate ? data.createdAt.toDate() : null;
             const createdStr = created ? formatRelative(created) : 'şimdi';
 
             if (lastEl) lastEl.textContent = 'Son rapor: ' + createdStr;
             if (!root) return;
 
-            if (r.raw && !r.summary) {
+            // Eski raporlarda raw varsa client'ta parse etmeyi tekrar dene
+            // (backend artık daha sağlam ama Firestore'daki eski docs raw kalmış olabilir)
+            if (r.raw && !r.executive_briefing && !r.summary) {
+                try {
+                    const parsedFromRaw = JSON.parse(r.raw);
+                    if (parsedFromRaw && typeof parsedFromRaw === 'object') {
+                        r = parsedFromRaw;
+                    }
+                } catch {
+                    // 2. dene: ilk { ile son } arasi
+                    const fb = r.raw.indexOf('{');
+                    const lb = r.raw.lastIndexOf('}');
+                    if (fb >= 0 && lb > fb) {
+                        try {
+                            const candidate = JSON.parse(r.raw.slice(fb, lb + 1));
+                            if (candidate && typeof candidate === 'object') r = candidate;
+                        } catch {}
+                    }
+                }
+            }
+
+            if (r.raw && !r.summary && !r.executive_briefing) {
                 root.innerHTML = `
                     <div class="section-block">
                         <div class="section-head"><h3>${escapeHtml(data.gameName || 'Oyun')} · Live-Ops Raporu</h3>

@@ -2585,18 +2585,44 @@ async function callAnthropic(apiKey, systemPrompt, userPrompt, options) {
     return text.trim();
   }
 
-  // Strip ```json fences if model added them despite instructions
-  const cleaned = text
-    .replace(/^```(?:json)?\s*/i, "")
-    .replace(/```\s*$/i, "")
-    .trim();
+  // ROBUST JSON extraction — Claude bazen onek/sonek metin ekliyor.
+  // Strateji:
+  // 1) Cevabin tamamini JSON.parse dene
+  // 2) Markdown fence (```json ... ```) icindeki ilk bloğu cikar, dene
+  // 3) İlk '{' ile son '}' arasini dene (greedy substring)
+  // 4) Hala basarisiz -> raw fallback
+  const stripped = text.trim();
 
-  try {
-    return JSON.parse(cleaned);
-  } catch (e) {
-    logger.warn("AI response not pure JSON, returning as raw", { sample: cleaned.slice(0, 200) });
-    return { raw: cleaned };
+  function tryParse(s) {
+    try { return JSON.parse(s); } catch { return null; }
   }
+
+  // 1) Full text
+  let parsed = tryParse(stripped);
+  if (parsed && typeof parsed === "object") return parsed;
+
+  // 2) ```json fences
+  const fence = stripped.match(/```(?:json)?\s*([\s\S]+?)\s*```/i);
+  if (fence && fence[1]) {
+    parsed = tryParse(fence[1].trim());
+    if (parsed && typeof parsed === "object") return parsed;
+  }
+
+  // 3) Greedy: ilk { ile son } arasi
+  const firstBrace = stripped.indexOf("{");
+  const lastBrace = stripped.lastIndexOf("}");
+  if (firstBrace >= 0 && lastBrace > firstBrace) {
+    const candidate = stripped.slice(firstBrace, lastBrace + 1);
+    parsed = tryParse(candidate);
+    if (parsed && typeof parsed === "object") return parsed;
+  }
+
+  // 4) Fallback
+  logger.warn("AI response not pure JSON after 3 strategies", {
+    sample: stripped.slice(0, 300),
+    length: stripped.length,
+  });
+  return { raw: stripped };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
