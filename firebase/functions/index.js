@@ -269,7 +269,7 @@ OUTPUT JSON SHAPE (kati)
 // ─────────────────────────────────────────────────────────────────────────────
 
 exports.generateAIReport = onCall(
-  { secrets: [ANTHROPIC_API_KEY], timeoutSeconds: 120 },
+  { secrets: [ANTHROPIC_API_KEY], timeoutSeconds: 300, memory: "512MiB" },
   async (request) => {
     try {
       const { gameId, gameName, timeRange = "last_24h", language = "tr" } = request.data || {};
@@ -871,7 +871,7 @@ OUTPUT JSON SHAPE (kati)
 }`;
 
 exports.generateAutoHeal = onCall(
-  { secrets: [ANTHROPIC_API_KEY], timeoutSeconds: 120, memory: "512MiB" },
+  { secrets: [ANTHROPIC_API_KEY], timeoutSeconds: 300, memory: "512MiB" },
   async (request) => {
     try {
       const { gameId, alertId, language = "tr" } = request.data || {};
@@ -2153,14 +2153,28 @@ exports.setAdminRole = onCall(async (request) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function buildSummaryData(gameId, sinceTs) {
+  // Hard cap: en fazla 10K event isle (timeout korumasi).
+  // Büyük oyunlarda 24sa'de 30K+ event olabilir, hepsini cekmek 60sn+ surer.
+  // En yeni 10K en temsili veri (orderBy timestamp desc + limit).
+  const EVENT_CAP = 10000;
+  const t0 = Date.now();
   const eventsSnap = await db
     .collection("games")
     .doc(gameId)
     .collection("events")
     .where("timestamp", ">=", sinceTs)
+    .orderBy("timestamp", "desc")
+    .limit(EVENT_CAP)
     .get();
 
   const events = eventsSnap.docs.map((d) => d.data());
+  const truncated = events.length >= EVENT_CAP;
+  logger.info("buildSummaryData", {
+    gameId,
+    eventCount: events.length,
+    truncated,
+    queryMs: Date.now() - t0,
+  });
 
   const counts = {};
   const sessions = new Set();

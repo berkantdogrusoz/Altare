@@ -2479,7 +2479,7 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
                     const original = btn.textContent;
                     btn.textContent = '🩺 ' + t('autoheal.thinking');
                     try {
-                        const fn = httpsCallable(functions, 'generateAutoHeal', { timeout: 120000 });
+                        const fn = httpsCallable(functions, 'generateAutoHeal', { timeout: 240000 });
                         const res = await fn({
                             gameId: currentGame,
                             alertId: btn.dataset.alertId,
@@ -3510,7 +3510,7 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
                 btn.disabled = true;
                 btn.textContent = '🧠 Analiz ediliyor…';
                 try {
-                    const callable = httpsCallable(functions, 'generateAIReport');
+                    const callable = httpsCallable(functions, 'generateAIReport', { timeout: 180000 });
                     const res = await callable({
                         gameId: currentGame,
                         gameName: GAME_NAMES[currentGame] || currentGame,
