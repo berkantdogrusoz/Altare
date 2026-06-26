@@ -3374,7 +3374,7 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
                     }
                 }
                 // Strateji 5: control char temizle
-                const cleaned = s.replace(/[ -]+/g, ' ').replace(/,\s*([}\]])/g, '$1');
+                const cleaned = s.replace(/,\s*([}\]])/g, '$1');
                 try { const p = JSON.parse(cleaned); if (p && typeof p === 'object') return p; } catch {}
                 return null;
             }
