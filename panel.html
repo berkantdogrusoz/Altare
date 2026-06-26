@@ -3344,28 +3344,57 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
             // bazen markdown fence ile sarmalanmis, hepsini handle et.
             function aggressiveParse(input) {
                 if (!input) return null;
-                // Direkt obje ise zaten parsed
+                // CASE A: input bir obje
                 if (typeof input === 'object' && !Array.isArray(input)) {
+                    // Eger direkt rapor fieldlari varsa donder
                     if (input.executive_briefing || input.summary || input.overall_health) return input;
-                    if (input.raw && typeof input.raw === 'string') return aggressiveParse(input.raw);
-                    return input;
+                    // raw alani varsa onu ele al
+                    if ('raw' in input) {
+                        const raw = input.raw;
+                        // raw bir OBJE ise (Firestore Map olarak saklanmis nested)
+                        if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+                            if (raw.executive_briefing || raw.summary || raw.overall_health) return raw;
+                            // Recursive — belki daha derin
+                            return aggressiveParse(raw);
+                        }
+                        // raw bir STRING ise recursive parse
+                        if (typeof raw === 'string') {
+                            const parsed = aggressiveParse(raw);
+                            if (parsed) return parsed;
+                        }
+                    }
+                    return null;
                 }
-                // String ise parse dene
+                // CASE B: input bir string
                 if (typeof input !== 'string') return null;
                 let s = input.trim();
+
                 // Strateji 1: direkt JSON.parse
-                try { const p = JSON.parse(s); if (p && typeof p === 'object') return p; } catch {}
-                // Strateji 2: ```json fence cikar
+                try {
+                    const p = JSON.parse(s);
+                    if (p && typeof p === 'object') return p;
+                    // Double-escape: parse string olarak donduyse tekrar parse et
+                    if (typeof p === 'string') {
+                        try { const pp = JSON.parse(p); if (pp && typeof pp === 'object') return pp; } catch {}
+                    }
+                } catch {}
+
+                // Strateji 2: markdown fence
                 const fence = s.match(/```(?:json)?\s*([\s\S]+?)\s*```/i);
                 if (fence) {
                     try { const p = JSON.parse(fence[1].trim()); if (p && typeof p === 'object') return p; } catch {}
                 }
-                // Strateji 3: ilk { ile son } arasi
+
+                // Strateji 3: ilk { ile son } arasi greedy
                 const fb = s.indexOf('{');
                 const lb = s.lastIndexOf('}');
                 if (fb >= 0 && lb > fb) {
-                    try { const p = JSON.parse(s.slice(fb, lb + 1)); if (p && typeof p === 'object') return p; } catch {}
+                    const candidate = s.slice(fb, lb + 1);
+                    try { const p = JSON.parse(candidate); if (p && typeof p === 'object') return p; } catch {}
+                    // Strateji 3b: trailing comma temizle
+                    try { const p = JSON.parse(candidate.replace(/,\s*([}\]])/g, '$1')); if (p && typeof p === 'object') return p; } catch {}
                 }
+
                 // Strateji 4: prefill eksigi — basa { ekle
                 if (!s.startsWith('{')) {
                     try { const p = JSON.parse('{' + s); if (p && typeof p === 'object') return p; } catch {}
@@ -3373,9 +3402,21 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
                         try { const p = JSON.parse('{' + s.slice(0, lb + 1)); if (p && typeof p === 'object') return p; } catch {}
                     }
                 }
-                // Strateji 5: control char temizle
-                const cleaned = s.replace(/,\s*([}\]])/g, '$1');
-                try { const p = JSON.parse(cleaned); if (p && typeof p === 'object') return p; } catch {}
+
+                // Strateji 5: Function constructor (JS literal — daha esnek)
+                try {
+                    const p = (new Function('return (' + s + ')'))();
+                    if (p && typeof p === 'object') return p;
+                } catch {}
+
+                // Strateji 6: greedy + Function constructor
+                if (fb >= 0 && lb > fb) {
+                    try {
+                        const p = (new Function('return (' + s.slice(fb, lb + 1) + ')'))();
+                        if (p && typeof p === 'object') return p;
+                    } catch {}
+                }
+
                 return null;
             }
 
@@ -3384,9 +3425,29 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
                 const parsed = aggressiveParse(r);
                 if (parsed) {
                     r = parsed;
-                    console.log('[Altare] Report parsed via aggressive parser');
+                    console.log('[Altare] Report parsed via aggressive parser', { hasEB: !!r.executive_briefing });
                 } else {
-                    console.warn('[Altare] All parse strategies failed', { hasRaw: !!r.raw, type: typeof r });
+                    // DEBUG: r.raw'in ilk 500 karakterini bas ki ne oldugunu gorelim
+                    const rawPreview = typeof r.raw === 'string'
+                        ? r.raw.substring(0, 500)
+                        : (r.raw ? JSON.stringify(r.raw).substring(0, 500) : '<no raw>');
+                    console.warn('[Altare] All parse strategies failed', {
+                        hasRaw: !!r.raw,
+                        rType: typeof r,
+                        rawType: typeof r.raw,
+                        rawPreview: rawPreview,
+                        rawLength: typeof r.raw === 'string' ? r.raw.length : null,
+                        rawKeys: typeof r.raw === 'object' && r.raw !== null ? Object.keys(r.raw) : null,
+                    });
+                    // SON CARE: r.raw bir obje ve executive_briefing veya benzer key'leri varsa onu kullan
+                    if (r.raw && typeof r.raw === 'object') {
+                        const keys = Object.keys(r.raw);
+                        if (keys.length > 0 && !keys.includes('raw')) {
+                            // Belki r.raw direkt parse edilmis obje gibi davranabilir
+                            r = r.raw;
+                            console.log('[Altare] Used r.raw object directly as fallback');
+                        }
+                    }
                 }
             }
 
