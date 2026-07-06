@@ -299,10 +299,28 @@ exports.generateAIReport = onCall(
       const aiJson = await callAnthropic(
         ANTHROPIC_API_KEY.value(),
         localizeSystemPrompt(LIVE_OPS_SYSTEM_PROMPT, lang),
-        userPrompt
+        userPrompt,
+        { maxTokens: 8192 }  // AI Report uzun — 4096 yetmiyor, JSON truncate oluyordu
       );
 
-      logger.info("anthropic ok", { gameId, keys: Object.keys(aiJson || {}).length });
+      logger.info("anthropic ok", { gameId, keys: Object.keys(aiJson || {}).length, hasRaw: !!(aiJson && aiJson.raw) });
+
+      // GUVENLIK AGI: eger hala raw geliyorsa (JSON parse edilemedi), sessizce
+      // bozuk kayit yapma — hata dondur. Boylece kullanici "rapor uretilemedi"
+      // gorur, raw JSON ekrana basilmaz.
+      if (aiJson && aiJson.raw && !aiJson.executive_briefing && !aiJson.summary) {
+        logger.error("AI report still raw after prefill+8192 tokens", {
+          gameId,
+          rawLength: typeof aiJson.raw === "string" ? aiJson.raw.length : null,
+          rawSample: typeof aiJson.raw === "string" ? aiJson.raw.slice(0, 300) : String(aiJson.raw).slice(0, 300),
+        });
+        throw new HttpsError(
+          "internal",
+          lang === "en"
+            ? "AI response could not be parsed as valid JSON. Please try again."
+            : "AI yaniti gecerli JSON olarak ayristirilamadi. Lutfen tekrar dene."
+        );
+      }
 
       const reportRef = await db
         .collection("games")
@@ -935,7 +953,7 @@ exports.generateAutoHeal = onCall(
         ANTHROPIC_API_KEY.value(),
         localizeSystemPrompt(AUTO_HEAL_SYSTEM_PROMPT_TR, lang),
         userPrompt,
-        { model: ANTHROPIC_MODELS.OPUS, maxTokens: 3072 }
+        { model: ANTHROPIC_MODELS.OPUS, maxTokens: 4096 }  // truncate onleme
       );
 
       // Persist as proposed prescription
@@ -1295,7 +1313,7 @@ exports.generateBenchmark = onCall(
         ANTHROPIC_API_KEY.value(),
         localizeSystemPrompt(BENCHMARK_SYSTEM_PROMPT_TR, lang),
         userPrompt,
-        { maxTokens: 2048 }
+        { maxTokens: 4096 }  // truncate onleme (benchmark 7 metrik)
       );
 
       // Save snapshot
