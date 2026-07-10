@@ -2555,12 +2555,22 @@ async function callAnthropic(apiKey, systemPrompt, userPrompt, options) {
   // Son mesaji { role: "assistant", content: "{" } yaparsak Claude yanitini
   // "{" ile devam ettirmek ZORUNDA kalir — markdown fence (```json) veya
   // onek/sonek metin EKLEYEMEZ. Industry-standard JSON enforcement.
-  const messages = rawMode
-    ? [{ role: "user", content: userPrompt }]
-    : [
+  //
+  // ISTISNA: Anthropic, assistant prefill'i 4.6+ ailesinde KALDIRDI —
+  // claude-opus-4-6/4-7/4-8, claude-sonnet-4-6, claude-sonnet-5, fable/mythos
+  // modellerinde prefill'li istek 400 invalid_request doner. Bu modellerde
+  // prefill'siz gonderiyoruz; system prompt "Sadece JSON dondur" diyor ve
+  // asagidaki cok-stratejili extraction guvence sagliyor.
+  const prefillUnsupported =
+    /claude-(opus-4-[6-9]|sonnet-4-[6-9]|sonnet-[5-9]|fable|mythos)/.test(model);
+  const usePrefill = !rawMode && !prefillUnsupported;
+
+  const messages = usePrefill
+    ? [
         { role: "user", content: userPrompt },
         { role: "assistant", content: "{" },
-      ];
+      ]
+    : [{ role: "user", content: userPrompt }];
 
   let res;
   try {
@@ -2616,13 +2626,16 @@ async function callAnthropic(apiKey, systemPrompt, userPrompt, options) {
     return text.trim();
   }
 
-  // PREFILL FIX: yanit "{" prefill'i ile baslatilmisti. Response prefill'i
+  // PREFILL FIX: yanit "{" prefill'i ile baslatilmissa response prefill'i
   // ICERMEZ, yani Claude'un cevabi ilk "{"-sonrasi karakterlerle basliyor.
   // Basina "{" geri ekle ki tam JSON olsun. Defensive: eger Claude zaten
-  // "{" ile baslamissa (nadiren) cift ekleme.
-  const trimmedText = text.trimStart();
-  if (!trimmedText.startsWith("{")) {
-    text = "{" + text;
+  // "{" ile baslamissa (nadiren) cift ekleme. Prefill kullanilmadiysa
+  // (4.6+ modeller) dokunma — cevap zaten tam metin.
+  if (usePrefill) {
+    const trimmedText = text.trimStart();
+    if (!trimmedText.startsWith("{")) {
+      text = "{" + text;
+    }
   }
 
   // ROBUST JSON extraction — prefill sonrasi yine de defansif ol.
