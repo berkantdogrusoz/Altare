@@ -1,7 +1,17 @@
 // =============================================================================
-// AltareAnalytics.cs  —  v2.3.0
+// AltareAnalytics.cs  —  v2.4.0
 // -----------------------------------------------------------------------------
 // Drop-in Unity client for the Altare AI Live Game Intelligence platform.
+//
+// v2.4 highlights (KRITIK):
+//   - Artik oyunun default Firebase app'i YERINE isimli "altare" app'i
+//     kullanilir (AltareFirebase.cs). Sonuc:
+//       * Kendi Firebase'i olan oyunlarda veri artik dogru projeye
+//         (altare-312a1) akar — oyunun Firebase'ine dokunulmaz.
+//       * Hic Firebase config'i (google-services.json) OLMAYAN oyunlarda
+//         bile calisir; sadece Firebase Unity SDK modulleri yeterli.
+//   - SetAnalyticsConsent(bool) public API — consent ekrani olan oyunlar
+//     tek satirla onay/red yazar.
 //
 // v2.3 highlights:
 //   - Memory pressure tracking (memory_warning when low/anomalous)
@@ -104,6 +114,27 @@ namespace Altare.Analytics
         public static string GameId => _instance != null ? _instance._gameId : null;
         public static bool IsHealthy => _instance != null && _instance._ready && !_instance._circuitOpen;
 
+        /// <summary>
+        /// KVKK/GDPR consent anahtari. Consent ekrani olan oyunlar kullanicinin
+        /// secimini bu API ile yazar:
+        ///   AltareAnalytics.SetAnalyticsConsent(true);   // onay — SDK baslar
+        ///   AltareAnalytics.SetAnalyticsConsent(false);  // red  — SDK durur/baslamaz
+        /// Consent ekrani olmayan oyunlarda hicbir sey cagirmaya gerek yok:
+        /// bootstrap varsayilan olarak anonim analitigi acik kabul eder
+        /// (opt-out modeli) — veri anonim UUID'dir, PII icermez.
+        /// </summary>
+        public static void SetAnalyticsConsent(bool granted)
+        {
+            PlayerPrefs.SetInt(ConsentPrefsKey, granted ? 1 : 0);
+            PlayerPrefs.Save();
+            if (!granted && _instance != null)
+            {
+                _instance.TripCircuit("consent_revoked");
+            }
+        }
+
+        public const string ConsentPrefsKey = "app_consent_analytics";
+
         private const string PrefsPlayerIdKey = "altare.playerAnonId";
 
         private static AltareAnalytics _instance;
@@ -183,7 +214,23 @@ namespace Altare.Analytics
                     TripCircuit("firebase_deps");
                     return;
                 }
-                FirebaseAuth.DefaultInstance.SignInAnonymouslyAsync()
+
+                // KRITIK: default app DEGIL, isimli "altare" app'i kullanilir.
+                // Oyunun kendi Firebase'i olsa da olmasa da veri altare-312a1'e
+                // gider; oyunun google-services.json'una ihtiyac yoktur.
+                try
+                {
+                    AltareFirebase.EnsureApp();
+                }
+                catch (Exception e)
+                {
+                    _initFailed = true;
+                    Debug.LogWarning("[Altare] Altare app create failed: " + e.Message + " — SDK disabled, game continues.");
+                    TripCircuit("altare_app_create");
+                    return;
+                }
+
+                AltareFirebase.Auth.SignInAnonymouslyAsync()
                     .ContinueWithOnMainThread(authTask =>
                     {
                         if (authTask.IsFaulted || authTask.IsCanceled)
@@ -193,7 +240,7 @@ namespace Altare.Analytics
                             TripCircuit("auth");
                             return;
                         }
-                        _db = FirebaseFirestore.DefaultInstance;
+                        _db = AltareFirebase.Db;
                         _ready = true;
                         Debug.Log("[Altare] Ready. gameId=" + _gameId
                                   + " playerAnonId=" + _playerAnonId

@@ -1,13 +1,23 @@
 // =============================================================================
-// AltareAnalyticsBootstrap.cs  —  v2.1.0
+// AltareAnalyticsBootstrap.cs  —  v2.2.0
 // -----------------------------------------------------------------------------
 // AltareAnalytics SDK'sini sahnelere dokunmadan otomatik baslatir.
 // Drop-in: bu script projeye eklendiginde uygulama acilisinda kendiliginden
 // devreye girer.
 //
-// PRIVACY/CONSENT (KVKK/GDPR):
-// Consent panelinden gelen onayi (PlayerPrefs) kontrol eder. Onay yoksa
-// SDK'yi baslatmaz; onay sonradan verilirse sessizce retry yaparak baslatir.
+// PRIVACY/CONSENT (KVKK/GDPR) — v2.2 ile OPT-OUT modeli:
+//   Eski davranis (v2.1) opt-in idi: kullanici acikca onay (key==1) vermeden
+//   SDK HIC baslamiyordu. Consent ekrani olmayan oyunlarda anahtar hic
+//   yazilmadigi icin SDK sonsuza kadar bekliyor, panele veri gitmiyordu.
+//
+//   Yeni varsayilan (RequireExplicitConsent = false):
+//     - Anahtar hic yoksa (-1) veya 1 ise  → SDK baslar (anonim veri, PII yok)
+//     - Anahtar acikca 0 ise               → SDK baslamaz (kullanici reddetti)
+//   Consent ekrani olan oyunlar secimi AltareAnalytics.SetAnalyticsConsent()
+//   ile yazar; red sonradan gelirse SDK kendini durdurur.
+//
+//   Kati opt-in gereken pazarlar icin RequireExplicitConsent = true yap —
+//   v2.1 davranisi aynen geri gelir (yalniz key==1 ile baslar).
 //
 // HER OYUN ICIN AYARLANACAK:
 //   GameId    = "your-game-id"   // Firestore'da games/{GameId}/events
@@ -21,6 +31,10 @@ public static class AltareAnalyticsBootstrap
     private const string GameId = "your-game-id";
     private const string GameName = "Your Game Name";
 
+    // true → kati opt-in: kullanici acikca onaylamadan (key==1) baslamaz.
+    // false (varsayilan) → opt-out: acikca reddedilmedikce (key==0) baslar.
+    private const bool RequireExplicitConsent = false;
+
     private const string ConsentAnalyticsKey = "app_consent_analytics";
     private const float ConsentPollIntervalSec = 5f;
 
@@ -32,7 +46,7 @@ public static class AltareAnalyticsBootstrap
         if (installed) return;
         installed = true;
 
-        if (HasAnalyticsConsent())
+        if (ConsentAllows())
         {
             StartSdk();
             return;
@@ -41,9 +55,11 @@ public static class AltareAnalyticsBootstrap
         BootstrapHost.EnsureExists().StartConsentWatch(StartSdk);
     }
 
-    private static bool HasAnalyticsConsent()
+    private static bool ConsentAllows()
     {
-        return PlayerPrefs.GetInt(ConsentAnalyticsKey, 0) == 1;
+        int v = PlayerPrefs.GetInt(ConsentAnalyticsKey, -1); // -1 = hic sorulmamis
+        if (RequireExplicitConsent) return v == 1;
+        return v != 0; // sadece acik red (0) engeller
     }
 
     private static void StartSdk()
@@ -73,7 +89,7 @@ public static class AltareAnalyticsBootstrap
         {
             while (true)
             {
-                if (PlayerPrefs.GetInt(ConsentAnalyticsKey, 0) == 1)
+                if (ConsentAllows())
                 {
                     onConsentGranted?.Invoke();
                     yield break;

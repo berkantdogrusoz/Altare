@@ -233,19 +233,38 @@ Panel'in **Canlı Event Stream** sekmesi anında bu event'i göstermeli.
 
 ## 10. Unity Entegrasyonu
 
-Royal Dreams (veya başka bir oyun) Unity projesine:
+> **v2.4 mimarisi:** SDK artık kendi içinde isimli bir `"altare"` Firebase app'i
+> kurar (`AltareFirebase.cs`, config gömülü). Bu sayede:
+> - Oyunun **kendi Firebase projesi varsa** (kendi `google-services.json`'u ile)
+>   ona DOKUNULMAZ — Altare verisi her zaman `altare-312a1`'e gider.
+> - Oyunda **hiç Firebase entegrasyonu yoksa** da çalışır — `google-services.json`
+>   indirmeye GEREK YOKTUR. Sadece Firebase Unity SDK modülleri + bizim .cs
+>   dosyaları yeter.
+
+Herhangi bir oyunun Unity projesine:
 
 1. **Firebase Unity SDK** indir: https://firebase.google.com/download/unity
-   - Sadece **Authentication** + **Firestore** modüllerini import et.
-2. `unity-sdk/AltareAnalytics.cs` dosyasını projenin `Assets/Scripts/Altare/` klasörüne kopyala.
-3. `google-services.json` dosyasını Firebase Console → Project Settings → Android app'ten indir, `Assets/` kökü altına koy.
-4. Bootstrap'ında (örn. `GameRoot.cs` `Start()`):
+   - **Authentication** + **Firestore** modüllerini import et.
+   - Player State (snapshot/rollback) kullanılacaksa **Functions** modülünü de ekle.
+2. `unity-sdk/` içindeki **tüm .cs dosyalarını** projenin `Assets/Scripts/Altare/`
+   klasörüne kopyala (`AltareFirebase.cs` dahil — yeni zorunlu dosya).
+3. `AltareAnalyticsBootstrap.cs` içinde `GameId` + `GameName` sabitlerini oyuna
+   göre doldur — SDK açılışta otomatik başlar, sahnelere dokunmak gerekmez.
+   (Bootstrap kullanmayacaksan kendi kodundan çağır:)
    ```csharp
    using Altare.Analytics;
    void Start() {
        AltareAnalytics.Initialize("royal-dreams", "Royal Dreams");
    }
    ```
+4. **Consent (KVKK/GDPR):** Varsayılan opt-out modelidir — kullanıcı açıkça
+   reddetmedikçe anonim analitik akar (PII yok). Consent ekranı olan oyunlarda
+   kullanıcının seçimini tek satırla yaz:
+   ```csharp
+   AltareAnalytics.SetAnalyticsConsent(true);   // onay
+   AltareAnalytics.SetAnalyticsConsent(false);  // red — SDK durur
+   ```
+   Katı opt-in gereken pazarlar için `AltareAnalyticsBootstrap.RequireExplicitConsent = true` yap.
 5. Gameplay event'lerini ekle:
    ```csharp
    AltareAnalytics.LogEvent("level_start",    new() { { "level", level } });
@@ -256,7 +275,8 @@ Royal Dreams (veya başka bir oyun) Unity projesine:
    ```
 6. Build → install → oyna. Event'ler `games/royal-dreams/events/*` altına anında düşer.
 
-> Crimson Scar için aynı SDK, sadece `Initialize("crimson-scar", "Crimson Scar")` çağrısı yeter. Panel'in oyun seçicisinden Crimson Scar'a geçip canlı veriyi görebilirsin.
+> Yeni oyun için aynı SDK, sadece `Initialize("yeni-oyun-id", "Yeni Oyun")` çağrısı
+> (veya Bootstrap sabitleri) yeter. Panel'in oyun seçicisinden geçip canlı veriyi görürsün.
 
 ---
 
@@ -278,5 +298,6 @@ Royal Dreams (veya başka bir oyun) Unity projesine:
 | Panel'de KPI'lar hep `—` | `aggregateDailyStats` Cloud Function henüz çalışmadı veya event yok | 30 dakika bekle veya Functions Console'dan elle tetikle |
 | `generateAIReport` 403 / unauthenticated | Login token eski | Çıkış yap, tekrar gir |
 | `generateAIReport` "API 401" | Anthropic key hatalı | `firebase functions:secrets:set ANTHROPIC_API_KEY` ile yeniden gir, redeploy |
-| Unity build → "Firebase init failed" | `google-services.json` yok / yanlış paket adı | Console'dan tekrar indir, `Assets/` köküne koy |
+| Unity'den hiç event gelmiyor | SDK v2.4 öncesi kopya (DefaultInstance → oyunun kendi Firebase'ine yazıyor) veya v2.1 opt-in consent kapısı (anahtar hiç set edilmemiş) | `unity-sdk/` v2.4+ dosyalarının TAMAMINI (AltareFirebase.cs dahil) oyuna kopyala; logcat'te `[AltareFirebase] named app ready` satırını doğrula |
 | Firestore "permission denied" Unity'de | Anonymous auth devre dışı | Adım 2'de Anonymous provider'ı aç |
+| Oyunun kendi Firebase'i bozuldu şüphesi | — | Bozulmaz: SDK isimli `"altare"` app kullanır, oyunun default app'ine hiç dokunmaz |

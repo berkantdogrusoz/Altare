@@ -1,7 +1,11 @@
 // =============================================================================
-// AltareConfig.cs — v2.2.0
+// AltareConfig.cs — v2.3.0
 // -----------------------------------------------------------------------------
 // Altare Closed-Loop Remote Config client.
+//
+// v2.3: Isimli "altare" Firebase app'i kullanilir (AltareFirebase.cs) —
+// oyunun kendi Firebase'inden bagimsiz. GameId artik reflection ile degil
+// AltareAnalytics.GameId public property'sinden okunur.
 //
 // Oyununuzun bazi sabitlerini (level zorlugu, reklam sikligi, IAP fiyatlari)
 // Unity kodundan cikarip server'dan okutursunuz. Sentinel bir anomali tespit
@@ -42,9 +46,9 @@ namespace Altare.Analytics
         {
             if (_initialized) return;
             _initialized = true;
-            string gameId = AltareAnalytics.PlayerAnonId != null
-                ? GetGameIdFromAnalytics()
-                : null;
+            // SDK hazir olmadan (anonim auth tamamlanmadan) config dinlemeye
+            // baslamayalim — Firestore rules signed-in anonim istemci bekler.
+            string gameId = AltareAnalytics.IsHealthy ? AltareAnalytics.GameId : null;
             if (string.IsNullOrEmpty(gameId))
             {
                 // AltareAnalytics henuz baslamamis — 2sn'de bir tekrar dene
@@ -112,42 +116,13 @@ namespace Altare.Analytics
         private static readonly Dictionary<string, object> _values = new Dictionary<string, object>();
         private static ListenerRegistration _listener;
 
-        private static string GetGameIdFromAnalytics()
-        {
-            // AltareAnalytics gameId'i private tutuyor; reflection ile alir
-            // (gelecekte AltareAnalytics.GameId public property eklenirse buna gerek kalmaz)
-            try
-            {
-                var t = typeof(AltareAnalytics);
-                var field = t.GetField("_gameId",
-                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-                if (field != null) return field.GetValue(null) as string;
-                // Try instance singleton
-                var instanceField = t.GetField("_instance",
-                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-                if (instanceField != null)
-                {
-                    var inst = instanceField.GetValue(null);
-                    if (inst != null)
-                    {
-                        var gameIdField = t.GetField("_gameId",
-                            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                        if (gameIdField != null) return gameIdField.GetValue(inst) as string;
-                    }
-                }
-            }
-            catch (Exception e)
-            {
-                Debug.LogWarning("[AltareConfig] gameId alimnamadi: " + e.Message);
-            }
-            return null;
-        }
-
         private static void SubscribeToConfig(string gameId)
         {
             try
             {
-                var db = FirebaseFirestore.DefaultInstance;
+                // Isimli Altare app'inin Firestore'u — oyunun default
+                // Firebase'inden bagimsiz, config her zaman altare-312a1'den okunur.
+                var db = AltareFirebase.Db;
                 var docRef = db.Collection("games").Document(gameId)
                     .Collection("config").Document("active");
                 _listener = docRef.Listen(snapshot =>

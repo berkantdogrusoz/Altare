@@ -1,7 +1,11 @@
 // =============================================================================
-// AltarePlayerState.cs  —  v2.3.0
+// AltarePlayerState.cs  —  v2.4.0
 // -----------------------------------------------------------------------------
 // Altare Player State Snapshot & Rollback
+//
+// v2.4: Isimli "altare" Firebase app'i kullanilir (AltareFirebase.cs) —
+// snapshot'lar ve restore dinleyicisi her zaman altare-312a1'e baglanir,
+// oyunun kendi Firebase'inden bagimsiz.
 //
 // Whale oyuncu progress kaybetti? Bug'li patch oyunculari broken state'e atti?
 // Bu modul ile oyununuz periyodik veya manuel state snapshot'i atar. Stüdyo
@@ -74,7 +78,8 @@ namespace Altare.Analytics
 
             try
             {
-                var functions = FirebaseFunctions.GetInstance("europe-west1");
+                var functions = FirebaseFunctions.GetInstance(
+                    AltareFirebase.App, AltareFirebase.FunctionsRegion);
                 var data = new Dictionary<string, object>
                 {
                     { "gameId", gameId },
@@ -118,7 +123,7 @@ namespace Altare.Analytics
         {
             try
             {
-                var db = FirebaseFirestore.DefaultInstance;
+                var db = AltareFirebase.Db;
                 var docRef = db.Collection("games").Document(gameId)
                     .Collection("player_snapshots").Document(playerAnonId);
                 _listener = docRef.Listen(snapshot =>
