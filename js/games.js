@@ -203,9 +203,11 @@ function showGameCredentials(gameId) {
         <div style="margin-top: 16px; padding: 14px; background: rgba(52,168,83,0.08); border: 1px solid rgba(52,168,83,0.2); border-radius: 8px;">
             <p style="margin: 0 0 10px; font-size: 0.9rem;"><strong>SDK Paketi</strong> — zip icinde her sey hazir:</p>
             <ul style="margin: 0 0 12px; padding-left: 18px; font-size: 0.85rem; color: var(--text-dim);">
-                <li><code>AltareAnalytics.cs</code> — drop-in Unity SDK (v2.2)</li>
-                <li><code>AltareAnalyticsBootstrap.cs</code> — otomatik baslangic + KVKK/GDPR consent</li>
-                <li><code>AltareConfig.cs</code> — <strong>YENI:</strong> AI Auto-Heal remote config client</li>
+                <li><code>AltareAnalytics.cs</code> — drop-in Unity SDK (v2.4)</li>
+                <li><code>AltareFirebase.cs</code> — <strong>YENI/ZORUNLU:</strong> isimli Altare Firebase app — oyunda google-services.json GEREKMEZ, oyunun kendi Firebase'ine dokunulmaz</li>
+                <li><code>AltareAnalyticsBootstrap.cs</code> — otomatik baslangic + opt-out consent (SetAnalyticsConsent API)</li>
+                <li><code>AltareConfig.cs</code> — AI Auto-Heal remote config client</li>
+                <li><code>AltarePlayerState.cs</code> — snapshot &amp; rollback</li>
                 <li><code>AltareConfig.json</code> — gameId + ayarlar (pre-filled)</li>
                 <li><code>SampleUsage.cs</code> — ornek event cagrilari</li>
                 <li><code>KURULUM_REHBERI_TR.txt</code> — adim adim Turkce kurulum</li>
@@ -254,11 +256,14 @@ async function downloadSDK(gameId) {
     const folder = zip.folder(`AltareSDK_${sanitizeFileName(game.gameName)}`);
 
     // Canonical SDK files — fetched from /unity-sdk/ (always latest version)
-    const [analyticsCs, bootstrapCs, configCs, playerStateCs] = await Promise.all([
+    // AltareFirebase.cs v2.4+ ZORUNLU: isimli "altare" Firebase app'i kurar;
+    // diger dosyalar ona referans verir — eksik olursa Unity derlemez.
+    const [analyticsCs, bootstrapCs, configCs, playerStateCs, altareFirebaseCs] = await Promise.all([
         fetchSdkFile('AltareAnalytics.cs', generateSDKScript),
         fetchSdkFile('AltareAnalyticsBootstrap.cs', () => generateBootstrapScript(game)),
         fetchSdkFile('AltareConfig.cs', generateAltareConfigScript),
         fetchSdkFile('AltarePlayerState.cs', generatePlayerStateScript),
+        fetchSdkFile('AltareFirebase.cs', generateAltareFirebaseScript),
     ]);
 
     // Bootstrap is per-game (gameId + gameName injected). If fetched canonical
@@ -271,6 +276,7 @@ async function downloadSDK(gameId) {
     folder.file('AltareAnalyticsBootstrap.cs', bootstrapFilled);
     folder.file('AltareConfig.cs', configCs);
     folder.file('AltarePlayerState.cs', playerStateCs);
+    folder.file('AltareFirebase.cs', altareFirebaseCs);
     folder.file('AltareConfig.json', generateConfig(game));
     folder.file('SampleUsage.cs', generateSampleUsage(game));
     folder.file('KURULUM_REHBERI_TR.txt', generateSetupGuide(game));
@@ -289,6 +295,81 @@ async function downloadSDK(gameId) {
 
 function sanitizeFileName(name) {
     return (name || 'game').replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 40);
+}
+
+// Fallback: /unity-sdk/AltareFirebase.cs fetch edilemezse gomulu birebir kopya.
+// unity-sdk/AltareFirebase.cs ile SENKRON TUTUN.
+function generateAltareFirebaseScript() {
+    return `// =============================================================================
+// AltareFirebase.cs  —  v1.0.0
+// -----------------------------------------------------------------------------
+// Altare'nin KENDI Firebase projesine (altare-312a1) bagli, oyunun default
+// Firebase app'inden TAMAMEN BAGIMSIZ isimli FirebaseApp.
+//
+// - Oyunun kendi Firebase'i (Analytics, Remote Config, Crashlytics...)
+//   hicbir sekilde etkilenmez, dokunulmaz.
+// - Oyunda google-services.json OLMASA BILE calisir — tum config gomulu.
+//
+// GUVENLIK NOTU: Asagidaki degerler public web credential'laridir — gizli
+// DEGILDIR. Gercek koruma Firestore security rules + anonymous auth'tadir.
+// =============================================================================
+
+using System;
+using UnityEngine;
+using Firebase;
+using Firebase.Auth;
+using Firebase.Firestore;
+
+namespace Altare.Analytics
+{
+    public static class AltareFirebase
+    {
+        public const string AppName = "altare";
+        public const string FunctionsRegion = "europe-west1";
+
+        // altare-312a1 public config — js/firebase-config.js ile senkron tutun.
+        private const string ApiKey          = "AIzaSyDxHVD9iGm0WzPVDHvC0zRpvLBwhmVPdXs";
+        private const string AppId           = "1:525350962277:web:8afd370efeafb936f4328c";
+        private const string ProjectId       = "altare-312a1";
+        private const string MessageSenderId = "525350962277";
+        private const string StorageBucket   = "altare-312a1.firebasestorage.app";
+
+        private static FirebaseApp _app;
+
+        public static FirebaseApp App
+        {
+            get
+            {
+                EnsureApp();
+                return _app;
+            }
+        }
+
+        public static FirebaseAuth Auth => FirebaseAuth.GetAuth(App);
+        public static FirebaseFirestore Db => FirebaseFirestore.GetInstance(App);
+
+        public static void EnsureApp()
+        {
+            if (_app != null) return;
+
+            try { _app = FirebaseApp.GetInstance(AppName); }
+            catch (Exception) { _app = null; }
+            if (_app != null) return;
+
+            var options = new AppOptions
+            {
+                ApiKey          = ApiKey,
+                AppId           = AppId,
+                ProjectId       = ProjectId,
+                MessageSenderId = MessageSenderId,
+                StorageBucket   = StorageBucket,
+            };
+            _app = FirebaseApp.Create(options, AppName);
+            Debug.Log("[AltareFirebase] named app ready -> project=" + ProjectId);
+        }
+    }
+}
+`;
 }
 
 function generateBootstrapScript(game) {
@@ -612,7 +693,7 @@ function generateConfig(game) {
         apiKey: game.apiKey || '',
         gameType: game.gameType || 'puzzle',
         platforms: game.platforms || ['Android'],
-        sdkVersion: '2.0.0',
+        sdkVersion: '2.4.0',
         firebaseProject: 'altare-312a1',
         region: 'europe-west1',
     }, null, 2);
@@ -784,9 +865,13 @@ GEREKSINIMLER
 ================================================================================
 
 - Unity 2021.3 veya ustu
-- Firebase Unity SDK (Authentication + Firestore)
+- Firebase Unity SDK (Authentication + Firestore; Player State
+  kullanacaksaniz Functions modulu de)
   Indirme: https://firebase.google.com/download/unity
-- Firebase projesi (altare-312a1) ile eslesmis google-services.json
+
+NOT (v2.4+): google-services.json GEREKMEZ. SDK, Altare'nin kendi Firebase
+baglantisini icinde tasir (AltareFirebase.cs). Oyununuzun kendi Firebase'i
+varsa ona DOKUNULMAZ; hic Firebase'iniz yoksa da sorunsuz calisir.
 
 ================================================================================
 ADIM 1: Firebase Unity SDK Kurulumu
@@ -797,39 +882,42 @@ ADIM 1: Firebase Unity SDK Kurulumu
 3. Sirayla import edin:
    - FirebaseAuth.unitypackage
    - FirebaseFirestore.unitypackage
+   - (Player State kullanacaksaniz) FirebaseFunctions.unitypackage
 4. Import tamamlandiginda Unity Console'da hata olmadigini kontrol edin
 
 ================================================================================
-ADIM 2: google-services.json Yerlestirme
+ADIM 2: google-services.json — GEREKMEZ (v2.4+)
 ================================================================================
 
-1. Firebase Console'a gidin: https://console.firebase.google.com
-2. Altare projesini secin (altare-312a1)
-3. Project Settings > Your apps > Android uygulamanizi secin
-   (Yoksa "Add app" ile Android uygulamasi ekleyin — paket adiniz:
-   com.altarestudio.${sanitizeFileName(game.gameName).toLowerCase()})
-4. google-services.json dosyasini indirin
-5. Bu dosyayi Unity projenizde Assets/ kok klasorune kopyalayin
+Eski surumlerde bu adimda Altare projesinin google-services.json dosyasi
+isteniyordu. v2.4 ile SDK kendi isimli "altare" Firebase app'ini gomulu
+config ile kurar:
+
+- Oyununuzun KENDI Firebase projesi varsa: kendi google-services.json'unuz
+  aynen kalir, Analytics/Remote Config/Crashlytics akisiniz bozulmaz.
+- Hic Firebase'iniz yoksa: hicbir config dosyasi eklemenize gerek yok.
+
+Yapmaniz gereken bir sey YOK — sonraki adima gecin.
 
 ================================================================================
-ADIM 3: Anonymous Authentication Aktif Etme
+ADIM 3: Anonymous Authentication — Altare tarafinda hazir
 ================================================================================
 
-1. Firebase Console > Authentication > Sign-in method
-2. "Anonymous" provider'i bulun ve "Enable" yapin
-3. Save'leyin
-
-Bu adim gerekli cunku SDK oyunculari anonim olarak dogrular.
+SDK oyunculari Altare'nin projesinde anonim olarak dogrular. Bu ayar
+Altare tarafinda zaten aciktir — sizin yapmaniz gereken bir sey YOKTUR.
 Oyunculardan email/telefon ISTENMEZ — tamamen arka planda calisir.
 
 ================================================================================
 ADIM 4: SDK Dosyalarini Projeye Ekleme
 ================================================================================
 
-1. Bu zip'ten cikan dosyalari Unity projenizde
+1. Bu zip'ten cikan .cs dosyalarinin TAMAMINI Unity projenizde
    Assets/Plugins/Altare/ klasorune kopyalayin:
    - AltareAnalytics.cs (ana SDK)
-   - AltareAnalyticsBootstrap.cs (otomatik baslangic + KVKK consent)
+   - AltareFirebase.cs (ZORUNLU — isimli Altare Firebase app)
+   - AltareAnalyticsBootstrap.cs (otomatik baslangic + opt-out consent)
+   - AltareConfig.cs (AI Auto-Heal remote config)
+   - AltarePlayerState.cs (snapshot & rollback — istege bagli)
    (klasor yoksa olusturun)
 
 2. Unity'nin dosyalari compile etmesini bekleyin (Console'da hata olmamali)
@@ -892,12 +980,14 @@ ADIM 7: Test ve Dogrulama
 
 SORUN GIDERME:
 - Unity Console'da [Altare] ile baslayan loglari kontrol edin
-- "[Altare] Ready. uid=..." mesaji goruyorsaniz SDK calisiyor demektir
-- Gormuyorsaniz: google-services.json eksik veya paket adi uyumsuz olabilir
-- Firebase Console > Authentication'da anonim kullanicilarin olusup
-  olusmadigini kontrol edin
-- Firestore'da games/${game.gameId}/events/ koleksiyonuna veri gelip
-  gelmedegini kontrol edin
+- "[AltareFirebase] named app ready" satiri Altare baglantisinin
+  kuruldugunu gosterir
+- "[Altare] Ready. gameId=..." mesaji goruyorsaniz SDK calisiyor demektir
+- Gormuyorsaniz: zip'teki .cs dosyalarinin TAMAMININ (AltareFirebase.cs
+  dahil) kopyalandigindan ve Firebase Auth + Firestore modullerinin import
+  edildiginden emin olun
+- Panel'in "Canli Event Stream" sekmesinde eventlerin gorunup
+  gorunmedigini kontrol edin
 
 ================================================================================
 DESTEK
@@ -907,7 +997,7 @@ Sorun yasarsaniz:
 - Panel: https://altarestudio.com.tr/panel.html (Entegrasyon Rehberi sekmesi)
 - Email: berkant@altarestudio.com.tr
 
-SDK Surumu: 2.0.0
+SDK Surumu: 2.4.0
 Tarih: ${new Date().toISOString().slice(0, 10)}
 ================================================================================
 `;
@@ -928,9 +1018,14 @@ REQUIREMENTS
 ================================================================================
 
 - Unity 2021.3 or newer
-- Firebase Unity SDK (Authentication + Firestore)
+- Firebase Unity SDK (Authentication + Firestore; add the Functions
+  module if you'll use Player State)
   Download: https://firebase.google.com/download/unity
-- A google-services.json file matching your Firebase project (altare-312a1)
+
+NOTE (v2.4+): NO google-services.json is required. The SDK carries its own
+Altare Firebase connection (AltareFirebase.cs). If your game has its own
+Firebase project it is left completely untouched; if you have no Firebase
+at all, it still works.
 
 ================================================================================
 STEP 1: Install the Firebase Unity SDK
@@ -941,39 +1036,42 @@ STEP 1: Install the Firebase Unity SDK
 3. Import these packages in order:
    - FirebaseAuth.unitypackage
    - FirebaseFirestore.unitypackage
+   - (If using Player State) FirebaseFunctions.unitypackage
 4. Make sure the Unity Console shows no errors after import completes
 
 ================================================================================
-STEP 2: Add google-services.json
+STEP 2: google-services.json — NOT NEEDED (v2.4+)
 ================================================================================
 
-1. Open Firebase Console: https://console.firebase.google.com
-2. Select the Altare project (altare-312a1)
-3. Project Settings > Your apps > select your Android app
-   (If none exists, click "Add app" and create an Android app with package name:
-   com.altarestudio.${sanitizeFileName(game.gameName).toLowerCase()})
-4. Download google-services.json
-5. Place this file in the Assets/ root of your Unity project
+Older versions asked you to download the Altare project's
+google-services.json here. As of v2.4 the SDK creates its own named
+"altare" Firebase app from embedded config:
+
+- If your game has its OWN Firebase project: your google-services.json
+  stays as-is; your Analytics/Remote Config/Crashlytics are unaffected.
+- If you have NO Firebase at all: nothing to add.
+
+There is NOTHING to do in this step — continue to the next one.
 
 ================================================================================
-STEP 3: Enable Anonymous Authentication
+STEP 3: Anonymous Authentication — already enabled on Altare's side
 ================================================================================
 
-1. Firebase Console > Authentication > Sign-in method
-2. Find "Anonymous" provider and click "Enable"
-3. Save
-
-This step is required because the SDK authenticates players anonymously.
+The SDK signs players in anonymously against Altare's own project. This
+is already enabled on Altare's side — there is NOTHING for you to do.
 Players are NOT asked for email or phone — it runs silently in the background.
 
 ================================================================================
 STEP 4: Copy the SDK Files into Your Project
 ================================================================================
 
-1. Copy these files from this zip into your Unity project at
+1. Copy ALL .cs files from this zip into your Unity project at
    Assets/Plugins/Altare/ (create the folder if it doesn't exist):
    - AltareAnalytics.cs (main SDK)
-   - AltareAnalyticsBootstrap.cs (auto-init + KVKK/GDPR consent)
+   - AltareFirebase.cs (REQUIRED — named Altare Firebase app)
+   - AltareAnalyticsBootstrap.cs (auto-init + opt-out consent)
+   - AltareConfig.cs (AI Auto-Heal remote config)
+   - AltarePlayerState.cs (snapshot & rollback — optional)
 
 2. Wait for Unity to compile the files (no errors in Console)
 
@@ -1035,10 +1133,11 @@ STEP 7: Test and Verify
 
 TROUBLESHOOTING:
 - Check the Unity Console for logs starting with [Altare]
-- If you see "[Altare] Ready. uid=..." the SDK is working
-- If not: google-services.json may be missing or package name mismatched
-- Check Firebase Console > Authentication for newly created anonymous users
-- Check Firestore for events under games/${game.gameId}/events/
+- "[AltareFirebase] named app ready" confirms the Altare connection is up
+- If you see "[Altare] Ready. gameId=..." the SDK is working
+- If not: make sure ALL .cs files from the zip (including AltareFirebase.cs)
+  were copied, and Firebase Auth + Firestore modules are imported
+- Check the panel's "Live Event Stream" tab for incoming events
 
 ================================================================================
 SUPPORT
@@ -1048,7 +1147,7 @@ If you run into issues:
 - Panel: https://altarestudio.com.tr/panel.html (Integration Guide tab)
 - Email: berkant@altarestudio.com.tr
 
-SDK Version: 2.1.0
+SDK Version: 2.4.0
 Date: ${new Date().toISOString().slice(0, 10)}
 ================================================================================
 `;
