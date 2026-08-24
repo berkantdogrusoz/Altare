@@ -2977,3 +2977,178 @@ exports.publicGameInsight = onRequest(
     }
   }
 );
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ingestEvents — Unity oyunlarindan HTTP ile olay toplama ucu
+// ───────────────────────────────────────────────────────────────────────────
+// NEDEN HTTP, neden Firestore SDK degil:
+//   ChopHero'nun Unity projesinde Firebase Firestore paketi YOK (App, Auth,
+//   Analytics, Crashlytics, Realtime Database, RemoteConfig var). Paketi kurmak
+//   APK boyutunu buyutuyor ve oyun 500 MB Play sinirini zor gecmisti. Ayrica
+//   oyun BASKA bir Firebase projesine bagli (chophero-adf5e), bu proje ise
+//   altare-312a1 — google-services.json tek projeye baglar, SDK dogrudan
+//   kullanilirsa olaylar yanlis projeye yazar ve panel onlari hic gormez.
+//   Duz HTTP her iki sorunu da ortadan kaldiriyor: sifir ek paket, sifir
+//   boyut, proje bagimsiz.
+//
+// Yazdigi sema, unity-sdk/AltareAnalytics.cs ile BIREBIR AYNI olmali —
+// aggregateDailyStats ve generateAIReport ayni alanlari okuyor:
+//   games/{gameId}/events/{autoId}
+//   { gameId, gameName, playerAnonId, eventName, eventParams, timestamp,
+//     clientTimestamp, platform, appVersion, deviceModel }
+//
+// Istek govdesi (POST application/json):
+//   {
+//     gameId, gameName, playerAnonId, platform, appVersion, deviceModel,
+//     events: [ { eventName, eventParams, clientTimestamp } ]   // en fazla 50
+//   }
+// ═══════════════════════════════════════════════════════════════════════════
+
+const INGEST_MAX_EVENTS_PER_REQUEST = 50;
+const INGEST_MAX_PARAMS_PER_EVENT = 25;
+const INGEST_MAX_STRING_LEN = 512;
+// Oyuncu basina saatlik istek tavani. Unity tarafi 30 sn'de bir yigin
+// gonderiyor -> saatte ~120 istek. 200 rahat pay birakiyor.
+// IP bazli limit KULLANILMIYOR: mobil operatorler yuzlerce oyuncuyu tek IP
+// arkasina koyuyor, IP sayaci gercek oyunculari susturur.
+const INGEST_MAX_REQUESTS_PER_PLAYER_HOUR = 200;
+
+/** Bilinen oyun kimliklerini kisa sure bellekte tutar (her istekte okuma yapmamak icin). */
+const _ingestGameCache = new Map(); // gameId -> { ok, gameName, at }
+const INGEST_GAME_CACHE_MS = 5 * 60 * 1000;
+
+async function ingestGameIsKnown(gameId) {
+  const hit = _ingestGameCache.get(gameId);
+  if (hit && Date.now() - hit.at < INGEST_GAME_CACHE_MS) return hit;
+  const snap = await db.collection("games").doc(gameId).get();
+  const rec = { ok: snap.exists, gameName: snap.exists ? (snap.data().name || gameId) : null, at: Date.now() };
+  _ingestGameCache.set(gameId, rec);
+  return rec;
+}
+
+async function ingestRateOk(gameId, playerAnonId) {
+  const hourKey = new Date().toISOString().slice(0, 13);
+  const docId = `${gameId}_${playerAnonId}_${hourKey}`.replace(/\//g, "_");
+  const ref = db.collection("ingest_rate_limit").doc(docId);
+  try {
+    const snap = await ref.get();
+    const current = snap.exists ? (snap.data().count || 0) : 0;
+    if (current >= INGEST_MAX_REQUESTS_PER_PLAYER_HOUR) return false;
+    await ref.set({
+      count: current + 1,
+      hourKey,
+      gameId,
+      expiresAt: admin.firestore.Timestamp.fromMillis(Date.now() + 2 * 60 * 60 * 1000),
+    }, { merge: true });
+    return true;
+  } catch (e) {
+    // Sayac patlarsa olayi DUSURME — telemetri ugruna veri kaybetmeyelim.
+    logger.warn("ingest rate check failed", { err: e.message });
+    return true;
+  }
+}
+
+/** Serbest metin/sayi disindaki her seyi atar, uzun metinleri kirpar. */
+function sanitizeParams(raw) {
+  const out = {};
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
+  let n = 0;
+  for (const k of Object.keys(raw)) {
+    if (n >= INGEST_MAX_PARAMS_PER_EVENT) break;
+    const key = String(k).slice(0, 64);
+    const v = raw[k];
+    if (v === null || v === undefined) continue;
+    if (typeof v === "number" && Number.isFinite(v)) out[key] = v;
+    else if (typeof v === "boolean") out[key] = v;
+    else if (typeof v === "string") out[key] = v.slice(0, INGEST_MAX_STRING_LEN);
+    else continue;
+    n++;
+  }
+  return out;
+}
+
+exports.ingestEvents = onRequest(
+  { timeoutSeconds: 30, memory: "256MiB", cors: false },
+  async (req, res) => {
+    if (applyCors(req, res)) return;
+    if (req.method !== "POST") {
+      res.status(405).json({ error: "method_not_allowed" });
+      return;
+    }
+    try {
+      const body = req.body || {};
+      const gameId = String(body.gameId || "").trim();
+      const playerAnonId = String(body.playerAnonId || "").trim().slice(0, 64);
+      const events = Array.isArray(body.events) ? body.events : [];
+
+      if (!gameId || !playerAnonId) {
+        res.status(400).json({ error: "missing_gameId_or_playerAnonId" });
+        return;
+      }
+      if (events.length === 0) {
+        res.status(400).json({ error: "no_events" });
+        return;
+      }
+      if (events.length > INGEST_MAX_EVENTS_PER_REQUEST) {
+        res.status(413).json({ error: "too_many_events", max: INGEST_MAX_EVENTS_PER_REQUEST });
+        return;
+      }
+
+      const game = await ingestGameIsKnown(gameId);
+      if (!game.ok) {
+        // Panelde kayitli olmayan gameId — sessizce kabul etme, aksi halde
+        // rastgele yazimlar Firestore'u sisirir.
+        res.status(404).json({ error: "unknown_gameId", gameId });
+        return;
+      }
+      if (!(await ingestRateOk(gameId, playerAnonId))) {
+        res.status(429).json({ error: "rate_limit" });
+        return;
+      }
+
+      const gameName = String(body.gameName || game.gameName || gameId).slice(0, 120);
+      const platform = String(body.platform || "unknown").slice(0, 40);
+      const appVersion = String(body.appVersion || "").slice(0, 40);
+      const deviceModel = String(body.deviceModel || "").slice(0, 80);
+
+      const batch = db.batch();
+      const col = db.collection("games").doc(gameId).collection("events");
+      let yazilan = 0;
+
+      for (const e of events) {
+        const eventName = String((e && e.eventName) || "").trim().slice(0, 64);
+        if (!eventName) continue;
+        let clientTs = null;
+        if (e.clientTimestamp) {
+          const ms = Date.parse(e.clientTimestamp);
+          if (Number.isFinite(ms)) clientTs = admin.firestore.Timestamp.fromMillis(ms);
+        }
+        batch.set(col.doc(), {
+          gameId,
+          gameName,
+          playerAnonId,
+          eventName,
+          eventParams: sanitizeParams(e.eventParams),
+          timestamp: admin.firestore.FieldValue.serverTimestamp(),
+          clientTimestamp: clientTs || admin.firestore.FieldValue.serverTimestamp(),
+          platform,
+          appVersion,
+          deviceModel,
+          via: "http",
+        });
+        yazilan++;
+      }
+
+      if (yazilan === 0) {
+        res.status(400).json({ error: "no_valid_events" });
+        return;
+      }
+
+      await batch.commit();
+      res.json({ ok: true, written: yazilan });
+    } catch (err) {
+      logger.error("ingestEvents unhandled", { message: err?.message });
+      res.status(500).json({ error: "internal" });
+    }
+  }
+);
