@@ -298,6 +298,8 @@ Herhangi bir oyunun Unity projesine:
 | Panel'de KPI'lar hep `—` | `aggregateDailyStats` Cloud Function henüz çalışmadı veya event yok | 30 dakika bekle veya Functions Console'dan elle tetikle |
 | `generateAIReport` 403 / unauthenticated | Login token eski | Çıkış yap, tekrar gir |
 | `generateAIReport` "API 401" | Anthropic key hatalı | `firebase functions:secrets:set ANTHROPIC_API_KEY` ile yeniden gir, redeploy |
+| Deploy takılıyor: "non-interactive mode but have no value for: GA4_PROPERTY_ID" | Taze klonda `.env` yok (gitignore'da) | `cp firebase/functions/.env.example firebase/functions/.env` → GA4 property numarasını doldur → deploy. **Boş geçme:** canlıdaki değeri siler, panelin GA4 kartı çalışmaz |
+| Deploy "CLI keşif 10 sn'de patlıyor" | Fonksiyon dosyası büyük, CLI discovery timeout | `FUNCTIONS_DISCOVERY_TIMEOUT=120 firebase deploy --only functions` |
 | Unity'den hiç event gelmiyor | SDK v2.4 öncesi kopya (DefaultInstance → oyunun kendi Firebase'ine yazıyor) veya v2.1 opt-in consent kapısı (anahtar hiç set edilmemiş) | `unity-sdk/` v2.4+ dosyalarının TAMAMINI (AltareFirebase.cs dahil) oyuna kopyala; logcat'te `[AltareFirebase] named app ready` satırını doğrula |
 | Firestore "permission denied" Unity'de | Anonymous auth devre dışı | Adım 2'de Anonymous provider'ı aç |
 | Oyunun kendi Firebase'i bozuldu şüphesi | — | Bozulmaz: SDK isimli `"altare"` app kullanır, oyunun default app'ine hiç dokunmaz |
