@@ -2692,13 +2692,12 @@ function slugify(s) {
     .slice(0, 40);
 }
 
+// API anahtari bir SIRDIR — Math.random() kriptografik olarak guvenli
+// degildir ve tahmin edilebilir. crypto.randomBytes kullanilir.
+// Not: bu degisiklik yalnizca YENI olusturulan oyunlari etkiler;
+// mevcut anahtarlar gecerli kalir.
 function generateApiKey() {
-  const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  let out = "altr_";
-  for (let i = 0; i < 32; i++) {
-    out += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return out;
+  return "altr_" + crypto.randomBytes(24).toString("base64url");
 }
 
 async function reserveUniqueGameId(baseId) {
@@ -2747,7 +2746,9 @@ function applyCors(req, res) {
   res.set("Access-Control-Allow-Origin", allowed);
   res.set("Vary", "Origin");
   res.set("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
-  res.set("Access-Control-Allow-Headers", "Content-Type");
+  // X-Altare-Key: ingestEvents kimlik dogrulama basligi. Web tabanli
+  // oyunlarin preflight'ta takilmamasi icin izin listesinde olmali.
+  res.set("Access-Control-Allow-Headers", "Content-Type, X-Altare-Key");
   if (req.method === "OPTIONS") {
     res.status(204).send("");
     return true;
@@ -3021,9 +3022,28 @@ async function ingestGameIsKnown(gameId) {
   const hit = _ingestGameCache.get(gameId);
   if (hit && Date.now() - hit.at < INGEST_GAME_CACHE_MS) return hit;
   const snap = await db.collection("games").doc(gameId).get();
-  const rec = { ok: snap.exists, gameName: snap.exists ? (snap.data().name || gameId) : null, at: Date.now() };
+  const d = snap.exists ? snap.data() : null;
+  const rec = {
+    ok: snap.exists,
+    gameName: d ? (d.name || gameId) : null,
+    apiKey: d ? (d.apiKey || null) : null,
+    at: Date.now(),
+  };
   _ingestGameCache.set(gameId, rec);
   return rec;
+}
+
+// Sabit sureli karsilastirma — timing attack ile anahtarin karakter
+// karakter tahmin edilmesini engeller. Uzunluk farkinda timingSafeEqual
+// exception atar, o yuzden once uzunluk kontrolu yapilir.
+function apiKeyMatches(sent, expected) {
+  if (typeof sent !== "string" || typeof expected !== "string") return false;
+  if (sent.length === 0 || sent.length !== expected.length) return false;
+  try {
+    return crypto.timingSafeEqual(Buffer.from(sent), Buffer.from(expected));
+  } catch (_) {
+    return false;
+  }
 }
 
 async function ingestRateOk(gameId, playerAnonId) {
@@ -3099,6 +3119,27 @@ exports.ingestEvents = onRequest(
         // Panelde kayitli olmayan gameId — sessizce kabul etme, aksi halde
         // rastgele yazimlar Firestore'u sisirir.
         res.status(404).json({ error: "unknown_gameId", gameId });
+        return;
+      }
+
+      // KIMLIK DOGRULAMA — gameId bir sir degildir (panelde gorunur, APK'dan
+      // cikarilabilir). Anahtar olmadan herkes sahte event basabilir ve veri
+      // akisini zehirleyebilir; bu, Sentinel'i yaniltip Auto-Heal uzerinden
+      // canli oyuna config yazdirmaya kadar gider.
+      // Anahtar da istemci binary'sindedir (mutlak sir degil) ama cubugu
+      // ciddi olcude yukseltir ve kotuye kullanimda oyun bazinda IPTAL
+      // edilebilir — sektor standardi write-only client key modeli budur.
+      const sentKey = String(
+        req.get("x-altare-key") || body.apiKey || ""
+      ).trim();
+      if (!game.apiKey) {
+        logger.error("ingestEvents: oyunun apiKey'i yok, dogrulama yapilamiyor", { gameId });
+        res.status(500).json({ error: "game_missing_api_key" });
+        return;
+      }
+      if (!apiKeyMatches(sentKey, game.apiKey)) {
+        logger.warn("ingestEvents: gecersiz apiKey", { gameId, hasKey: sentKey.length > 0 });
+        res.status(401).json({ error: "invalid_api_key" });
         return;
       }
       if (!(await ingestRateOk(gameId, playerAnonId))) {
