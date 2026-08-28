@@ -3005,6 +3005,10 @@ exports.publicGameInsight = onRequest(
 //   }
 // ═══════════════════════════════════════════════════════════════════════════
 
+// true yapildiginda anahtarsiz istekler 401 ile reddedilir. Yalnizca TUM
+// canli istemciler X-Altare-Key gonderdigine emin olunca acilmali —
+// ingest_no_key uyarilari sifirlanmadan acilirsa canli veri akisi kesilir.
+const INGEST_REQUIRE_API_KEY = false;
 const INGEST_MAX_EVENTS_PER_REQUEST = 50;
 const INGEST_MAX_PARAMS_PER_EVENT = 25;
 const INGEST_MAX_STRING_LEN = 512;
@@ -3129,18 +3133,44 @@ exports.ingestEvents = onRequest(
       // Anahtar da istemci binary'sindedir (mutlak sir degil) ama cubugu
       // ciddi olcude yukseltir ve kotuye kullanimda oyun bazinda IPTAL
       // edilebilir — sektor standardi write-only client key modeli budur.
+      // YUMUSAK GECIS (grace period) — ZORUNLU DEGIL, HENUZ.
+      //
+      // Neden: ChopHero istemcisi (shadow-weaver deposu, Assets/_Game/Scripts/
+      // Services/AltareAnalytics.cs) CANLIDA ve anahtar gondermiyor. Ustelik
+      // istemcinin kalici-hata listesi [404, 400, 413] — 401 orada YOK, yani
+      // reddedilen istek "gecici hata" sayilip 30 sn'de bir SONSUZA KADAR
+      // tekrar denenir: veri kaybi + bos yere faturalanan invocation.
+      //
+      // Mobil istemcide zorunlu auth'a ANINDA gecilemez; eski build'ler
+      // oyuncularin telefonunda kalir ve asla guncellenmeyebilir. Standart
+      // yol: once kabul et + logla, istemciler guncellenip eski trafik
+      // bitince zorunlu hale getir.
+      //
+      // ZORUNLU HALE GETIRME KOSULU: asagidaki uyari loglari (ingest_no_key)
+      // pratikte sifirlaninca INGEST_REQUIRE_API_KEY = true yap ve redeploy et.
       const sentKey = String(
         req.get("x-altare-key") || body.apiKey || ""
       ).trim();
+
       if (!game.apiKey) {
-        logger.error("ingestEvents: oyunun apiKey'i yok, dogrulama yapilamiyor", { gameId });
-        res.status(500).json({ error: "game_missing_api_key" });
+        // Oyun dokumaninda anahtar yok (panel disinda olusturulmus olabilir).
+        // 500 DONME — istemci bunu gecici hata sayip sonsuz retry'a girer.
+        logger.error("ingest_game_without_api_key", { gameId });
+      } else if (sentKey) {
+        // Anahtar gonderilmisse HER ZAMAN dogrulanir: yanlis anahtar
+        // saldirgan ya da bozuk yapilandirma demektir, kabul edilmez.
+        if (!apiKeyMatches(sentKey, game.apiKey)) {
+          logger.warn("ingest_invalid_key", { gameId });
+          res.status(401).json({ error: "invalid_api_key" });
+          return;
+        }
+      } else if (INGEST_REQUIRE_API_KEY) {
+        logger.warn("ingest_missing_key_rejected", { gameId });
+        res.status(401).json({ error: "api_key_required" });
         return;
-      }
-      if (!apiKeyMatches(sentKey, game.apiKey)) {
-        logger.warn("ingestEvents: gecersiz apiKey", { gameId, hasKey: sentKey.length > 0 });
-        res.status(401).json({ error: "invalid_api_key" });
-        return;
+      } else {
+        // Gecis donemi: kabul et ama gorunur kil.
+        logger.warn("ingest_no_key", { gameId, platform: String(body.platform || "") });
       }
       if (!(await ingestRateOk(gameId, playerAnonId))) {
         res.status(429).json({ error: "rate_limit" });
