@@ -3,7 +3,8 @@
     "allow": [
       "Bash(gh api repos/berkantdogrusoz/Altare/pages -X POST -f \"build_type=legacy\" -f \"source[branch]=main\" -f \"source[path]=/\")",
       "Bash(gh api repos/berkantdogrusoz/Altare/pages)",
-      "Bash(where gh)"
+      "Bash(where gh)",
+      "mcp__Claude_Code_Remote__add_repo"
     ]
   }
 }
