@@ -3111,6 +3111,19 @@ exports.ingestEvents = onRequest(
       const appVersion = String(body.appVersion || "").slice(0, 40);
       const deviceModel = String(body.deviceModel || "").slice(0, 80);
 
+      // SEMA PARITESI — SDK'nin dogrudan Firestore yazimiyla ayni alanlar
+      // uretilmek ZORUNDA. Ozellikle sessionId kritik: buildSummaryData
+      // uniqueSessions'i e.sessionId'den sayiyor ve uniqueSessions,
+      // detectAnomalies'te crash/ANR/FPS/bellek oranlarinin PAYDASIDIR.
+      // Eksik olursa Math.max(uniqueSessions, 1) devreye girer, oranlar
+      // ham sayilara esitlenir ve Sentinel YANLIS ALARM uretir — bu alarm
+      // Auto-Heal'i tetikleyip canli oyuna config yazabilir.
+      // Yigin tek oturumdan gelir; event bazinda override da desteklenir.
+      const batchSessionId = String(body.sessionId || "").trim().slice(0, 64);
+      const gpuModel = String(body.gpuModel || "").slice(0, 80);
+      const totalMemoryMbRaw = Number(body.totalMemoryMb);
+      const totalMemoryMb = Number.isFinite(totalMemoryMbRaw) ? totalMemoryMbRaw : null;
+
       const batch = db.batch();
       const col = db.collection("games").doc(gameId).collection("events");
       let yazilan = 0;
@@ -3123,10 +3136,13 @@ exports.ingestEvents = onRequest(
           const ms = Date.parse(e.clientTimestamp);
           if (Number.isFinite(ms)) clientTs = admin.firestore.Timestamp.fromMillis(ms);
         }
+        const sessionId = String(e.sessionId || batchSessionId || "").trim().slice(0, 64);
+
         batch.set(col.doc(), {
           gameId,
           gameName,
           playerAnonId,
+          sessionId,
           eventName,
           eventParams: sanitizeParams(e.eventParams),
           timestamp: admin.firestore.FieldValue.serverTimestamp(),
@@ -3134,6 +3150,8 @@ exports.ingestEvents = onRequest(
           platform,
           appVersion,
           deviceModel,
+          gpuModel,
+          totalMemoryMb,
           via: "http",
         });
         yazilan++;
@@ -3142,6 +3160,14 @@ exports.ingestEvents = onRequest(
       if (yazilan === 0) {
         res.status(400).json({ error: "no_valid_events" });
         return;
+      }
+
+      // sessionId'siz istemci = bozuk metrik + yanlis Sentinel alarmi.
+      // Sessizce gecmesin; log'da gorulebilir olsun ki bozuk istemciyi
+      // yayina cikmadan yakalayalim.
+      if (!batchSessionId && !events.some((e) => e && e.sessionId)) {
+        logger.warn("ingestEvents: sessionId YOK — uniqueSessions bozulur, " +
+          "anomali oranlari yanlis hesaplanir", { gameId, platform, appVersion, count: yazilan });
       }
 
       await batch.commit();
