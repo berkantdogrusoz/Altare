@@ -5,6 +5,7 @@ Altare resmi sitesi + **Altare AI Live Game Intelligence** platformu.
 - **Site:** https://altarestudio.com.tr
 - **Panel:** https://altarestudio.com.tr/panel.html (sadece yetkili admin)
 - **Vizyon:** [`docs/ALTARE_AI_VISION.md`](docs/ALTARE_AI_VISION.md)
+- **Ölçeklenme & yatırım yol haritası:** [`docs/ALTARE_SCALE_ROADMAP.md`](docs/ALTARE_SCALE_ROADMAP.md) — teknik borç, ürün öncelikleri, 12 aylık sıralama
 - **Kurulum / deploy:** [`docs/SETUP.md`](docs/SETUP.md)
 
 ## Repo
