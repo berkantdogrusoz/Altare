@@ -322,9 +322,24 @@ argümanıdır.
 > durumu oluşmaz.
 
 ### Faz 1 (0-3 ay) — Maliyeti düşür, hiçbir şeyi bozma
-- SDK toplu gönderim + diske yazan kuyruk + retry + gzip
-- SDK'nın varsayılan yolunu `ingestEvents`'e çevir
-- **Çıktı:** event başına maliyet düşer, veri kaybı biter, mevcut müşteri hiçbir değişiklik hissetmez
+
+- [x] **`ingestEvents` şema paritesi** — uç `sessionId`/`gpuModel`/`totalMemoryMb`
+      yazmıyordu. `uniqueSessions`, Sentinel'de crash/ANR/FPS/bellek oranlarının
+      **paydası** olduğu için eksik `sessionId` yanlış alarm → Auto-Heal → canlı
+      oyuna config yazımı zincirini tetikleyebilirdi.
+- [x] **`ingestEvents` kimlik doğrulaması** — uç hiç doğrulama yapmıyordu;
+      `gameId`'yi bilen herkes sahte event basabiliyordu. `X-Altare-Key` zorunlu
+      hale getirildi (timing-safe karşılaştırma).
+- [x] **API anahtarı üretimi** — `Math.random()` → `crypto.randomBytes`.
+- [ ] SDK toplu gönderim + diske yazan kuyruk + retry + gzip
+- [ ] SDK'nın varsayılan yolunu `ingestEvents`'e çevir
+
+**Çıktı:** event başına maliyet düşer, veri kaybı biter, mevcut müşteri hiçbir
+değişiklik hissetmez.
+
+> **Not:** Yukarıdaki üç madde, SDK bu uca bağlanmadan **önce** kapatılması
+> zorunlu kapılardı. Uç henüz istemcisiz olduğu için hiçbiri kırıcı değildi —
+> bu pencere kapanmadan yapıldı.
 
 ### Faz 2 (3-6 ay) — Veri katmanı + giriş bileti
 - Event akışını ClickHouse'a taşı (Firestore operasyonel veride kalır)
