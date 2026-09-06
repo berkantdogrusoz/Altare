@@ -22,6 +22,53 @@ tek yapısal borç budur.
 
 ---
 
+## 0.1 DURUM PANOSU
+
+> Bu bölüm **her oturumdan sonra güncellenir.** Amacı tek soruya dürüst cevap
+> vermek: *nerede duruyoruz?*
+
+### Skor
+
+| Alan | Durum | Oran |
+|---|---|---|
+| **Denetimde çıkan canlı hatalar** | ✅ Hepsi kapatıldı ve yayında | **8 / 8** |
+| **Faz 1** — maliyet + veri kaybı | 🟡 Yarıda | **3 / 5** |
+| **Faz 2** — veri katmanı + retention | 🔴 Başlanmadı | **0 / 5** |
+| **Faz 3** — A/B test + kurumsal güven | 🔴 Başlanmadı | **0 / 3** |
+| **Paralel** — benchmark, çoklu platform, KVKK | 🔴 Başlanmadı | **0 / 4** |
+| **Yol haritası toplamı** | 🟡 Başlangıç | **3 / 17** |
+
+### Daha güvenli miyiz? — Evet, ama sınırlı biçimde
+
+**Kapatılanlar (hepsi canlıyı etkileyen gerçek risklerdi):**
+
+- Auto-Heal artık çalışıyor — ürünün kalbi ölü değil
+- SDK doğru projeye yazıyor ve her oyunda başlıyor — veri gerçekten akıyor
+- `ingestEvents` şema paritesi kuruldu → **yanlış Sentinel alarmı → canlı oyuna
+  hatalı config yazımı** zinciri kırıldı
+- Yanlış API anahtarı artık reddediliyor; anahtarlar kriptografik üretiliyor
+- Panelden inen SDK paketi derleniyor
+
+**Hâlâ açık olanlar — bunları bilerek taşıyoruz:**
+
+| Risk | Durum | Neden bekliyor |
+|---|---|---|
+| Event akışı doküman başına ücretli DB'de | 🔴 Dokunulmadı | Faz 2'nin kendisi. Ölçeklenince hem maliyet hem sorgu duvarı. |
+| `EVENT_CAP = 10000` kırpması | 🔴 Duruyor | AI raporları hâlâ **eksik veriyle** çalışıyor |
+| SDK event başına 1 yazma, çökmede kayıp | 🔴 Duruyor | Faz 1'in kalan 2 maddesi |
+| `ingestEvents` anahtarı **zorunlu değil** | 🟡 Yumuşak geçiş | ChopHero güncellenmeyecek; zorunlu yapılırsa akış kesilir |
+| ChopHero `sessionId` göndermiyor | 🟡 Kabul edildi | Kullanıcı kararı. O oyunun oturum metriği yanlış kalır. |
+| `retentionD1Proxy` retention değil | 🔴 Duruyor | Yanlış isimli metrik benchmark'ta sunuluyor (§4.4) |
+| Denetim kaydı, veri silme API'si, DPA | 🔴 Yok | Faz 3 / §5. Kurumsal satışın ön koşulu. |
+
+### Tek cümlelik dürüst özet
+
+**Yanan evi söndürdük, ama evi henüz sağlamlaştırmadık.** Bugün çalışan,
+güvenli ve demoya hazır bir sistem var; ölçeğe ve yatırımcı denetimine
+dayanacak bir sistem için Faz 1'in kalanı ve Faz 2 şart.
+
+---
+
 ## 1. Mevcut durum — dürüst envanter
 
 ### Sağlam olan (dokunma, koru)
@@ -37,12 +84,13 @@ tek yapısal borç budur.
 
 ### Kırılgan olan (bu doküman bunun içindir)
 
-| Alan | Sorun | Bölüm |
-|---|---|---|
-| Event depolama | Doküman başına ücretli DB'de append-heavy analitik yük | §2 |
-| SDK gönderim | Event başına 1 yazma, bellekte 256'lık tampon, çökmede veri kaybı | §3 |
-| Ürün derinliği | **Retention / kohort analizi yok** — mobil oyunun *the* metriği | §4.4 |
-| Kurumsal hazırlık | Veri silme API'si, denetim kaydı, DPA yok | §5 |
+| Alan | Sorun | Durum | Bölüm |
+|---|---|---|---|
+| Event depolama | Doküman başına ücretli DB'de append-heavy analitik yük | 🔴 Duruyor | §2 |
+| SDK gönderim | Event başına 1 yazma, bellekte 256'lık tampon, çökmede veri kaybı | 🔴 Duruyor | §3 |
+| Ürün derinliği | **Retention / kohort analizi yok** — mobil oyunun *the* metriği | 🔴 Duruyor | §4.4 |
+| Kurumsal hazırlık | Veri silme API'si, denetim kaydı, DPA yok | 🔴 Duruyor | §5 |
+| ~~Ingest şema/kimlik~~ | ~~`sessionId` eksikti, kimlik doğrulaması yoktu~~ | ✅ Kapatıldı | §7 Faz 1 |
 
 ---
 
@@ -342,23 +390,29 @@ değişiklik hissetmez.
 > bu pencere kapanmadan yapıldı.
 
 ### Faz 2 (3-6 ay) — Veri katmanı + giriş bileti
-- Event akışını ClickHouse'a taşı (Firestore operasyonel veride kalır)
-- `EVENT_CAP` kırpmasını kaldır — tam veri üzerinden çalış
-- **Retention (D1/D7/D30), kohort, huni** analizini ekle
-- `retentionD1Proxy`'yi gerçek retention ile değiştir (§4.4) ve ölçülen
-  değeri AI prompt'una besle
-- **Çıktı:** panel aynı görünür, altı değişir; artık "oyun analitiği platformu" denebilir
+- [ ] Event akışını ClickHouse'a taşı (Firestore operasyonel veride kalır)
+- [ ] `EVENT_CAP` kırpmasını kaldır — tam veri üzerinden çalış
+- [ ] **Retention (D1/D7/D30), kohort, huni** analizini ekle
+- [ ] `retentionD1Proxy`'yi gerçek retention ile değiştir (§4.4) ve ölçülen
+      değeri AI prompt'una besle
+- [ ] Ölçülen retention'ı AI prompt'una besle (şu an AI göremediği metrik
+      hakkında yorum yapıyor)
+
+**Çıktı:** panel aynı görünür, altı değişir; artık "oyun analitiği platformu" denebilir.
 
 ### Faz 3 (6-12 ay) — Asıl satış argümanı
-- A/B test altyapısı (bölümleme + istatistiksel anlamlılık)
-- Auto-Heal'i deneye dönüştür: "uygula" → "%10'da test et, kazanırsa yaygınlaştır"
-- Denetim kaydı + veri silme API'si
-- **Çıktı:** kimsede olmayan bir özellik seti
+- [ ] A/B test altyapısı (bölümleme + istatistiksel anlamlılık)
+- [ ] Auto-Heal'i deneye dönüştür: "uygula" → "%10'da test et, kazanırsa yaygınlaştır"
+- [ ] Denetim kaydı + veri silme API'si
+
+**Çıktı:** kimsede olmayan bir özellik seti.
 
 ### Paralel yürüyen (sürekli)
-- Benchmark'ı halka açık veriyle besle, kaç oyuna dayandığını şeffaf göster
-- Çoklu platform SDK (Godot, native, web) — HTTP ucu sayesinde ucuz
-- KVKK/DPA evrakları
+- [ ] Benchmark'ı halka açık veriyle besle, kaç oyuna dayandığını şeffaf göster
+- [ ] Çoklu platform SDK (Godot, native, web) — HTTP ucu sayesinde ucuz
+- [ ] KVKK/DPA evrakları
+- [ ] `INGEST_REQUIRE_API_KEY = true` (yalnızca `ingest_no_key` logları
+      sıfırlandıktan sonra — ChopHero güncellenmediği sürece AÇILMAMALI)
 
 ---
 
