@@ -203,11 +203,11 @@ function showGameCredentials(gameId) {
         <div style="margin-top: 16px; padding: 14px; background: rgba(52,168,83,0.08); border: 1px solid rgba(52,168,83,0.2); border-radius: 8px;">
             <p style="margin: 0 0 10px; font-size: 0.9rem;"><strong>SDK Paketi</strong> — zip icinde her sey hazir:</p>
             <ul style="margin: 0 0 12px; padding-left: 18px; font-size: 0.85rem; color: var(--text-dim);">
-                <li><code>AltareAnalytics.cs</code> — drop-in Unity SDK (v2.4)</li>
-                <li><code>AltareFirebase.cs</code> — <strong>YENI/ZORUNLU:</strong> isimli Altare Firebase app — oyunda google-services.json GEREKMEZ, oyunun kendi Firebase'ine dokunulmaz</li>
-                <li><code>AltareAnalyticsBootstrap.cs</code> — otomatik baslangic + opt-out consent (SetAnalyticsConsent API)</li>
-                <li><code>AltareConfig.cs</code> — AI Auto-Heal remote config client</li>
-                <li><code>AltarePlayerState.cs</code> — snapshot &amp; rollback</li>
+                <li><code>AltareAnalytics.cs</code> — drop-in Unity SDK (v3.0) · <strong>Firebase GEREKTIRMEZ</strong> · toplu gonderim + diske yazan kuyruk</li>
+                <li><code>AltareAnalyticsBootstrap.cs</code> — otomatik baslangic; GameId/GameName/<strong>ApiKey onceden dolu</strong></li>
+                <li><code>AltareFirebase.cs</code> — <em>istege bagli</em>, yalnizca asagidaki iki modul icin</li>
+                <li><code>AltareConfig.cs</code> — <em>istege bagli</em>: AI Auto-Heal remote config (Firebase ister)</li>
+                <li><code>AltarePlayerState.cs</code> — <em>istege bagli</em>: snapshot &amp; rollback (Firebase ister)</li>
                 <li><code>AltareConfig.json</code> — gameId + ayarlar (pre-filled)</li>
                 <li><code>SampleUsage.cs</code> — ornek event cagrilari</li>
                 <li><code>KURULUM_REHBERI_TR.txt</code> — adim adim Turkce kurulum</li>
@@ -270,7 +270,9 @@ async function downloadSDK(gameId) {
     // version has placeholder strings, replace with game-specific values.
     const bootstrapFilled = bootstrapCs
         .replace(/private const string GameId = ".*?";/g, `private const string GameId = "${game.gameId}";`)
-        .replace(/private const string GameName = ".*?";/g, `private const string GameName = "${(game.gameName || '').replace(/"/g, '\\"')}";`);
+        .replace(/private const string GameName = ".*?";/g, `private const string GameName = "${(game.gameName || '').replace(/"/g, '\\"')}";`)
+        // v3.0: API anahtari da otomatik gomulur — musteri elle yapistirmasin.
+        .replace(/private const string ApiKey = ".*?";/g, `private const string ApiKey = "${(game.apiKey || '').replace(/"/g, '\\"')}";`);
 
     folder.file('AltareAnalytics.cs', analyticsCs);
     folder.file('AltareAnalyticsBootstrap.cs', bootstrapFilled);
@@ -693,7 +695,7 @@ function generateConfig(game) {
         apiKey: game.apiKey || '',
         gameType: game.gameType || 'puzzle',
         platforms: game.platforms || ['Android'],
-        sdkVersion: '2.4.0',
+        sdkVersion: '3.0.0',
         firebaseProject: 'altare-312a1',
         region: 'europe-west1',
     }, null, 2);
@@ -865,25 +867,29 @@ GEREKSINIMLER
 ================================================================================
 
 - Unity 2021.3 veya ustu
-- Firebase Unity SDK (Authentication + Firestore; Player State
-  kullanacaksaniz Functions modulu de)
-  Indirme: https://firebase.google.com/download/unity
+- BASKA HICBIR SEY. Firebase GEREKMEZ, google-services.json GEREKMEZ,
+  harici paket GEREKMEZ.
 
-NOT (v2.4+): google-services.json GEREKMEZ. SDK, Altare'nin kendi Firebase
-baglantisini icinde tasir (AltareFirebase.cs). Oyununuzun kendi Firebase'i
-varsa ona DOKUNULMAZ; hic Firebase'iniz yoksa da sorunsuz calisir.
+NOT (v3.0): Analitik artik HTTPS uzerinden calisir. Olaylar biriktirilip
+toplu gonderilir ve diske yazilir; oyun cokse bile veri kaybolmaz.
+Firebase yalnizca su iki ISTEGE BAGLI modul icin gerekir:
+  - AltareConfig      (canli Remote Config / AI Auto-Heal)
+  - AltarePlayerState (snapshot & rollback)
+Bunlari kullanmayacaksaniz o .cs dosyalarini projeye hic eklemeyin.
 
 ================================================================================
-ADIM 1: Firebase Unity SDK Kurulumu
+ADIM 1: (ISTEGE BAGLI) Firebase Unity SDK
 ================================================================================
+
+Yalnizca AltareConfig veya AltarePlayerState kullanacaksaniz gereklidir.
+Sadece olay/analitik gonderecekseniz BU ADIMI ATLAYIN.
 
 1. https://firebase.google.com/download/unity adresinden SDK'yi indirin
 2. Unity'de Assets > Import Package > Custom Package secin
-3. Sirayla import edin:
+3. Import edin:
    - FirebaseAuth.unitypackage
    - FirebaseFirestore.unitypackage
-   - (Player State kullanacaksaniz) FirebaseFunctions.unitypackage
-4. Import tamamlandiginda Unity Console'da hata olmadigini kontrol edin
+   - (PlayerState icin) FirebaseFunctions.unitypackage
 
 ================================================================================
 ADIM 2: google-services.json — GEREKMEZ (v2.4+)
@@ -911,14 +917,17 @@ Oyunculardan email/telefon ISTENMEZ — tamamen arka planda calisir.
 ADIM 4: SDK Dosyalarini Projeye Ekleme
 ================================================================================
 
-1. Bu zip'ten cikan .cs dosyalarinin TAMAMINI Unity projenizde
-   Assets/Plugins/Altare/ klasorune kopyalayin:
-   - AltareAnalytics.cs (ana SDK)
-   - AltareFirebase.cs (ZORUNLU — isimli Altare Firebase app)
-   - AltareAnalyticsBootstrap.cs (otomatik baslangic + opt-out consent)
-   - AltareConfig.cs (AI Auto-Heal remote config)
-   - AltarePlayerState.cs (snapshot & rollback — istege bagli)
-   (klasor yoksa olusturun)
+1. Zip'ten cikan dosyalari Unity projenizde Assets/Plugins/Altare/
+   klasorune kopyalayin (klasor yoksa olusturun).
+
+   ZORUNLU (yalnizca bu ikisi yeter):
+   - AltareAnalytics.cs           (ana SDK — Firebase gerektirmez)
+   - AltareAnalyticsBootstrap.cs  (otomatik baslangic; ayarlariniz dolu)
+
+   ISTEGE BAGLI (Firebase modulleri gerektirir):
+   - AltareFirebase.cs     (asagidaki ikisinin ortak altyapisi)
+   - AltareConfig.cs       (canli Remote Config / AI Auto-Heal)
+   - AltarePlayerState.cs  (snapshot & rollback)
 
 2. Unity'nin dosyalari compile etmesini bekleyin (Console'da hata olmamali)
 
@@ -997,7 +1006,7 @@ Sorun yasarsaniz:
 - Panel: https://altarestudio.com.tr/panel.html (Entegrasyon Rehberi sekmesi)
 - Email: berkant@altarestudio.com.tr
 
-SDK Surumu: 2.4.0
+SDK Surumu: 3.0.0
 Tarih: ${new Date().toISOString().slice(0, 10)}
 ================================================================================
 `;
@@ -1018,26 +1027,28 @@ REQUIREMENTS
 ================================================================================
 
 - Unity 2021.3 or newer
-- Firebase Unity SDK (Authentication + Firestore; add the Functions
-  module if you'll use Player State)
-  Download: https://firebase.google.com/download/unity
+- NOTHING ELSE. No Firebase, no google-services.json, no external packages.
 
-NOTE (v2.4+): NO google-services.json is required. The SDK carries its own
-Altare Firebase connection (AltareFirebase.cs). If your game has its own
-Firebase project it is left completely untouched; if you have no Firebase
-at all, it still works.
+NOTE (v3.0): Analytics now runs over HTTPS. Events are batched and persisted
+to disk, so no data is lost even if the game crashes. Firebase is required
+ONLY for these two OPTIONAL modules:
+  - AltareConfig      (live Remote Config / AI Auto-Heal)
+  - AltarePlayerState (snapshot & rollback)
+If you don't use them, simply don't add those .cs files to your project.
 
 ================================================================================
-STEP 1: Install the Firebase Unity SDK
+STEP 1: (OPTIONAL) Firebase Unity SDK
 ================================================================================
+
+Only needed if you'll use AltareConfig or AltarePlayerState.
+If you only send analytics events, SKIP THIS STEP.
 
 1. Download the SDK from https://firebase.google.com/download/unity
 2. In Unity: Assets > Import Package > Custom Package
-3. Import these packages in order:
+3. Import:
    - FirebaseAuth.unitypackage
    - FirebaseFirestore.unitypackage
-   - (If using Player State) FirebaseFunctions.unitypackage
-4. Make sure the Unity Console shows no errors after import completes
+   - (For PlayerState) FirebaseFunctions.unitypackage
 
 ================================================================================
 STEP 2: google-services.json — NOT NEEDED (v2.4+)
@@ -1065,13 +1076,17 @@ Players are NOT asked for email or phone — it runs silently in the background.
 STEP 4: Copy the SDK Files into Your Project
 ================================================================================
 
-1. Copy ALL .cs files from this zip into your Unity project at
-   Assets/Plugins/Altare/ (create the folder if it doesn't exist):
-   - AltareAnalytics.cs (main SDK)
-   - AltareFirebase.cs (REQUIRED — named Altare Firebase app)
-   - AltareAnalyticsBootstrap.cs (auto-init + opt-out consent)
-   - AltareConfig.cs (AI Auto-Heal remote config)
-   - AltarePlayerState.cs (snapshot & rollback — optional)
+1. Copy the files from this zip into your Unity project at
+   Assets/Plugins/Altare/ (create the folder if it doesn't exist).
+
+   REQUIRED (these two are enough):
+   - AltareAnalytics.cs           (main SDK — no Firebase needed)
+   - AltareAnalyticsBootstrap.cs  (auto-init; your settings pre-filled)
+
+   OPTIONAL (require Firebase modules):
+   - AltareFirebase.cs     (shared plumbing for the two below)
+   - AltareConfig.cs       (live Remote Config / AI Auto-Heal)
+   - AltarePlayerState.cs  (snapshot & rollback)
 
 2. Wait for Unity to compile the files (no errors in Console)
 
@@ -1147,7 +1162,7 @@ If you run into issues:
 - Panel: https://altarestudio.com.tr/panel.html (Integration Guide tab)
 - Email: berkant@altarestudio.com.tr
 
-SDK Version: 2.4.0
+SDK Version: 3.0.0
 Date: ${new Date().toISOString().slice(0, 10)}
 ================================================================================
 `;

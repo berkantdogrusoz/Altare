@@ -233,30 +233,39 @@ Panel'in **Canlı Event Stream** sekmesi anında bu event'i göstermeli.
 
 ## 10. Unity Entegrasyonu
 
-> **v2.4 mimarisi:** SDK artık kendi içinde isimli bir `"altare"` Firebase app'i
-> kurar (`AltareFirebase.cs`, config gömülü). Bu sayede:
-> - Oyunun **kendi Firebase projesi varsa** (kendi `google-services.json`'u ile)
->   ona DOKUNULMAZ — Altare verisi her zaman `altare-312a1`'e gider.
-> - Oyunda **hiç Firebase entegrasyonu yoksa** da çalışır — `google-services.json`
->   indirmeye GEREK YOKTUR. Sadece Firebase Unity SDK modülleri + bizim .cs
->   dosyaları yeter.
+> **v3.0 mimarisi:** Analitik katmanı **Firebase'den tamamen bağımsızdır.**
+> Olaylar HTTPS ile `ingestEvents` ucuna, **toplu halde** gönderilir ve
+> gönderilene kadar **diskte** tutulur.
+> - Oyunda **hiçbir Firebase kurulumu gerekmez** — ne modül, ne
+>   `google-services.json`. Sadece 2 `.cs` dosyası yeter.
+> - Oyunun **kendi Firebase projesi varsa** ona hiç dokunulmaz.
+> - Firebase yalnızca **isteğe bağlı** iki modül için gerekir:
+>   `AltareConfig` (canlı Remote Config) ve `AltarePlayerState` (rollback).
+>
+> Kazanımlar: 50 olay = 50 istek yerine **1 istek** (pil + faturalanan çağrı),
+> oyun çökse/uçak modunda kapansa bile **veri kaybı yok**, kalıcı hatalarda
+> sonsuz yeniden deneme döngüsüne girmez.
 
 Herhangi bir oyunun Unity projesine:
 
-1. **Firebase Unity SDK** indir: https://firebase.google.com/download/unity
-   - **Authentication** + **Firestore** modüllerini import et.
-   - Player State (snapshot/rollback) kullanılacaksa **Functions** modülünü de ekle.
-2. `unity-sdk/` içindeki **tüm .cs dosyalarını** projenin `Assets/Scripts/Altare/`
-   klasörüne kopyala (`AltareFirebase.cs` dahil — yeni zorunlu dosya).
-3. `AltareAnalyticsBootstrap.cs` içinde `GameId` + `GameName` sabitlerini oyuna
-   göre doldur — SDK açılışta otomatik başlar, sahnelere dokunmak gerekmez.
+1. `unity-sdk/` içinden **şu iki dosyayı** projenin `Assets/Scripts/Altare/`
+   klasörüne kopyala — analitik için bu kadarı yeter:
+   - `AltareAnalytics.cs`
+   - `AltareAnalyticsBootstrap.cs`
+2. `AltareAnalyticsBootstrap.cs` içinde `GameId`, `GameName` ve `ApiKey`
+   sabitlerini doldur (panelden inen zip'te bunlar **zaten doludur**).
+   SDK açılışta otomatik başlar, sahnelere dokunmak gerekmez.
    (Bootstrap kullanmayacaksan kendi kodundan çağır:)
    ```csharp
    using Altare.Analytics;
    void Start() {
-       AltareAnalytics.Initialize("royal-dreams", "Royal Dreams");
+       AltareAnalytics.Initialize("royal-dreams", "Royal Dreams", "altr_...");
    }
    ```
+3. **İsteğe bağlı:** Canlı Remote Config (`AltareConfig`) veya rollback
+   (`AltarePlayerState`) kullanacaksan `AltareFirebase.cs` ile birlikte o
+   dosyaları da ekle ve Firebase Unity SDK'nın Auth + Firestore
+   (+ PlayerState için Functions) modüllerini import et.
 4. **Consent (KVKK/GDPR):** Varsayılan opt-out modelidir — kullanıcı açıkça
    reddetmedikçe anonim analitik akar (PII yok). Consent ekranı olan oyunlarda
    kullanıcının seçimini tek satırla yaz:
@@ -300,6 +309,8 @@ Herhangi bir oyunun Unity projesine:
 | `generateAIReport` "API 401" | Anthropic key hatalı | `firebase functions:secrets:set ANTHROPIC_API_KEY` ile yeniden gir, redeploy |
 | Deploy takılıyor: "non-interactive mode but have no value for: GA4_PROPERTY_ID" | Taze klonda `.env` yok (gitignore'da) | `cp firebase/functions/.env.example firebase/functions/.env` → GA4 property numarasını doldur → deploy. **Boş geçme:** canlıdaki değeri siler, panelin GA4 kartı çalışmaz |
 | Deploy "CLI keşif 10 sn'de patlıyor" | Fonksiyon dosyası büyük, CLI discovery timeout | `FUNCTIONS_DISCOVERY_TIMEOUT=120 firebase deploy --only functions` |
-| Unity'den hiç event gelmiyor | SDK v2.4 öncesi kopya (DefaultInstance → oyunun kendi Firebase'ine yazıyor) veya v2.1 opt-in consent kapısı (anahtar hiç set edilmemiş) | `unity-sdk/` v2.4+ dosyalarının TAMAMINI (AltareFirebase.cs dahil) oyuna kopyala; logcat'te `[AltareFirebase] named app ready` satırını doğrula |
+| Unity'den hiç event gelmiyor | Eski SDK kopyası veya yanlış GameId | `unity-sdk/` v3.0 dosyalarını kopyala; logcat'te `[Altare] Hazır. gameId=...` satırını doğrula |
+| Loglarda `API anahtarı geçersiz (401)` | Bootstrap'taki `ApiKey` yanlış/boş | Panel → SDK Bilgileri'nden anahtarı kopyala. SDK bu durumda ölçümü kapatır (sonsuz yeniden denemeye girmez) |
+| Olaylar geç görünüyor | Normal — v3.0 toplu gönderir | 50 olayda, 30 saniyede bir veya oyun arka plana atılınca gönderilir |
 | Firestore "permission denied" Unity'de | Anonymous auth devre dışı | Adım 2'de Anonymous provider'ı aç |
 | Oyunun kendi Firebase'i bozuldu şüphesi | — | Bozulmaz: SDK isimli `"altare"` app kullanır, oyunun default app'ine hiç dokunmaz |

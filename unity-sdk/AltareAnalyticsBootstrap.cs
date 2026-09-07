@@ -1,5 +1,5 @@
 // =============================================================================
-// AltareAnalyticsBootstrap.cs  —  v2.2.0
+// AltareAnalyticsBootstrap.cs  —  v3.0.0
 // -----------------------------------------------------------------------------
 // AltareAnalytics SDK'sini sahnelere dokunmadan otomatik baslatir.
 // Drop-in: bu script projeye eklendiginde uygulama acilisinda kendiliginden
@@ -19,9 +19,10 @@
 //   Kati opt-in gereken pazarlar icin RequireExplicitConsent = true yap —
 //   v2.1 davranisi aynen geri gelir (yalniz key==1 ile baslar).
 //
-// HER OYUN ICIN AYARLANACAK:
-//   GameId    = "your-game-id"   // Firestore'da games/{GameId}/events
+// HER OYUN ICIN AYARLANACAK (tek yapilandirma noktasi):
+//   GameId    = "your-game-id"   // Panel -> Oyunlarim listesindeki GAME ID
 //   GameName  = "Your Game Name" // Panel'de gosterilen ad
+//   ApiKey    = "altr_..."       // Panel -> SDK Bilgileri
 // =============================================================================
 
 using UnityEngine;
@@ -30,6 +31,10 @@ public static class AltareAnalyticsBootstrap
 {
     private const string GameId = "your-game-id";
     private const string GameName = "Your Game Name";
+
+    /// Panel -> Oyunlarim -> <oyun> -> SDK Bilgileri'ndeki anahtar (altr_...).
+    /// Bos birakilabilir (sunucu gecis donemindedir) ama VERILMESI onerilir.
+    private const string ApiKey = "";
 
     // true → kati opt-in: kullanici acikca onaylamadan (key==1) baslamaz.
     // false (varsayilan) → opt-out: acikca reddedilmedikce (key==0) baslar.
@@ -64,7 +69,7 @@ public static class AltareAnalyticsBootstrap
 
     private static void StartSdk()
     {
-        Reflective.TryInvokeInitialize(GameId, GameName);
+        Reflective.TryInvokeInitialize(GameId, GameName, ApiKey);
     }
 
     private class BootstrapHost : MonoBehaviour
@@ -103,7 +108,7 @@ public static class AltareAnalyticsBootstrap
     {
         private static bool warned;
 
-        public static void TryInvokeInitialize(string gameId, string gameName)
+        public static void TryInvokeInitialize(string gameId, string gameName, string apiKey)
         {
             System.Type t = System.Type.GetType("Altare.Analytics.AltareAnalytics, Assembly-CSharp")
                             ?? System.Type.GetType("Altare.Analytics.AltareAnalytics");
@@ -113,29 +118,47 @@ public static class AltareAnalyticsBootstrap
                 if (!warned)
                 {
                     warned = true;
-                    Debug.Log("[AltareBootstrap] AltareAnalytics class henuz projede yok. " +
-                              "Firebase Auth+Firestore modulleri import edilince + SDK kopyalaninca aktif olur.");
+                    Debug.Log("[AltareBootstrap] AltareAnalytics sinifi projede yok. " +
+                              "AltareAnalytics.cs dosyasini Assets/ altina kopyalayinca aktif olur.");
                 }
                 return;
             }
 
-            System.Reflection.MethodInfo m = t.GetMethod(
-                "Initialize",
-                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static,
-                null,
-                new[] { typeof(string), typeof(string) },
-                null);
+            const System.Reflection.BindingFlags Bayrak =
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static;
+
+            // v3.0: Initialize(gameId, gameName, apiKey, endpoint) — son iki
+            // parametre istege bagli. Once 4'lu imzayi ara.
+            System.Reflection.MethodInfo m = t.GetMethod("Initialize", Bayrak, null,
+                new[] { typeof(string), typeof(string), typeof(string), typeof(string) }, null);
+            object[] argumanlar = m != null
+                ? new object[] { gameId, gameName, apiKey, null }
+                : null;
+
+            // v2.x geriye uyum: yalnizca (gameId, gameName) varsa onu kullan.
+            if (m == null)
+            {
+                m = t.GetMethod("Initialize", Bayrak, null,
+                    new[] { typeof(string), typeof(string) }, null);
+                argumanlar = new object[] { gameId, gameName };
+                if (m != null && !string.IsNullOrEmpty(apiKey))
+                {
+                    Debug.LogWarning("[AltareBootstrap] Eski SDK surumu: apiKey desteklenmiyor, " +
+                                     "yok sayildi. unity-sdk/ dosyalarini guncelleyin.");
+                }
+            }
 
             if (m == null)
             {
-                Debug.LogWarning("[AltareBootstrap] AltareAnalytics.Initialize(string,string) bulunamadi.");
+                Debug.LogWarning("[AltareBootstrap] AltareAnalytics.Initialize bulunamadi.");
                 return;
             }
 
             try
             {
-                m.Invoke(null, new object[] { gameId, gameName });
-                Debug.Log($"[AltareBootstrap] AltareAnalytics baslatildi: {gameId} / {gameName}");
+                m.Invoke(null, argumanlar);
+                Debug.Log($"[AltareBootstrap] AltareAnalytics baslatildi: {gameId} / {gameName}"
+                          + (string.IsNullOrEmpty(apiKey) ? " (apiKey YOK)" : ""));
             }
             catch (System.Exception e)
             {

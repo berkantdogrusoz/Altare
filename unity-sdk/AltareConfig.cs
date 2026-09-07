@@ -45,18 +45,32 @@ namespace Altare.Analytics
         public static void Initialize()
         {
             if (_initialized) return;
-            _initialized = true;
-            // SDK hazir olmadan (anonim auth tamamlanmadan) config dinlemeye
-            // baslamayalim — Firestore rules signed-in anonim istemci bekler.
-            string gameId = AltareAnalytics.IsHealthy ? AltareAnalytics.GameId : null;
+
+            // gameId'yi AltareAnalytics tasir (kimlik tek yerde tutulur).
+            string gameId = AltareAnalytics.GameId;
             if (string.IsNullOrEmpty(gameId))
             {
-                // AltareAnalytics henuz baslamamis — 2sn'de bir tekrar dene
-                _initialized = false;
+                // AltareAnalytics henuz Initialize edilmemis — 2sn'de bir dene.
                 AltareConfigRetry.Schedule();
                 return;
             }
-            SubscribeToConfig(gameId);
+
+            _initialized = true;
+
+            // v3.0: Analitik artik Firebase kullanmiyor, bu yuzden anonim
+            // oturumu KENDIMIZ acmaliyiz — Firestore rules signed-in anonim
+            // istemci bekler.
+            AltareFirebase.EnsureReady(hazir =>
+            {
+                if (!hazir)
+                {
+                    _initialized = false;
+                    Debug.LogWarning("[AltareConfig] Firebase hazir degil — " +
+                                     "Remote Config devre disi, varsayilan degerler kullanilacak.");
+                    return;
+                }
+                SubscribeToConfig(gameId);
+            });
         }
 
         public static int GetInt(string key, int defaultValue)

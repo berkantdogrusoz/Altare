@@ -1,63 +1,128 @@
 // =============================================================================
-// AltareAnalytics.cs  —  v2.4.0
+// AltareAnalytics.cs  —  v3.0.0
 // -----------------------------------------------------------------------------
-// Drop-in Unity client for the Altare AI Live Game Intelligence platform.
+// Altare AI Live Game Intelligence — evrensel Unity analitik istemcisi.
 //
-// v2.4 highlights (KRITIK):
-//   - Artik oyunun default Firebase app'i YERINE isimli "altare" app'i
-//     kullanilir (AltareFirebase.cs). Sonuc:
-//       * Kendi Firebase'i olan oyunlarda veri artik dogru projeye
-//         (altare-312a1) akar — oyunun Firebase'ine dokunulmaz.
-//       * Hic Firebase config'i (google-services.json) OLMAYAN oyunlarda
-//         bile calisir; sadece Firebase Unity SDK modulleri yeterli.
-//   - SetAnalyticsConsent(bool) public API — consent ekrani olan oyunlar
-//     tek satirla onay/red yazar.
+// TASARIM ILKESI: Bu SDK hicbir oyuna ozel degildir. Tur, motor, altyapi
+// farketmeksizin ayni sekilde calisir. Tek yapilandirma noktasi
+// Initialize(gameId, gameName, apiKey) cagrisidir.
 //
-// v2.3 highlights:
-//   - Memory pressure tracking (memory_warning when low/anomalous)
-//   - ANR (Android Not Responding) detection via main-thread heartbeat
-//   - GPU model + RAM fingerprinting per event (deviceParams)
-//   - Circuit breaker: if Firebase fails repeatedly, SDK disables itself
-//     and never blocks the game. Stability above analytics.
-//   - LogMemoryWarning / LogANR public APIs for engine-level hooks
+// ─── v3.0 — NE DEGISTI, NEDEN ─────────────────────────────────────────────
 //
-// Usage:
+// 1) FIREBASE BAGIMLILIGI KALKTI (analitik yolunda)
+//    Eskiden her event dogrudan Firestore'a yaziliyordu; bu, oyunun
+//    Firebase Unity SDK'sini import etmesini ZORUNLU kiliyordu. Artik
+//    olaylar HTTPS ile Altare'nin `ingestEvents` ucuna gonderiliyor.
+//    Sonuc: Firebase'i OLMAYAN oyunlar da yalnizca bu .cs dosyalarini
+//    kopyalayarak calisir. (Remote Config ve PlayerState modulleri hala
+//    Firebase ister — onlar istege baglidir.)
+//
+// 2) TOPLU GONDERIM (batching)
+//    Eskiden her event ANINDA ayri bir istek/yazim uretiyordu; 50 event =
+//    50 ag turu. Artik olaylar biriktirilip tek istekte gonderiliyor:
+//    50 event dolunca VEYA 30 sn gecince VEYA oyun arka plana atilinca.
+//    Kazanc: ag turu ve faturalanan Cloud Function cagrisi ~50 kat azalir,
+//    pil tuketimi duser.
+//    NOT: Firestore dokuman basina ucretlendirdigi icin depolama maliyeti
+//    bu adimda DEGISMEZ — o kazanc sutunlu veritabani gecisinde gelir.
+//
+// 3) DISKE YAZAN KUYRUK
+//    Eskiden tampon yalnizca bellekteydi: oyun cokerse, oyuncu ucak
+//    modundayken kapatirsa olaylar UCUYORDU. Artik kuyruk kalici
+//    depolamaya yazilir ve sunucu "aldim" diyene kadar SILINMEZ.
+//
+// 4) AKILLI YENIDEN DENEME
+//    Hata tipleri ayrildi. Kalici hatalar (bozuk govde, bilinmeyen oyun,
+//    gecersiz anahtar) sonsuz donguye sokmaz — olcum kapatilir. Gecici
+//    hatalar (ag, 429, 5xx) ustel geri cekilmeyle tekrar denenir.
+//
+// ─── KULLANIM ─────────────────────────────────────────────────────────────
+//
 //   void Start() {
-//       AltareAnalytics.Initialize("your-game-id", "Your Game Name");
+//       AltareAnalytics.Initialize("oyun-kimligi", "Oyun Adi", "altr_...");
 //   }
+//   AltareAnalytics.LogEvent("level_start", new() { { "level", 5 } });
 //
-// Required Unity packages:
-//   - Firebase Authentication
-//   - Firebase Firestore
+// apiKey panelde: Oyunlarim -> <oyun> -> SDK Bilgileri.
 //
-// Privacy notes:
-//   - Stores only an anonymous UUID (playerAnonId) in PlayerPrefs.
-//   - GPU/RAM are coarse device fingerprint — never PII.
+// GEREKSINIM: Yok. Sadece Unity. (Firebase modulleri yalnizca AltareConfig
+// / AltarePlayerState kullanilacaksa gerekir.)
+//
+// GIZLILIK: Yalnizca anonim UUID (playerAnonId) saklanir. E-posta, telefon,
+// konum, reklam kimligi TOPLANMAZ. GPU/RAM kaba cihaz sinifidir, PII degil.
 // =============================================================================
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Text;
 using UnityEngine;
-using Firebase;
-using Firebase.Auth;
-using Firebase.Firestore;
-using Firebase.Extensions;
+using UnityEngine.Networking;
 
 namespace Altare.Analytics
 {
     public class AltareAnalytics : MonoBehaviour
     {
-        public static void Initialize(string gameId, string gameName)
+        // ─────────────────────────────────────────────────────────────────
+        // Ayarlar
+        // ─────────────────────────────────────────────────────────────────
+
+        /// <summary>Sunucu istek basina en fazla 50 olay kabul ediyor.</summary>
+        private const int YiginBoyutu = 50;
+
+        /// <summary>Yigin dolmasa bile bu araliktan sonra gonder.</summary>
+        private const float GonderimAraligiSn = 30f;
+
+        /// <summary>
+        /// Kuyruk tavani. Uzun cevrimdisi oturumda sinirsiz birikmesin;
+        /// tavana gelince EN ESKI olay dusurulur (yeni veri daha degerli).
+        /// </summary>
+        private const int KuyrukTavani = 2000;
+
+        /// <summary>Kac olayda bir kuyruk diske yazilsin.</summary>
+        private const int DiskeYazmaAraligi = 25;
+
+        private const string KuyrukDosyaAdi = "altare_events.jsonl";
+        private const string VarsayilanUc =
+            "https://europe-west1-altare-312a1.cloudfunctions.net/ingestEvents";
+
+        private const string PrefsPlayerIdKey = "altare.playerAnonId";
+        public const string ConsentPrefsKey = "app_consent_analytics";
+
+        // Ustel geri cekilme: 2, 4, 8, 16, 32, 60, 60...
+        private const float IlkBekleme = 2f;
+        private const float EnUzunBekleme = 60f;
+
+        // ─────────────────────────────────────────────────────────────────
+        // Public API
+        // ─────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// SDK'yi baslatir. Idempotent — birden fazla cagri zararsizdir.
+        /// </summary>
+        /// <param name="gameId">Panelde kayitli oyun kimligi (zorunlu).</param>
+        /// <param name="gameName">Panelde gorunen ad.</param>
+        /// <param name="apiKey">Panel -> SDK Bilgileri'ndeki anahtar. Bos
+        /// birakilabilir (sunucu gecis donemindedir) ama VERILMESI onerilir.</param>
+        /// <param name="endpoint">Ozel uc; normalde bos birakilir.</param>
+        public static void Initialize(string gameId, string gameName,
+                                      string apiKey = null, string endpoint = null)
         {
             if (_instance != null) return;
             if (string.IsNullOrWhiteSpace(gameId))
-                throw new ArgumentException("gameId is required", nameof(gameId));
+                throw new ArgumentException("gameId zorunlu", nameof(gameId));
 
             var go = new GameObject("[AltareAnalytics]");
+            go.hideFlags = HideFlags.HideInHierarchy;
             DontDestroyOnLoad(go);
+
             _instance = go.AddComponent<AltareAnalytics>();
             _instance._gameId = gameId.Trim();
             _instance._gameName = string.IsNullOrWhiteSpace(gameName) ? gameId : gameName.Trim();
+            _instance._apiKey = (apiKey ?? "").Trim();
+            _instance._uc = string.IsNullOrWhiteSpace(endpoint) ? VarsayilanUc : endpoint.Trim();
             _instance.Boot();
         }
 
@@ -66,15 +131,10 @@ namespace Altare.Analytics
             if (string.IsNullOrWhiteSpace(eventName)) return;
             if (_instance == null)
             {
-                Debug.LogWarning("[Altare] LogEvent called before Initialize — dropping: " + eventName);
+                Debug.LogWarning("[Altare] Initialize cagrilmadan LogEvent — dusuruldu: " + eventName);
                 return;
             }
-            if (_instance._circuitOpen)
-            {
-                // Circuit breaker open — silently drop. Game must not be blocked.
-                return;
-            }
-            _instance.EnqueueEvent(eventName, parameters);
+            _instance.Kuyruga(eventName, parameters);
         }
 
         public static void LogSessionStart() => LogEvent("session_start", null);
@@ -86,7 +146,7 @@ namespace Altare.Analytics
             });
         }
 
-        /// <summary>Manuel memory warning — kullanici kendi MemoryProfiler'indan tetikleyebilir.</summary>
+        /// <summary>Manuel memory warning.</summary>
         public static void LogMemoryWarning(long usedMb = -1, long totalMb = -1, string source = "manual")
         {
             var p = new Dictionary<string, object> { { "source", source } };
@@ -95,7 +155,7 @@ namespace Altare.Analytics
             LogEvent("memory_warning", p);
         }
 
-        /// <summary>Manuel ANR — uzun frame veya main-thread block tetikleyici.</summary>
+        /// <summary>Manuel ANR — uzun frame veya main-thread block.</summary>
         public static void LogANR(float frameTimeMs, string source = "auto")
         {
             LogEvent("anr_detected", new Dictionary<string, object> {
@@ -104,24 +164,29 @@ namespace Altare.Analytics
             });
         }
 
+        /// <summary>
+        /// Oyuncu geri bildirimi. Olay akisina `player_feedback` olarak gider;
+        /// ayri bir altyapi gerektirmez.
+        /// </summary>
         public static void SubmitFeedback(int rating, string text)
         {
-            if (_instance == null || _instance._circuitOpen) return;
-            _instance.WriteFeedback(rating, text);
+            var t = text ?? "";
+            LogEvent("player_feedback", new Dictionary<string, object> {
+                { "rating", rating },
+                { "text", t.Length > 280 ? t.Substring(0, 280) : t },
+            });
+            Flush();
         }
 
-        public static string PlayerAnonId => _instance != null ? _instance._playerAnonId : null;
-        public static string GameId => _instance != null ? _instance._gameId : null;
-        public static bool IsHealthy => _instance != null && _instance._ready && !_instance._circuitOpen;
+        /// <summary>Bekleyen olaylari hemen gondermeyi dener.</summary>
+        public static void Flush()
+        {
+            if (_instance != null) _instance._hemenGonder = true;
+        }
 
         /// <summary>
-        /// KVKK/GDPR consent anahtari. Consent ekrani olan oyunlar kullanicinin
-        /// secimini bu API ile yazar:
-        ///   AltareAnalytics.SetAnalyticsConsent(true);   // onay — SDK baslar
-        ///   AltareAnalytics.SetAnalyticsConsent(false);  // red  — SDK durur/baslamaz
-        /// Consent ekrani olmayan oyunlarda hicbir sey cagirmaya gerek yok:
-        /// bootstrap varsayilan olarak anonim analitigi acik kabul eder
-        /// (opt-out modeli) — veri anonim UUID'dir, PII icermez.
+        /// KVKK/GDPR onayi. Consent ekrani olan oyunlar kullanicinin secimini
+        /// buradan yazar. Red gelirse SDK durur ve diskteki kuyruk silinir.
         /// </summary>
         public static void SetAnalyticsConsent(bool granted)
         {
@@ -129,18 +194,32 @@ namespace Altare.Analytics
             PlayerPrefs.Save();
             if (!granted && _instance != null)
             {
-                _instance.TripCircuit("consent_revoked");
+                _instance._kuyruk.Clear();
+                _instance.DiskiTemizle();
+                _instance.Kapat("consent_revoked");
             }
         }
 
-        public const string ConsentPrefsKey = "app_consent_analytics";
+        public static string PlayerAnonId => _instance != null ? _instance._playerAnonId : null;
+        public static string GameId => _instance != null ? _instance._gameId : null;
+        public static string GameName => _instance != null ? _instance._gameName : null;
+        public static string SessionId => _instance != null ? _instance._sessionId : null;
+        public static bool IsHealthy => _instance != null && !_instance._kapali;
 
-        private const string PrefsPlayerIdKey = "altare.playerAnonId";
+        /// <summary>Tanilama: su an gonderilmeyi bekleyen olay sayisi.</summary>
+        public static int PendingEventCount => _instance != null ? _instance._kuyruk.Count : 0;
+
+        // ─────────────────────────────────────────────────────────────────
+        // Durum
+        // ─────────────────────────────────────────────────────────────────
 
         private static AltareAnalytics _instance;
 
         private string _gameId;
         private string _gameName;
+        private string _apiKey;
+        private string _uc;
+
         private string _playerAnonId;
         private string _sessionId;
         private string _platform;
@@ -150,122 +229,83 @@ namespace Altare.Analytics
         private long _totalMemoryMb;
         private bool _isFirstOpen;
 
-        private FirebaseFirestore _db;
-        private bool _ready;
-        private bool _initFailed;
+        private bool _kapali;
+        private bool _hemenGonder;
+        private bool _gonderimSuruyor;
+        private int _diskSayaci;
+        private float _bekleme = IlkBekleme;
 
-        // Circuit breaker (Mücahit'in stability endişesi)
-        private bool _circuitOpen = false;
-        private int _consecutiveWriteFailures = 0;
-        private const int CircuitBreakerThreshold = 10;
+        private readonly List<Kayit> _kuyruk = new List<Kayit>(64);
+        private string _kuyrukYolu;
 
-        private readonly Queue<PendingEvent> _buffer = new Queue<PendingEvent>(64);
+        private float _oturumBaslangici;
 
-        private float _sessionStartTime;
-        private bool _quitting;
+        // Izleme (FPS / ANR / bellek) — motor bagimsiz, her oyunda ayni
+        private const float FpsKontrolAraligi = 5f;
+        private const float FpsEsigi = 30f;
+        private const float FpsUyariBekleme = 60f;
+        private float _fpsToplam; private int _fpsKare; private float _fpsSayac; private float _sonFpsUyari = -999f;
 
-        private const float FpsCheckIntervalSec = 5f;
-        private const float FpsWarningThreshold = 30f;
-        private const float FpsWarningCooldownSec = 60f;
-        private float _fpsAccum;
-        private int _fpsFrames;
-        private float _fpsCheckTimer;
-        private float _lastFpsWarnAt = -999f;
+        private const float AnrEsigiSn = 5f;
+        private float _sonKareZamani; private float _sonAnr = -999f;
 
-        // ANR detection (Umut Can'in onerisi)
-        private const float AnrFrameThresholdSec = 5f;  // Android ANR threshold
-        private float _lastFrameTime;
-        private float _lastAnrAt = -999f;
+        private const float BellekKontrolAraligi = 30f;
+        private float _bellekSayac; private long _sonBellekMb; private float _sonBellekUyari = -999f;
+        private const long BellekArtisEsigiMb = 100;
 
-        // Memory tracking (Umut Can'in onerisi)
-        private const float MemoryCheckIntervalSec = 30f;
-        private float _memoryCheckTimer;
-        private long _lastReportedMemoryMb = 0;
-        private float _lastMemoryWarnAt = -999f;
-        private const long MemoryWarningGrowthMb = 100;  // >100MB pressure jump
+        private struct Kayit
+        {
+            public string ad;
+            public Dictionary<string, object> parametreler;
+            public string zamanIso;
+        }
+
+        // ─────────────────────────────────────────────────────────────────
+        // Kurulum
+        // ─────────────────────────────────────────────────────────────────
 
         private void Boot()
         {
             try
             {
-                _playerAnonId = LoadOrCreatePlayerId(out _isFirstOpen);
+                _kuyrukYolu = Path.Combine(Application.persistentDataPath, KuyrukDosyaAdi);
+
+                _playerAnonId = KimlikYukleVeyaUret(out _isFirstOpen);
                 _sessionId = Guid.NewGuid().ToString("N");
                 _platform = Application.platform.ToString();
                 _appVersion = Application.version;
                 _deviceModel = SystemInfo.deviceModel;
                 _gpuModel = SystemInfo.graphicsDeviceName;
                 _totalMemoryMb = SystemInfo.systemMemorySize;
-                _sessionStartTime = Time.realtimeSinceStartup;
-                _lastFrameTime = Time.realtimeSinceStartup;
+                _oturumBaslangici = Time.realtimeSinceStartup;
+                _sonKareZamani = Time.realtimeSinceStartup;
+
+                DiskiYukle();
             }
             catch (Exception e)
             {
-                Debug.LogWarning("[Altare] Boot init failed (non-fatal): " + e.Message);
-                TripCircuit("boot");
+                // Olcum ugruna oyun patlatilmaz — bu SDK'nin temel kurali.
+                Debug.LogWarning("[Altare] Kurulum hatasi (olumcul degil): " + e.Message);
+                Kapat("boot");
                 return;
             }
 
-            FirebaseApp.CheckAndFixDependenciesAsync().ContinueWithOnMainThread(task =>
-            {
-                if (task.Result != DependencyStatus.Available)
-                {
-                    _initFailed = true;
-                    Debug.LogWarning("[Altare] Firebase deps unavailable: " + task.Result + " — SDK disabled, game continues.");
-                    TripCircuit("firebase_deps");
-                    return;
-                }
+            Debug.Log("[Altare] Hazir. gameId=" + _gameId
+                      + " session=" + _sessionId
+                      + " bekleyen=" + _kuyruk.Count);
 
-                // KRITIK: default app DEGIL, isimli "altare" app'i kullanilir.
-                // Oyunun kendi Firebase'i olsa da olmasa da veri altare-312a1'e
-                // gider; oyunun google-services.json'una ihtiyac yoktur.
-                try
-                {
-                    AltareFirebase.EnsureApp();
-                }
-                catch (Exception e)
-                {
-                    _initFailed = true;
-                    Debug.LogWarning("[Altare] Altare app create failed: " + e.Message + " — SDK disabled, game continues.");
-                    TripCircuit("altare_app_create");
-                    return;
-                }
-
-                AltareFirebase.Auth.SignInAnonymouslyAsync()
-                    .ContinueWithOnMainThread(authTask =>
-                    {
-                        if (authTask.IsFaulted || authTask.IsCanceled)
-                        {
-                            _initFailed = true;
-                            Debug.LogWarning("[Altare] Anonymous auth failed — SDK disabled, game continues.");
-                            TripCircuit("auth");
-                            return;
-                        }
-                        _db = AltareFirebase.Db;
-                        _ready = true;
-                        Debug.Log("[Altare] Ready. gameId=" + _gameId
-                                  + " playerAnonId=" + _playerAnonId
-                                  + " sessionId=" + _sessionId);
-                        if (_isFirstOpen)
-                            LogEvent("first_open", null);
-                        LogEvent("app_open", new Dictionary<string, object> {
-                            { "is_first_open", _isFirstOpen },
-                            { "gpu", _gpuModel },
-                            { "ram_mb", _totalMemoryMb },
-                        });
-                        LogSessionStart();
-                        FlushBuffer();
-                    });
+            if (_isFirstOpen) LogEvent("first_open", null);
+            LogEvent("app_open", new Dictionary<string, object> {
+                { "is_first_open", _isFirstOpen },
+                { "gpu", _gpuModel },
+                { "ram_mb", _totalMemoryMb },
             });
+            LogSessionStart();
+
+            StartCoroutine(GonderimDongusu());
         }
 
-        private void TripCircuit(string reason)
-        {
-            _circuitOpen = true;
-            _ready = false;
-            Debug.LogWarning("[Altare] Circuit breaker tripped: " + reason + ". Analytics disabled for this session.");
-        }
-
-        private string LoadOrCreatePlayerId(out bool created)
+        private string KimlikYukleVeyaUret(out bool yeni)
         {
             string id = PlayerPrefs.GetString(PrefsPlayerIdKey, null);
             if (string.IsNullOrEmpty(id))
@@ -273,223 +313,520 @@ namespace Altare.Analytics
                 id = Guid.NewGuid().ToString("N");
                 PlayerPrefs.SetString(PrefsPlayerIdKey, id);
                 PlayerPrefs.Save();
-                created = true;
+                yeni = true;
                 return id;
             }
-            created = false;
+            yeni = false;
             return id;
         }
 
-        private void EnqueueEvent(string eventName, Dictionary<string, object> parameters)
+        private void Kapat(string sebep)
         {
-            var pending = new PendingEvent
+            _kapali = true;
+            Debug.LogWarning("[Altare] Olcum kapatildi: " + sebep);
+        }
+
+        // ─────────────────────────────────────────────────────────────────
+        // Kuyruk + disk kaliciligi
+        // ─────────────────────────────────────────────────────────────────
+
+        private void Kuyruga(string ad, Dictionary<string, object> p)
+        {
+            if (_kapali) return;
+
+            var kayit = new Kayit
             {
-                eventName = eventName,
-                parameters = parameters != null
-                    ? new Dictionary<string, object>(parameters)
-                    : new Dictionary<string, object>(),
-                clientTimestampUtc = DateTime.UtcNow,
+                ad = ad,
+                parametreler = ParametreleriZenginlestir(p),
+                zamanIso = DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture),
             };
 
-            if (!_ready)
+            // Tavan asilirsa en eskiyi dusur — yeni veri daha temsili.
+            if (_kuyruk.Count >= KuyrukTavani) _kuyruk.RemoveAt(0);
+            _kuyruk.Add(kayit);
+
+            if (++_diskSayaci >= DiskeYazmaAraligi)
             {
-                if (_buffer.Count > 256) _buffer.Dequeue();
-                _buffer.Enqueue(pending);
-                return;
+                _diskSayaci = 0;
+                DiskeYaz();
             }
-            WriteEvent(pending);
+            if (_kuyruk.Count >= YiginBoyutu) _hemenGonder = true;
         }
 
-        private void FlushBuffer()
+        private Dictionary<string, object> ParametreleriZenginlestir(Dictionary<string, object> p)
         {
-            while (_buffer.Count > 0)
-            {
-                WriteEvent(_buffer.Dequeue());
-            }
+            var d = p != null ? new Dictionary<string, object>(p) : new Dictionary<string, object>();
+            // Cihaz sinifi analizi her event'te elde olsun.
+            if (!d.ContainsKey("gpu_model")) d["gpu_model"] = _gpuModel;
+            if (!d.ContainsKey("total_memory_mb")) d["total_memory_mb"] = _totalMemoryMb;
+            return d;
         }
 
-        private void WriteEvent(PendingEvent pending)
+        /// <summary>
+        /// Kuyrugu diske yazar. Cokme/kapanma sonrasi veri kaybini onler.
+        /// Her olayda degil, DiskeYazmaAraligi'nda bir + duraklama/cikista
+        /// yazilir — surekli I/O mobilde takilmaya yol acar.
+        /// </summary>
+        private void DiskeYaz()
         {
-            if (_db == null || _circuitOpen) return;
-
+            if (string.IsNullOrEmpty(_kuyrukYolu)) return;
             try
             {
-                var payload = new Dictionary<string, object>
-                {
-                    { "gameId",        _gameId },
-                    { "gameName",      _gameName },
-                    { "playerAnonId",  _playerAnonId },
-                    { "sessionId",     _sessionId },
-                    { "eventName",     pending.eventName },
-                    { "eventParams",   EnrichParams(pending.parameters) },
-                    { "timestamp",     FieldValue.ServerTimestamp },
-                    { "clientTimestamp", Timestamp.FromDateTime(pending.clientTimestampUtc) },
-                    { "platform",      _platform },
-                    { "appVersion",    _appVersion },
-                    { "deviceModel",   _deviceModel },
-                    { "gpuModel",      _gpuModel },
-                    { "totalMemoryMb", _totalMemoryMb },
-                };
+                if (_kuyruk.Count == 0) { DiskiTemizle(); return; }
 
-                _db.Collection("games").Document(_gameId)
-                   .Collection("events").Document()
-                   .SetAsync(payload)
-                   .ContinueWithOnMainThread(t =>
-                   {
-                       if (t.IsFaulted)
-                       {
-                           _consecutiveWriteFailures++;
-                           Debug.LogWarning("[Altare] event write failed (" + pending.eventName
-                                            + "): " + t.Exception?.GetBaseException()?.Message);
-                           if (_consecutiveWriteFailures >= CircuitBreakerThreshold)
-                           {
-                               TripCircuit("write_failures_threshold");
-                           }
-                       }
-                       else
-                       {
-                           _consecutiveWriteFailures = 0;
-                       }
-                   });
+                var sb = new StringBuilder(_kuyruk.Count * 128);
+                for (int i = 0; i < _kuyruk.Count; i++)
+                {
+                    sb.Append('{');
+                    Alan(sb, "eventName", _kuyruk[i].ad); sb.Append(',');
+                    Alan(sb, "clientTimestamp", _kuyruk[i].zamanIso); sb.Append(',');
+                    sb.Append("\"eventParams\":");
+                    ParametreYaz(sb, _kuyruk[i].parametreler);
+                    sb.Append("}\n");
+                }
+                File.WriteAllText(_kuyrukYolu, sb.ToString());
             }
             catch (Exception e)
             {
-                Debug.LogWarning("[Altare] WriteEvent exception (non-fatal): " + e.Message);
-                _consecutiveWriteFailures++;
-                if (_consecutiveWriteFailures >= CircuitBreakerThreshold) TripCircuit("write_exceptions");
+                Debug.LogWarning("[Altare] Kuyruk diske yazilamadi: " + e.Message);
             }
         }
 
-        private Dictionary<string, object> EnrichParams(Dictionary<string, object> p)
+        private void DiskiYukle()
         {
-            // Ensure gpu and ram are always available for device-tier analysis
-            if (p == null) p = new Dictionary<string, object>();
-            if (!p.ContainsKey("gpu_model")) p["gpu_model"] = _gpuModel;
-            if (!p.ContainsKey("total_memory_mb")) p["total_memory_mb"] = _totalMemoryMb;
-            return p;
+            try
+            {
+                if (!File.Exists(_kuyrukYolu)) return;
+                var satirlar = File.ReadAllLines(_kuyrukYolu);
+                int yuklenen = 0;
+                foreach (var satir in satirlar)
+                {
+                    if (string.IsNullOrWhiteSpace(satir)) continue;
+                    var k = SatirdanKayit(satir);
+                    if (k.HasValue)
+                    {
+                        if (_kuyruk.Count >= KuyrukTavani) _kuyruk.RemoveAt(0);
+                        _kuyruk.Add(k.Value);
+                        yuklenen++;
+                    }
+                }
+                if (yuklenen > 0)
+                    Debug.Log("[Altare] Onceki oturumdan " + yuklenen + " olay kurtarildi.");
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("[Altare] Kuyruk okunamadi: " + e.Message);
+            }
         }
 
-        private void WriteFeedback(int rating, string text)
+        /// <summary>
+        /// Diskteki satiri geri okur. Tam bir JSON ayristiricisi degil —
+        /// yalnizca kendi yazdigimiz formati cozer; ham JSON parametreleri
+        /// oldugu gibi tasinir (yeniden serilestirilmez).
+        /// </summary>
+        private Kayit? SatirdanKayit(string satir)
         {
-            if (_db == null || _circuitOpen)
+            try
             {
-                LogEvent("player_feedback", new Dictionary<string, object> {
-                    { "rating", rating },
-                    { "text", text ?? "" },
-                });
+                string ad = DegerCek(satir, "eventName");
+                string zaman = DegerCek(satir, "clientTimestamp");
+                if (string.IsNullOrEmpty(ad)) return null;
+
+                int i = satir.IndexOf("\"eventParams\":", StringComparison.Ordinal);
+                string ham = null;
+                if (i >= 0)
+                {
+                    int bas = satir.IndexOf('{', i);
+                    if (bas >= 0)
+                    {
+                        int derinlik = 0; bool metinde = false; bool kacis = false;
+                        for (int j = bas; j < satir.Length; j++)
+                        {
+                            char c = satir[j];
+                            if (kacis) { kacis = false; continue; }
+                            if (c == '\\') { kacis = true; continue; }
+                            if (c == '"') { metinde = !metinde; continue; }
+                            if (metinde) continue;
+                            if (c == '{') derinlik++;
+                            else if (c == '}') { derinlik--; if (derinlik == 0) { ham = satir.Substring(bas, j - bas + 1); break; } }
+                        }
+                    }
+                }
+
+                var p = new Dictionary<string, object>();
+                if (!string.IsNullOrEmpty(ham)) p[HamAnahtar] = ham;
+
+                return new Kayit
+                {
+                    ad = ad,
+                    parametreler = p,
+                    zamanIso = string.IsNullOrEmpty(zaman)
+                        ? DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture)
+                        : zaman,
+                };
+            }
+            catch { return null; }
+        }
+
+        /// <summary>Diskten okunan ham JSON parametre blogunu tasiyan ozel anahtar.</summary>
+        private const string HamAnahtar = "__altare_raw__";
+
+        /// <summary>
+        /// Diskteki satirdan bir metin alani okur ve JSON kacislarini COZER.
+        /// Naif "ters bolu sonrasini oldugu gibi al" yaklasimi \n'i 'n', 'i
+        /// 'u0001' yapip veriyi sessizce bozuyordu — asagidaki tam cozum sart.
+        /// </summary>
+        private static string DegerCek(string satir, string anahtar)
+        {
+            string iz = "\"" + anahtar + "\":\"";
+            int i = satir.IndexOf(iz, StringComparison.Ordinal);
+            if (i < 0) return null;
+            int bas = i + iz.Length;
+            var sb = new StringBuilder();
+            for (int j = bas; j < satir.Length; j++)
+            {
+                char c = satir[j];
+                if (c == '"') break;
+                if (c != '\\') { sb.Append(c); continue; }
+                if (j + 1 >= satir.Length) break;
+
+                char k = satir[++j];
+                switch (k)
+                {
+                    case '"':  sb.Append('"');  break;
+                    case '\\': sb.Append('\\'); break;
+                    case '/':  sb.Append('/');  break;
+                    case 'n':  sb.Append('\n'); break;
+                    case 'r':  sb.Append('\r'); break;
+                    case 't':  sb.Append('\t'); break;
+                    case 'b':  sb.Append('\b'); break;
+                    case 'f':  sb.Append('\f'); break;
+                    case 'u':
+                        if (j + 4 < satir.Length &&
+                            int.TryParse(satir.Substring(j + 1, 4),
+                                         NumberStyles.HexNumber,
+                                         CultureInfo.InvariantCulture, out int kod))
+                        {
+                            sb.Append((char)kod);
+                            j += 4;
+                        }
+                        break;
+                    default:
+                        // Bilinmeyen kacis: karakteri oldugu gibi koru.
+                        sb.Append(k);
+                        break;
+                }
+            }
+            return sb.ToString();
+        }
+
+        private void DiskiTemizle()
+        {
+            try { if (File.Exists(_kuyrukYolu)) File.Delete(_kuyrukYolu); }
+            catch (Exception e) { Debug.LogWarning("[Altare] Kuyruk silinemedi: " + e.Message); }
+        }
+
+        // ─────────────────────────────────────────────────────────────────
+        // Gonderim
+        // ─────────────────────────────────────────────────────────────────
+
+        private IEnumerator GonderimDongusu()
+        {
+            float sayac = 0f;
+            while (!_kapali)
+            {
+                yield return null;
+                sayac += Time.unscaledDeltaTime;
+
+                bool zamanGeldi = sayac >= GonderimAraligiSn;
+                if ((zamanGeldi || _hemenGonder) && !_gonderimSuruyor && _kuyruk.Count > 0)
+                {
+                    sayac = 0f;
+                    _hemenGonder = false;
+                    yield return Gonder();
+                }
+                else if (zamanGeldi)
+                {
+                    sayac = 0f;
+                }
+            }
+        }
+
+        private IEnumerator Gonder()
+        {
+            _gonderimSuruyor = true;
+
+            int adet = Mathf.Min(_kuyruk.Count, YiginBoyutu);
+            var yigin = _kuyruk.GetRange(0, adet);
+            string govde = GovdeYap(yigin);
+
+            UnityWebRequest istek = null;
+            try
+            {
+                istek = new UnityWebRequest(_uc, "POST");
+                istek.uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(govde));
+                istek.downloadHandler = new DownloadHandlerBuffer();
+                istek.SetRequestHeader("Content-Type", "application/json");
+                if (!string.IsNullOrEmpty(_apiKey))
+                    istek.SetRequestHeader("X-Altare-Key", _apiKey);
+                istek.timeout = 20;
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("[Altare] Istek kurulamadi: " + e.Message);
+                _gonderimSuruyor = false;
+                yield break;
+            }
+
+            yield return istek.SendWebRequest();
+
+            bool basarili = istek.result == UnityWebRequest.Result.Success;
+            long kod = istek.responseCode;
+            string cevap = null;
+            try { cevap = istek.downloadHandler != null ? istek.downloadHandler.text : null; } catch { }
+            istek.Dispose();
+
+            if (basarili)
+            {
+                // SADECE gonderilen kadarini sil — bu sirada eklenenler kalsin.
+                _kuyruk.RemoveRange(0, Mathf.Min(adet, _kuyruk.Count));
+                _bekleme = IlkBekleme;
+                DiskeYaz();
+            }
+            else if (kod == 400 || kod == 404 || kod == 413)
+            {
+                // KALICI govde/yapilandirma hatasi: bilinmeyen gameId, bozuk
+                // govde, cok fazla olay. Tekrar denemek sonsuz dongudur.
+                Debug.LogError("[Altare] Kalici hata " + kod + " — olcum kapatildi. " + cevap);
+                _kuyruk.Clear();
+                DiskiTemizle();
+                Kapat("http_" + kod);
+            }
+            else if (kod == 401 || kod == 403)
+            {
+                // KALICI kimlik hatasi: yanlis/eksik API anahtari. Kendiliginden
+                // duzelmez; tekrar denemek 30 sn'de bir sonsuza kadar bos istek
+                // uretir ve faturalanir. Yuksek sesle logla ve dur.
+                Debug.LogError("[Altare] API anahtari gecersiz (" + kod + "). " +
+                               "Panel -> SDK Bilgileri'ndeki anahtari Initialize'a ver. " +
+                               "Olcum kapatildi.");
+                Kapat("auth_" + kod);
+            }
+            else
+            {
+                // GECICI: ag hatasi, 429, 5xx. Kuyrugu KORU, ustel geri cekilme.
+                Debug.LogWarning("[Altare] Gonderim basarisiz (" + kod + "), " +
+                                 _bekleme.ToString("0") + " sn sonra tekrar denenecek.");
+                DiskeYaz();
+                yield return new WaitForSecondsRealtime(_bekleme);
+                _bekleme = Mathf.Min(_bekleme * 2f, EnUzunBekleme);
+            }
+
+            _gonderimSuruyor = false;
+        }
+
+        // ─────────────────────────────────────────────────────────────────
+        // JSON — elle uretiliyor (sifir bagimlilik)
+        // ─────────────────────────────────────────────────────────────────
+
+        private string GovdeYap(List<Kayit> yigin)
+        {
+            var sb = new StringBuilder(256 + yigin.Count * 128);
+            sb.Append('{');
+            Alan(sb, "gameId", _gameId); sb.Append(',');
+            Alan(sb, "gameName", _gameName); sb.Append(',');
+            Alan(sb, "playerAnonId", _playerAnonId); sb.Append(',');
+            // sessionId KRITIK: sunucuda uniqueSessions bundan sayilir ve
+            // uniqueSessions, anomali oranlarinin paydasidir. Eksik olursa
+            // Sentinel yanlis alarm uretir.
+            Alan(sb, "sessionId", _sessionId); sb.Append(',');
+            Alan(sb, "platform", _platform); sb.Append(',');
+            Alan(sb, "appVersion", _appVersion); sb.Append(',');
+            Alan(sb, "deviceModel", _deviceModel); sb.Append(',');
+            Alan(sb, "gpuModel", _gpuModel); sb.Append(',');
+            sb.Append("\"totalMemoryMb\":").Append(_totalMemoryMb).Append(',');
+            sb.Append("\"events\":[");
+            for (int i = 0; i < yigin.Count; i++)
+            {
+                if (i > 0) sb.Append(',');
+                sb.Append('{');
+                Alan(sb, "eventName", yigin[i].ad); sb.Append(',');
+                Alan(sb, "clientTimestamp", yigin[i].zamanIso); sb.Append(',');
+                sb.Append("\"eventParams\":");
+                ParametreYaz(sb, yigin[i].parametreler);
+                sb.Append('}');
+            }
+            sb.Append("]}");
+            return sb.ToString();
+        }
+
+        private static void ParametreYaz(StringBuilder sb, Dictionary<string, object> p)
+        {
+            // Diskten kurtarilan kayitlar ham JSON tasir — oldugu gibi yaz.
+            if (p != null && p.Count == 1 && p.ContainsKey(HamAnahtar))
+            {
+                sb.Append(p[HamAnahtar] as string ?? "{}");
                 return;
             }
-            var payload = new Dictionary<string, object>
-            {
-                { "gameId",       _gameId },
-                { "gameName",     _gameName },
-                { "playerAnonId", _playerAnonId },
-                { "rating",       rating },
-                { "text",         text ?? "" },
-                { "platform",     _platform },
-                { "appVersion",   _appVersion },
-                { "deviceModel",  _deviceModel },
-                { "timestamp",    FieldValue.ServerTimestamp },
-            };
-            _db.Collection("games").Document(_gameId)
-               .Collection("feedback").Document()
-               .SetAsync(payload);
 
-            LogEvent("player_feedback", new Dictionary<string, object> {
-                { "rating", rating },
-                { "text", (text ?? "").Length > 80 ? (text.Substring(0, 80) + "…") : text ?? "" },
-            });
+            sb.Append('{');
+            if (p != null)
+            {
+                bool ilk = true;
+                foreach (var kv in p)
+                {
+                    if (kv.Key == HamAnahtar) continue;
+                    if (!ilk) sb.Append(',');
+                    ilk = false;
+                    Metin(sb, kv.Key); sb.Append(':');
+                    DegerYaz(sb, kv.Value);
+                }
+            }
+            sb.Append('}');
         }
+
+        private static void DegerYaz(StringBuilder sb, object v)
+        {
+            if (v == null) { sb.Append("null"); return; }
+            switch (v)
+            {
+                case bool b: sb.Append(b ? "true" : "false"); return;
+                case string s: Metin(sb, s); return;
+                case float f:
+                    sb.Append(float.IsNaN(f) || float.IsInfinity(f)
+                        ? "null" : f.ToString("R", CultureInfo.InvariantCulture));
+                    return;
+                case double d:
+                    sb.Append(double.IsNaN(d) || double.IsInfinity(d)
+                        ? "null" : d.ToString("R", CultureInfo.InvariantCulture));
+                    return;
+                case int i: sb.Append(i.ToString(CultureInfo.InvariantCulture)); return;
+                case long l: sb.Append(l.ToString(CultureInfo.InvariantCulture)); return;
+                case decimal m: sb.Append(m.ToString(CultureInfo.InvariantCulture)); return;
+                default:
+                    // Bilinmeyen tip: metne cevir. Sunucu zaten sanitize ediyor.
+                    Metin(sb, Convert.ToString(v, CultureInfo.InvariantCulture));
+                    return;
+            }
+        }
+
+        private static void Alan(StringBuilder sb, string ad, string deger)
+        {
+            Metin(sb, ad); sb.Append(':'); Metin(sb, deger ?? "");
+        }
+
+        private static void Metin(StringBuilder sb, string s)
+        {
+            sb.Append('"');
+            if (s != null)
+            {
+                foreach (char c in s)
+                {
+                    switch (c)
+                    {
+                        case '"': sb.Append("\\\""); break;
+                        case '\\': sb.Append("\\\\"); break;
+                        case '\n': sb.Append("\\n"); break;
+                        case '\r': sb.Append("\\r"); break;
+                        case '\t': sb.Append("\\t"); break;
+                        case '\b': sb.Append("\\b"); break;
+                        case '\f': sb.Append("\\f"); break;
+                        default:
+                            if (c < 0x20 || c == 0x7F)
+                                sb.Append("\\u").Append(((int)c).ToString("x4"));
+                            else sb.Append(c);
+                            break;
+                    }
+                }
+            }
+            sb.Append('"');
+        }
+
+        // ─────────────────────────────────────────────────────────────────
+        // Izleme — FPS / ANR / bellek (motor bagimsiz)
+        // ─────────────────────────────────────────────────────────────────
 
         private void Update()
         {
-            if (!_ready || _circuitOpen) return;
+            if (_kapali) return;
 
-            // FPS check
-            _fpsAccum += Time.unscaledDeltaTime;
-            _fpsFrames++;
-            _fpsCheckTimer += Time.unscaledDeltaTime;
-
-            if (_fpsCheckTimer >= FpsCheckIntervalSec)
+            // FPS
+            _fpsToplam += Time.unscaledDeltaTime;
+            _fpsKare++;
+            _fpsSayac += Time.unscaledDeltaTime;
+            if (_fpsSayac >= FpsKontrolAraligi)
             {
-                float avg = _fpsFrames > 0 && _fpsAccum > 0 ? _fpsFrames / _fpsAccum : 60f;
-                _fpsAccum = 0; _fpsFrames = 0; _fpsCheckTimer = 0;
-
-                if (avg < FpsWarningThreshold &&
-                    Time.realtimeSinceStartup - _lastFpsWarnAt > FpsWarningCooldownSec)
+                float ort = (_fpsKare > 0 && _fpsToplam > 0) ? _fpsKare / _fpsToplam : 60f;
+                _fpsToplam = 0; _fpsKare = 0; _fpsSayac = 0;
+                if (ort < FpsEsigi && Time.realtimeSinceStartup - _sonFpsUyari > FpsUyariBekleme)
                 {
-                    _lastFpsWarnAt = Time.realtimeSinceStartup;
+                    _sonFpsUyari = Time.realtimeSinceStartup;
                     LogEvent("fps_warning", new Dictionary<string, object> {
-                        { "avg_fps", Mathf.RoundToInt(avg) },
+                        { "avg_fps", Mathf.RoundToInt(ort) },
                         { "device", _deviceModel },
                     });
                 }
             }
 
-            // ANR check — measure frame duration; if >5sn (ANR threshold) report
-            float dt = Time.realtimeSinceStartup - _lastFrameTime;
-            _lastFrameTime = Time.realtimeSinceStartup;
-            if (dt > AnrFrameThresholdSec && Time.realtimeSinceStartup - _lastAnrAt > 60f)
+            // ANR — kare suresi esigi asarsa
+            float dt = Time.realtimeSinceStartup - _sonKareZamani;
+            _sonKareZamani = Time.realtimeSinceStartup;
+            if (dt > AnrEsigiSn && Time.realtimeSinceStartup - _sonAnr > 60f)
             {
-                _lastAnrAt = Time.realtimeSinceStartup;
+                _sonAnr = Time.realtimeSinceStartup;
                 LogANR(dt * 1000f, "auto");
             }
 
-            // Memory check
-            _memoryCheckTimer += Time.unscaledDeltaTime;
-            if (_memoryCheckTimer >= MemoryCheckIntervalSec)
+            // Bellek
+            _bellekSayac += Time.unscaledDeltaTime;
+            if (_bellekSayac >= BellekKontrolAraligi)
             {
-                _memoryCheckTimer = 0;
-                long usedMb = (long)(UnityEngine.Profiling.Profiler.GetTotalAllocatedMemoryLong() / (1024L * 1024L));
-                if (_lastReportedMemoryMb > 0 &&
-                    usedMb - _lastReportedMemoryMb > MemoryWarningGrowthMb &&
-                    Time.realtimeSinceStartup - _lastMemoryWarnAt > 120f)
+                _bellekSayac = 0;
+                long kullanilanMb = (long)(UnityEngine.Profiling.Profiler.GetTotalAllocatedMemoryLong() / (1024L * 1024L));
+                if (_sonBellekMb > 0 &&
+                    kullanilanMb - _sonBellekMb > BellekArtisEsigiMb &&
+                    Time.realtimeSinceStartup - _sonBellekUyari > 120f)
                 {
-                    _lastMemoryWarnAt = Time.realtimeSinceStartup;
-                    LogMemoryWarning(usedMb, _totalMemoryMb, "growth");
+                    _sonBellekUyari = Time.realtimeSinceStartup;
+                    LogMemoryWarning(kullanilanMb, _totalMemoryMb, "growth");
                 }
-                _lastReportedMemoryMb = usedMb;
+                _sonBellekMb = kullanilanMb;
             }
         }
 
         private void OnApplicationLowMemory()
         {
-            // Unity'nin native low-memory signal'i
-            if (_ready && !_circuitOpen)
-            {
-                long usedMb = (long)(UnityEngine.Profiling.Profiler.GetTotalAllocatedMemoryLong() / (1024L * 1024L));
-                LogMemoryWarning(usedMb, _totalMemoryMb, "system");
-            }
+            if (_kapali) return;
+            long kullanilanMb = (long)(UnityEngine.Profiling.Profiler.GetTotalAllocatedMemoryLong() / (1024L * 1024L));
+            LogMemoryWarning(kullanilanMb, _totalMemoryMb, "system");
         }
 
-        private void OnApplicationPause(bool pauseStatus)
+        private void OnApplicationPause(bool duraklatildi)
         {
-            if (!_ready || _circuitOpen) return;
-            if (pauseStatus)
+            if (_kapali) return;
+            if (duraklatildi)
             {
-                LogSessionEnd(Time.realtimeSinceStartup - _sessionStartTime);
+                LogSessionEnd(Time.realtimeSinceStartup - _oturumBaslangici);
+                DiskeYaz();      // arka plana atilma = olasi olum; once diske yaz
+                _hemenGonder = true;
             }
             else
             {
+                // Yeni oturum: sessionId yenilenir.
                 _sessionId = Guid.NewGuid().ToString("N");
-                _sessionStartTime = Time.realtimeSinceStartup;
-                _lastFrameTime = Time.realtimeSinceStartup;
+                _oturumBaslangici = Time.realtimeSinceStartup;
+                _sonKareZamani = Time.realtimeSinceStartup;
                 LogSessionStart();
             }
         }
 
         private void OnApplicationQuit()
         {
-            _quitting = true;
-            if (!_ready || _circuitOpen) return;
-            LogSessionEnd(Time.realtimeSinceStartup - _sessionStartTime);
-        }
-
-        private struct PendingEvent
-        {
-            public string eventName;
-            public Dictionary<string, object> parameters;
-            public DateTime clientTimestampUtc;
+            if (_kapali) return;
+            LogSessionEnd(Time.realtimeSinceStartup - _oturumBaslangici);
+            // Cikista senkron ag cagrisi ANR'ye yol acar; bunun yerine diske
+            // yaz — sonraki acilista DiskiYukle() kurtarir. Veri KAYBOLMAZ.
+            DiskeYaz();
         }
     }
 }

@@ -32,11 +32,11 @@ tek yapısal borç budur.
 | Alan | Durum | Oran |
 |---|---|---|
 | **Denetimde çıkan canlı hatalar** | ✅ Hepsi kapatıldı ve yayında | **8 / 8** |
-| **Faz 1** — maliyet + veri kaybı | 🟡 Yarıda | **3 / 5** |
+| **Faz 1** — maliyet + veri kaybı | 🟢 Neredeyse tamam | **7 / 8** |
 | **Faz 2** — veri katmanı + retention | 🔴 Başlanmadı | **0 / 5** |
 | **Faz 3** — A/B test + kurumsal güven | 🔴 Başlanmadı | **0 / 3** |
 | **Paralel** — benchmark, çoklu platform, KVKK | 🔴 Başlanmadı | **0 / 4** |
-| **Yol haritası toplamı** | 🟡 Başlangıç | **3 / 17** |
+| **Yol haritası toplamı** | 🟡 İlerliyor | **7 / 20** |
 
 ### Daha güvenli miyiz? — Evet, ama sınırlı biçimde
 
@@ -55,7 +55,7 @@ tek yapısal borç budur.
 |---|---|---|
 | Event akışı doküman başına ücretli DB'de | 🔴 Dokunulmadı | Faz 2'nin kendisi. Ölçeklenince hem maliyet hem sorgu duvarı. |
 | `EVENT_CAP = 10000` kırpması | 🔴 Duruyor | AI raporları hâlâ **eksik veriyle** çalışıyor |
-| SDK event başına 1 yazma, çökmede kayıp | 🔴 Duruyor | Faz 1'in kalan 2 maddesi |
+| ~~SDK event başına 1 yazma, çökmede kayıp~~ | ✅ Kapatıldı | SDK v3.0 |
 | `ingestEvents` anahtarı **zorunlu değil** | 🟡 Yumuşak geçiş | ChopHero güncellenmeyecek; zorunlu yapılırsa akış kesilir |
 | ChopHero `sessionId` göndermiyor | 🟡 Kabul edildi | Kullanıcı kararı. O oyunun oturum metriği yanlış kalır. |
 | `retentionD1Proxy` retention değil | 🔴 Duruyor | Yanlış isimli metrik benchmark'ta sunuluyor (§4.4) |
@@ -77,7 +77,7 @@ dayanacak bir sistem için Faz 1'in kalanı ve Faz 2 şart.
 |---|---|
 | Kapalı döngü mimarisi | Anomali → AI teşhis → Remote Config reçetesi → uygula → geri al. **Ürünün kalbi.** |
 | Multi-tenant izolasyon | `developerId` bazlı Firestore rules, default-deny, AI çıktılarına client yazamıyor |
-| Unity SDK v2.4 | İsimli `"altare"` Firebase app — oyunun kendi Firebase'inden bağımsız, `google-services.json` gerektirmiyor |
+| Unity SDK v3.0 | **Firebase gerektirmiyor** — toplu gönderim, diske yazan kuyruk, akıllı retry. Her tür oyuna 2 dosyayla girer. |
 | Circuit breaker | SDK arka arkaya hata alırsa kendini kapatıyor, oyunu asla bloklamıyor |
 | `ingestEvents` HTTP ucu | **Stratejik olarak en değerli son eklemelerden biri** — bkz. §2.3 |
 | AI katmanı | Katmanlı model yönlendirme (Opus/Sonnet/Haiku), rapor + copilot + benchmark + konsept |
@@ -87,7 +87,7 @@ dayanacak bir sistem için Faz 1'in kalanı ve Faz 2 şart.
 | Alan | Sorun | Durum | Bölüm |
 |---|---|---|---|
 | Event depolama | Doküman başına ücretli DB'de append-heavy analitik yük | 🔴 Duruyor | §2 |
-| SDK gönderim | Event başına 1 yazma, bellekte 256'lık tampon, çökmede veri kaybı | 🔴 Duruyor | §3 |
+| ~~SDK gönderim~~ | ~~Event başına 1 yazma, bellekte tampon, çökmede kayıp~~ | ✅ v3.0'da kapatıldı | §3 |
 | Ürün derinliği | **Retention / kohort analizi yok** — mobil oyunun *the* metriği | 🔴 Duruyor | §4.4 |
 | Kurumsal hazırlık | Veri silme API'si, denetim kaydı, DPA yok | 🔴 Duruyor | §5 |
 | ~~Ingest şema/kimlik~~ | ~~`sessionId` eksikti, kimlik doğrulaması yoktu~~ | ✅ Kapatıldı | §7 Faz 1 |
@@ -379,8 +379,18 @@ argümanıdır.
       `gameId`'yi bilen herkes sahte event basabiliyordu. `X-Altare-Key` zorunlu
       hale getirildi (timing-safe karşılaştırma).
 - [x] **API anahtarı üretimi** — `Math.random()` → `crypto.randomBytes`.
-- [ ] SDK toplu gönderim + diske yazan kuyruk + retry + gzip
-- [ ] SDK'nın varsayılan yolunu `ingestEvents`'e çevir
+- [x] **SDK v3.0 — toplu gönderim** — 50 olay / 30 sn / arka plana atılma
+      tetikleyicileriyle tek istek. 50 ayrı ağ turu ve faturalanan Cloud
+      Function çağrısı → **1**.
+- [x] **SDK v3.0 — diske yazan kuyruk** — olaylar sunucu onaylayana kadar
+      kalıcı depolamada. Çökme / uçak modu / uygulama kapatma artık veri
+      kaybettirmiyor; sonraki açılışta kurtarılıyor.
+- [x] **SDK v3.0 — akıllı yeniden deneme** — kalıcı hatalar (400/404/413,
+      401/403) ölçümü kapatır; geçici hatalar (ağ, 429, 5xx) üstel geri
+      çekilmeyle denenir. Sonsuz retry döngüsü kapatıldı.
+- [x] **SDK'nın varsayılan yolu `ingestEvents`** — analitik artık Firebase
+      gerektirmiyor; Firebase'i olmayan oyun 2 `.cs` dosyasıyla çalışıyor.
+- [ ] gzip sıkıştırma (küçük ek kazanç — ertelendi)
 
 **Çıktı:** event başına maliyet düşer, veri kaybı biter, mevcut müşteri hiçbir
 değişiklik hissetmez.

@@ -51,25 +51,40 @@ namespace Altare.Analytics
         public static void Initialize()
         {
             if (_initialized) return;
-            _initialized = true;
 
             var gameId = AltareAnalytics.GameId;
             var playerAnonId = AltareAnalytics.PlayerAnonId;
             if (string.IsNullOrEmpty(gameId) || string.IsNullOrEmpty(playerAnonId))
             {
-                // AltareAnalytics hazir degil; 2sn'de bir tekrar dene
-                _initialized = false;
+                // AltareAnalytics henuz Initialize edilmemis; 2sn'de bir dene.
                 AltarePlayerStateRetry.Schedule();
                 return;
             }
-            SubscribeToRestores(gameId, playerAnonId);
+
+            _initialized = true;
+
+            // v3.0: Analitik artik Firebase kullanmiyor — anonim oturumu
+            // kendimiz aciyoruz.
+            AltareFirebase.EnsureReady(hazir =>
+            {
+                if (!hazir)
+                {
+                    _initialized = false;
+                    Debug.LogWarning("[AltarePlayerState] Firebase hazir degil — " +
+                                     "snapshot/rollback devre disi.");
+                    return;
+                }
+                SubscribeToRestores(gameId, playerAnonId);
+            });
         }
 
         public static void SaveSnapshot(Dictionary<string, object> state, string label = "auto")
         {
-            if (!AltareAnalytics.IsHealthy)
+            if (!AltareFirebase.IsReady)
             {
-                Debug.LogWarning("[AltarePlayerState] SDK not healthy — snapshot dropped.");
+                // v3.0: AltareAnalytics.IsHealthy artik yalnizca analitik
+                // yolunun durumunu soyler; snapshot Firebase uzerinden gider.
+                Debug.LogWarning("[AltarePlayerState] Firebase hazir degil — snapshot dusuruldu.");
                 return;
             }
             var gameId = AltareAnalytics.GameId;
