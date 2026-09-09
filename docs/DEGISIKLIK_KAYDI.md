@@ -1,6 +1,133 @@
 # Altare — Değişiklik Kaydı
 
 > Ne değişti, **neden önemliydi**, ne yapıldı. Yeni oturumlar en üste ekler.
+>
+> **Güncel durum panosu için:** [`ALTARE_SCALE_ROADMAP.md` §0.1](ALTARE_SCALE_ROADMAP.md)
+> — bu dosya *ne yaptığımızı*, orası *nerede durduğumuzu* anlatır.
+
+---
+
+# Oturum: SDK v3.0 — evrensel analitik istemcisi
+
+**Kapsam:** `041a464` · Cloud Functions deploy'u gerektirmez (yalnızca istemci
++ panel) · ⏭️ Sitenin yayına alınması `main`'e merge ile otomatik
+
+**Amaç:** *"SDK'ları bir oyun özelinde düşünme."* SDK'yı tür, motor ve altyapı
+farketmeksizin her oyunda aynı çalışacak biçimde yeniden yazdık.
+
+---
+
+## 🟢 Tamamlananlar
+
+### 1. Analitik katmanı Firebase'den tamamen çıkarıldı
+
+**Neydi:** Her olay doğrudan Firestore'a yazılıyordu; bu, oyunun Firebase
+Unity SDK'sını import etmesini **zorunlu** kılıyordu.
+
+**Neden önemliydi:** "Her kategoriden oyun, illa Firebase entegre bile
+olmayacak" hedefinin önündeki tek engel buydu.
+
+**Ne yapıldı:** Olaylar artık HTTPS ile `ingestEvents` ucuna gidiyor.
+
+| Önce | Şimdi |
+|---|---|
+| Firebase Unity SDK indir + Auth + Firestore import et | — |
+| `google-services.json` yerleştir | — |
+| 5 `.cs` dosyası kopyala | **2 `.cs` dosyası kopyala** |
+
+Firebase yalnızca **isteğe bağlı** iki modül için gerekli kaldı:
+`AltareConfig` (canlı Remote Config) ve `AltarePlayerState` (rollback).
+Bu ikisinin Firebase kurulumu `AltareFirebase`'e taşındı — artık kendi
+anonim oturumunu açıyor, analitiğe bağımlı değil.
+
+### 2. Toplu gönderim
+
+**Neydi:** Her olay anında ayrı bir yazım/istek üretiyordu; 50 olay = 50 ağ turu.
+
+**Ne yapıldı:** 50 olay / 30 saniye / arka plana atılma tetikleyicileriyle
+tek istek. Ağ turu ve faturalanan Cloud Function çağrısı **50 → 1**.
+
+> ⚠️ **Dürüst not:** Firestore doküman başına ücretlendirdiği için
+> **depolama maliyeti bu adımda değişmez.** O kazanç sütunlu veritabanı
+> geçişinde (Faz 2) gelir. Toplu gönderim o geçişin **ön koşuludur**.
+
+### 3. Diske yazan kuyruk
+
+**Neydi:** Tampon yalnızca bellekteydi — oyun çökerse, oyuncu uçak modundayken
+kapatırsa olaylar uçuyordu.
+
+**Ne yapıldı:** Olaylar sunucu onaylayana kadar kalıcı depolamada tutuluyor,
+sonraki açılışta kurtarılıyor. Veri kaybı bitti.
+
+### 4. Akıllı yeniden deneme
+
+**Neden önemliydi:** ChopHero istemcisinde tespit ettiğim tuzak — 401'i
+"geçici hata" sanıp 30 saniyede bir sonsuza kadar denemek — bu SDK'da
+baştan imkânsız olmalıydı.
+
+**Ne yapıldı:** Hata taksonomisi ayrıldı:
+
+| Hata | Davranış |
+|---|---|
+| 400 / 404 / 413 (gövde, bilinmeyen oyun) | Kalıcı → ölçüm kapatılır |
+| 401 / 403 (geçersiz anahtar) | Kalıcı → yüksek sesle loglanır, kapatılır |
+| Ağ / 429 / 5xx | Geçici → üstel geri çekilmeyle denenir |
+
+### 5. `sessionId` artık gönderiliyor
+
+Sunucuda `uniqueSessions` bundan sayılıyor ve o değer anomali oranlarının
+paydası. Eksikliği Sentinel'i yanıltıyordu.
+
+### 6. Panel: API anahtarı otomatik gömülüyor
+
+Panelden inen zip'teki bootstrap'a `GameId`, `GameName` **ve `ApiKey`**
+önceden dolu geliyor — müşteri elle yapıştırmıyor.
+
+---
+
+## 🔍 Test — ve bulunan bir bug
+
+Ortamda Unity olmadığı için derleme yapılamadı; yerine statik analiz ve
+mantık portu uygulandı:
+
+- 5 dosyada token bazlı denge kontrolü (kaba regex Türkçe apostrofları char
+  literal sanıyordu; düzgün bir C# durum makinesi yazıldı) — **tam**
+- 17 iç metot tanımlı, `AltareAnalytics`'te Firebase referansı **sıfır**
+- Elle yazılan JSON + diskten geri okuma **11/11** kenar durum geçti
+
+**🐞 Bulunan bug:** Diskten geri okuma JSON kaçışlarını çözmüyordu — satır
+sonu karakteri `n` harfine, unicode kaçışı düz metne dönüşüp **veriyi
+sessizce bozuyordu.** Tam kaçış çözümü yazıldı, testler yeşile döndü.
+
+---
+
+## 🔴 Bu oturumda YAPILMAYANLAR
+
+Bilinçli olarak ertelendi — sıradaki işler:
+
+| Eksik | Neden bekliyor |
+|---|---|
+| **gzip sıkıştırma** | Toplu gönderimin yanında kazancı küçük; ertelendi |
+| **`retentionD1Proxy` düzeltmesi** | Sıradaki iş — küçük ama bütünlük açısından kritik |
+| **Gerçek retention / kohort / huni** | Faz 2; sütunlu veritabanıyla birlikte planlanmalı |
+| **`EVENT_CAP = 10000` kırpması** | Duruyor — AI raporları hâlâ eksik veriyle çalışıyor |
+| **ClickHouse geçişi** | Faz 2'nin kendisi; asıl maliyet kazancı burada |
+| **A/B test altyapısı** | Faz 3 — asıl satış argümanı |
+| **Denetim kaydı / veri silme API'si / DPA** | Faz 3; kurumsal satışın ön koşulu |
+| **ChopHero istemcisinin güncellenmesi** | Kullanıcı kararıyla olduğu gibi bırakıldı |
+
+> **Bunun sonucu:** `INGEST_REQUIRE_API_KEY` bayrağı **`false` kalmalı.**
+> ChopHero anahtar göndermiyor; zorunlu yapılırsa o oyunun akışı kesilir.
+
+---
+
+## ⚙️ Yayın durumu
+
+- ✅ Commit `main`'de
+- ✅ Panelden inen SDK artık v3.0 (site `main`'den yayınlanıyor)
+- ⚠️ **Cloud Functions deploy'u gerekmez** — bu oturum yalnızca istemci ve
+  panel tarafına dokundu
+- ⏭️ Yayındaki oyun build'leri yeni SDK'yı ancak güncellenince alır
 
 ---
 
