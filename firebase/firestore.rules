@@ -121,6 +121,20 @@ service cloud.firestore {
         allow delete: if isAdmin();
       }
 
+      // Oyuncu rollup'lari — GERCEK retention'in temeli.
+      // Cloud Functions (admin SDK) yazar. Icerik anonim UUID + gun
+      // listesidir, PII yoktur; yine de yalnizca oyun sahibi okuyabilir.
+      match /players/{playerAnonId} {
+        allow read: if isAdmin() || isGameOwner(gameId);
+        allow write: if false;
+      }
+
+      // Kohort bazli retention sonuclari — panel buradan okur.
+      match /retention/{cohortDay} {
+        allow read: if isAdmin() || isGameOwner(gameId);
+        allow write: if false;
+      }
+
       // Benchmark snapshots — Cloud Functions yazar.
       match /benchmarks/{benchmarkId} {
         allow read: if isAdmin() || isGameOwner(gameId);

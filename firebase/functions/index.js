@@ -408,6 +408,132 @@ exports.aggregateDailyStats = onSchedule(
   }
 );
 
+// ═══════════════════════════════════════════════════════════════════════════
+// GERCEK RETENTION — kohort bazli D1 / D7 / D30
+// ───────────────────────────────────────────────────────────────────────────
+// Tanim (sektor standardi):
+//   DN retention = (kohort gununde kuran VE D+N gununde aktif olan oyuncu)
+//                / (kohort gununde kuran oyuncu)
+//
+// Kohort = cohortDay alani dolu oyuncular (yani first_open'i GORULMUS olanlar).
+// Bu, "SDK'yi bugun taktik, herkes yeni kurulum sanildi" hatasini onler.
+//
+// Cikti: games/{gameId}/retention/{cohortDay}
+//   { cohortDay, cohortSize, d1:{retained,rate}, d7:{...}, d30:{...} }
+// Bir pencere (orn. D7) henuz dolmadiysa o alan null kalir ve sonraki
+// calismada tamamlanir.
+// ═══════════════════════════════════════════════════════════════════════════
+
+const RETENTION_WINDOWS = [1, 7, 30];
+/** Kohort basina okunacak azami oyuncu (maliyet tavani). */
+const RETENTION_MAX_COHORT = 5000;
+/** Geriye dogru kac gunluk kohort kontrol edilsin. */
+const RETENTION_LOOKBACK_DAYS = 32;
+
+async function computeRetentionForGame(gameId, bugun) {
+  const playersCol = db.collection("games").doc(gameId).collection("players");
+  const retCol = db.collection("games").doc(gameId).collection("retention");
+  let yazilan = 0;
+
+  for (let geri = 1; geri <= RETENTION_LOOKBACK_DAYS; geri++) {
+    const kohortGunu = dayPlus(bugun, -geri);
+    if (!kohortGunu) continue;
+
+    // Hangi pencereler artik olculebilir? (D+N gunu GECMIS olmali)
+    const olculebilir = RETENTION_WINDOWS.filter((n) => geri > n);
+    if (olculebilir.length === 0) continue;
+
+    // Zaten tamamlanmissa tekrar hesaplama (okuma maliyetinden kacin).
+    const mevcutSnap = await retCol.doc(kohortGunu).get();
+    const mevcut = mevcutSnap.exists ? mevcutSnap.data() : null;
+    const eksik = olculebilir.filter((n) => !mevcut || !mevcut["d" + n]);
+    if (eksik.length === 0) continue;
+
+    const kohortSnap = await playersCol
+      .where("cohortDay", "==", kohortGunu)
+      .limit(RETENTION_MAX_COHORT)
+      .get();
+    if (kohortSnap.empty) continue;
+
+    const kohortBoyu = kohortSnap.size;
+    const sonuc = {
+      cohortDay: kohortGunu,
+      cohortSize: kohortBoyu,
+      truncated: kohortBoyu >= RETENTION_MAX_COHORT,
+      computedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    for (const n of olculebilir) {
+      const hedefGun = dayPlus(kohortGunu, n);
+      let donen = 0;
+      for (const doc of kohortSnap.docs) {
+        const aktif = doc.get("activeDays");
+        if (Array.isArray(aktif) && aktif.includes(hedefGun)) donen++;
+      }
+      sonuc["d" + n] = {
+        retained: donen,
+        rate: kohortBoyu > 0 ? donen / kohortBoyu : null,
+      };
+    }
+
+    await retCol.doc(kohortGunu).set(sonuc, { merge: true });
+    yazilan++;
+  }
+  return yazilan;
+}
+
+exports.computeRetention = onSchedule(
+  { schedule: "every 6 hours", timeZone: "Europe/Istanbul", timeoutSeconds: 540 },
+  async () => {
+    const bugun = dayKey();
+    const gamesSnap = await db.collection("games").get();
+    for (const g of gamesSnap.docs) {
+      try {
+        const n = await computeRetentionForGame(g.id, bugun);
+        if (n > 0) logger.info("retention computed", { gameId: g.id, cohorts: n });
+      } catch (err) {
+        logger.error("retention failed", { gameId: g.id, message: err?.message });
+      }
+    }
+  }
+);
+
+/**
+ * Bir oyunun EN SON TAMAMLANMIS retention degerlerini dondurur.
+ * Her pencere kendi en yeni tam kohortundan alinir: D1 dunden onceki
+ * kohorttan, D30 ise 31 gun oncekinden gelir — farkli gunler olmasi normaldir.
+ * Hic olculmemisse null doner (AI'a "olculmuyor" demek icin).
+ */
+async function getLatestRetention(gameId) {
+  try {
+    const snap = await db.collection("games").doc(gameId)
+      .collection("retention")
+      .orderBy("cohortDay", "desc")
+      .limit(RETENTION_LOOKBACK_DAYS)
+      .get();
+    if (snap.empty) return null;
+
+    const out = {};
+    for (const n of RETENTION_WINDOWS) {
+      for (const doc of snap.docs) {           // en yeniden eskiye
+        const v = doc.get("d" + n);
+        if (v && Number.isFinite(v.rate)) {
+          out["d" + n] = {
+            rate: Math.round(v.rate * 1000) / 10,   // yuzde, 1 ondalik
+            cohortDay: doc.get("cohortDay"),
+            cohortSize: doc.get("cohortSize"),
+          };
+          break;
+        }
+      }
+    }
+    return Object.keys(out).length ? out : null;
+  } catch (err) {
+    logger.warn("getLatestRetention failed", { gameId, message: err?.message });
+    return null;
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // CROSS-TENANT BENCHMARK AGGREGATOR — network effect moat
 // Tum oyunlarin verisini (anonim) toplar, kategori bazli sektorel benchmark
@@ -2416,6 +2542,9 @@ async function getGameContext(gameId) {
     const snap = await db.collection("games").doc(gameId).get();
     if (!snap.exists) return null;
     const g = snap.data();
+    // OLCULMUS retention — varsa AI'a gercek sayiyi veriyoruz, yoksa
+    // "olculmuyor" uyarisi devreye giriyor (bkz. gameContextBlock).
+    const retention = await getLatestRetention(gameId);
     return {
       gameName: g.gameName || gameId,
       gameType: g.gameType || "unknown",
@@ -2424,11 +2553,79 @@ async function getGameContext(gameId) {
       deviceTier: g.deviceTier || "cross-platform",
       description: g.description || "",
       platforms: g.platforms || [],
+      retention,
     };
   } catch (e) {
     logger.warn("getGameContext failed", { gameId, error: e.message });
     return null;
   }
+}
+
+/**
+ * Retention bolumu — OLCULDUYSE gercek sayi, olculmediyse uydurma yasagi.
+ * Kritik: baseline'lardaki d1_retention_target TUR REFERANSIDIR; model onu
+ * bu oyunun olcumu sanmasin diye ayrimi her iki durumda da acikca yaziyoruz.
+ */
+function retentionSatirlari(r) {
+  if (!r) return null;
+  const p = [];
+  for (const n of [1, 7, 30]) {
+    const v = r["d" + n];
+    if (v) p.push(`D${n}=%${v.rate} (kohort ${v.cohortDay}, n=${v.cohortSize})`);
+  }
+  return p.length ? p.join(" · ") : null;
+}
+
+function retentionBlokTR(r) {
+  const olculen = retentionSatirlari(r);
+  if (olculen) {
+    return [
+      "=== ÖLÇÜLEN RETENTION (bu oyundan, kohort bazlı) ===",
+      olculen,
+      "Bu sayılar GERÇEK ölçümdür — yorumlarken bunları kullan.",
+      "Baseline'lardaki retention hedefleri TÜR REFERANSIDIR, karşılaştırma",
+      "için kullanılabilir ama bu oyunun ölçümü değildir.",
+      "Hâlâ ÖLÇÜLMEYENLER (bunlar için sayı verme): huni dönüşüm oranları,",
+      "LTV, churn oranı, segment kırılımları.",
+    ].join("\n");
+  }
+  return [
+    "=== ÖLÇÜLMEYEN METRİKLER — BUNLAR İÇİN ASLA SAYI VERME ===",
+    "Bu oyun için henüz retention ölçümü YOK (kohort verisi birikiyor;",
+    "ilk D1 değeri SDK entegrasyonundan ~2 gün sonra çıkar).",
+    "Veri setinde ayrıca ŞUNLAR YOK: huni dönüşüm oranları, LTV, churn.",
+    "Yukarıdaki baseline'lardaki retention değerleri TÜR REFERANSIDIR,",
+    "bu oyundan ölçülmüş değerler DEĞİLDİR. Bu oyun için retention/LTV",
+    "sayısı iddia etme, tahmin etme veya ima etme. Sorulursa 'bu metrik şu an",
+    "ölçülmüyor' de. Retention etkisi üzerine NİTEL yorum yapabilirsin,",
+    "ama sayı uydurmadan.",
+  ].join("\n");
+}
+
+function retentionBlokEN(r) {
+  const olculen = retentionSatirlari(r);
+  if (olculen) {
+    return [
+      "=== MEASURED RETENTION (this game, cohort-based) ===",
+      olculen,
+      "These are REAL measurements — use them in your analysis.",
+      "The retention targets in the baselines are GENRE REFERENCE values,",
+      "usable for comparison but not measurements of this game.",
+      "STILL NOT MEASURED (never state a number): funnel conversion rates,",
+      "LTV, churn rate, segment breakdowns.",
+    ].join("\n");
+  }
+  return [
+    "=== NOT MEASURED — NEVER STATE A NUMBER FOR THESE ===",
+    "Retention is not yet measured for this game (cohort data is",
+    "accumulating; the first D1 value appears ~2 days after SDK integration).",
+    "Also absent: funnel conversion rates, LTV, churn.",
+    "The retention figures in the baselines above are GENRE REFERENCE VALUES,",
+    "not measurements from this game. You must NOT claim, estimate, or imply",
+    "any retention/LTV number for this game. If asked, say the metric is not",
+    "currently measured. You MAY reason qualitatively about likely retention",
+    "impact, but without inventing figures.",
+  ].join("\n");
 }
 
 // Returns a paragraph to prepend to the user prompt with game-specific context.
@@ -2444,14 +2641,7 @@ function gameContextBlock(ctx, lang) {
       `Industry baselines for this type: ${JSON.stringify(baseline)}`,
       "IMPORTANT: Interpret metrics in the context of this game type. A 'high fail rate' means different things for Match-3 vs Idle vs RPG. Use the baselines above as reference.",
       "",
-      "=== NOT MEASURED — NEVER STATE A NUMBER FOR THESE ===",
-      "The dataset does NOT contain: retention (D1/D7/D30), cohort analysis,",
-      "funnel conversion rates, LTV, or churn rate.",
-      "The retention figures in the baselines above are GENRE REFERENCE VALUES,",
-      "not measurements from this game. You must NOT claim, estimate, or imply",
-      "any retention/cohort/LTV number for this game. If asked, say the metric",
-      "is not currently measured. You MAY reason qualitatively about likely",
-      "retention impact, but without inventing figures.",
+      retentionBlokEN(ctx.retention),
       "",
     ].filter(Boolean).join("\n");
   }
@@ -2463,14 +2653,7 @@ function gameContextBlock(ctx, lang) {
     `Bu tür için sektör baseline'ları: ${JSON.stringify(baseline)}`,
     "ÖNEMLİ: Metrikleri bu oyun türü bağlamında yorumla. 'Yüksek fail rate' Match-3 ile Idle veya RPG için farklı anlam taşır. Yukarıdaki baseline'ları referans al.",
     "",
-    "=== ÖLÇÜLMEYEN METRİKLER — BUNLAR İÇİN ASLA SAYI VERME ===",
-    "Veri setinde ŞUNLAR YOK: retention (D1/D7/D30), kohort analizi,",
-    "huni dönüşüm oranları, LTV, churn oranı.",
-    "Yukarıdaki baseline'lardaki retention değerleri TÜR REFERANSIDIR,",
-    "bu oyundan ölçülmüş değerler DEĞİLDİR. Bu oyun için retention/kohort/LTV",
-    "sayısı iddia etme, tahmin etme veya ima etme. Sorulursa 'bu metrik şu an",
-    "ölçülmüyor' de. Retention etkisi üzerine NİTEL yorum yapabilirsin,",
-    "ama sayı uydurmadan.",
+    retentionBlokTR(ctx.retention),
     "",
   ].filter(Boolean).join("\n");
 }
@@ -3048,6 +3231,91 @@ const INGEST_MAX_STRING_LEN = 512;
 // arkasina koyuyor, IP sayaci gercek oyunculari susturur.
 const INGEST_MAX_REQUESTS_PER_PLAYER_HOUR = 200;
 
+// ═══════════════════════════════════════════════════════════════════════════
+// OYUNCU ROLLUP — gercek retention'in temeli
+// ───────────────────────────────────────────────────────────────────────────
+// Retention gunluk toplu istatistiklerden HESAPLANAMAZ. Gereken sey oyuncu
+// bazli "ilk gorulme" ve "hangi gunlerde aktifti" bilgisi. Bunu her oyuncu
+// icin TEK bir dokumanda tutuyoruz (gun basina dokuman DEGIL — dokuman
+// sayisi oyuncu sayisiyla sinirli kalsin diye).
+//
+//   games/{gameId}/players/{playerAnonId}
+//     cohortDay   : "YYYY-MM-DD" | null  -> YALNIZCA first_open goruldugunde
+//     firstSeenDay: "YYYY-MM-DD"         -> bizim ilk kaydimiz
+//     lastSeenDay : "YYYY-MM-DD"
+//     activeDays  : [gun...]             -> son PLAYER_ACTIVE_DAYS_CAP gun
+//
+// ⚠️ KOHORT TUZAGI: Aylardir oynayan bir oyuncuyu bugun ilk kez gorursek
+// "yeni kurulum" sanip kohortu sisirir, retention'i sunni dusururuz.
+// Bu yuzden kohorta YALNIZCA first_open event'i gorulen oyuncular girer.
+// first_open'siz oyuncular aktivitede sayilir ama kohortta sayilmaz.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** activeDays dizisi tavani — D30 icin 30+ gun yeterli, dokuman sismesin. */
+const PLAYER_ACTIVE_DAYS_CAP = 35;
+
+/** UTC gun anahtari. stats/ dokumanlariyla ayni format. */
+function dayKey(d) {
+  return (d instanceof Date ? d : new Date()).toISOString().slice(0, 10);
+}
+
+/** gun anahtarina N gun ekler. */
+function dayPlus(key, n) {
+  const t = Date.parse(key + "T00:00:00Z");
+    if (!Number.isFinite(t)) return null;
+  return new Date(t + n * 86400000).toISOString().slice(0, 10);
+}
+
+// Ayni oyuncu icin ayni gun tekrar tekrar yazmayalim: her yigin 30 sn'de bir
+// geliyor, gunde yuzlerce istek olur ama rollup gunde BIR kez degisir.
+const _playerDayCache = new Map(); // "gameId:playerAnonId:day" -> true
+const PLAYER_CACHE_MAX = 50000;
+
+/**
+ * Oyuncunun rollup dokumanini gunceller. Idempotent; ayni gun icinde
+ * tekrar cagrilmasi zararsizdir (cache sayesinde genelde hic calismaz).
+ * Hicbir kosulda olay yazimini bloklamaz — hata yutulur.
+ */
+async function updatePlayerRollup(gameId, playerAnonId, isNewInstall) {
+  const day = dayKey();
+  const ck = gameId + ":" + playerAnonId + ":" + day;
+  // isNewInstall true ise cache'i atla — cohortDay'i mutlaka yazmaliyiz.
+  if (!isNewInstall && _playerDayCache.has(ck)) return;
+
+  const ref = db.collection("games").doc(gameId)
+    .collection("players").doc(playerAnonId);
+  try {
+    const snap = await ref.get();
+    const d = snap.exists ? snap.data() : null;
+
+    if (d && d.lastSeenDay === day && (d.cohortDay || !isNewInstall)) {
+      // Bugun zaten islendi ve kohort bilgisi degismiyor.
+      if (_playerDayCache.size < PLAYER_CACHE_MAX) _playerDayCache.set(ck, true);
+      return;
+    }
+
+    const aktif = Array.isArray(d && d.activeDays) ? d.activeDays.slice() : [];
+    if (!aktif.includes(day)) aktif.push(day);
+    aktif.sort();
+    while (aktif.length > PLAYER_ACTIVE_DAYS_CAP) aktif.shift();
+
+    const guncel = {
+      firstSeenDay: (d && d.firstSeenDay) || day,
+      lastSeenDay: day,
+      activeDays: aktif,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+    // cohortDay YALNIZCA bir kez ve yalnizca first_open ile yazilir.
+    if (isNewInstall && !(d && d.cohortDay)) guncel.cohortDay = day;
+
+    await ref.set(guncel, { merge: true });
+    if (_playerDayCache.size < PLAYER_CACHE_MAX) _playerDayCache.set(ck, true);
+  } catch (err) {
+    // Rollup best-effort: olay yazimi asla bunun yuzunden basarisiz olmasin.
+    logger.warn("player rollup failed", { gameId, message: err?.message });
+  }
+}
+
 /** Bilinen oyun kimliklerini kisa sure bellekte tutar (her istekte okuma yapmamak icin). */
 const _ingestGameCache = new Map(); // gameId -> { ok, gameName, at }
 const INGEST_GAME_CACHE_MS = 5 * 60 * 1000;
@@ -3272,6 +3540,17 @@ exports.ingestEvents = onRequest(
       }
 
       await batch.commit();
+
+      // Oyuncu rollup'i — gercek retention'in temeli. first_open bu yiginda
+      // varsa oyuncu KOHORTA girer (bkz. kohort tuzagi notu yukarida).
+      const yeniKurulum = events.some((e) => {
+        if (!e) return false;
+        if (String(e.eventName || "").trim() === "first_open") return true;
+        const p = e.eventParams;
+        return !!(p && (p.is_first_open === true || p.is_first_open === "true"));
+      });
+      await updatePlayerRollup(gameId, playerAnonId, yeniKurulum);
+
       res.json({ ok: true, written: yazilan });
     } catch (err) {
       logger.error("ingestEvents unhandled", { message: err?.message });

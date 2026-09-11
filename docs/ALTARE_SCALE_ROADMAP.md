@@ -33,10 +33,10 @@ tek yapısal borç budur.
 |---|---|---|
 | **Denetimde çıkan canlı hatalar** | ✅ Hepsi kapatıldı ve yayında | **8 / 8** |
 | **Faz 1** — maliyet + veri kaybı | 🟢 Neredeyse tamam | **7 / 8** |
-| **Faz 2** — veri katmanı + retention | 🟡 Başladı | **1 / 5** |
+| **Faz 2** — veri katmanı + retention | 🟡 İlerliyor | **3 / 6** |
 | **Faz 3** — A/B test + kurumsal güven | 🔴 Başlanmadı | **0 / 3** |
 | **Paralel** — benchmark, çoklu platform, KVKK | 🔴 Başlanmadı | **0 / 4** |
-| **Yol haritası toplamı** | 🟡 İlerliyor | **8 / 20** |
+| **Yol haritası toplamı** | 🟡 İlerliyor | **10 / 21** |
 
 ### Daha güvenli miyiz? — Evet, ama sınırlı biçimde
 
@@ -88,7 +88,7 @@ dayanacak bir sistem için Faz 1'in kalanı ve Faz 2 şart.
 |---|---|---|---|
 | Event depolama | Doküman başına ücretli DB'de append-heavy analitik yük | 🔴 Duruyor | §2 |
 | ~~SDK gönderim~~ | ~~Event başına 1 yazma, bellekte tampon, çökmede kayıp~~ | ✅ v3.0'da kapatıldı | §3 |
-| Ürün derinliği | **Retention / kohort analizi yok** — mobil oyunun *the* metriği | 🔴 Duruyor | §4.4 |
+| ~~Ürün derinliği~~ | ~~Retention / kohort analizi yok~~ | ✅ Eklendi (huni hâlâ yok) | §4.4 |
 | Kurumsal hazırlık | Veri silme API'si, denetim kaydı, DPA yok | 🔴 Duruyor | §5 |
 | ~~Ingest şema/kimlik~~ | ~~`sessionId` eksikti, kimlik doğrulaması yoktu~~ | ✅ Kapatıldı | §7 Faz 1 |
 
@@ -415,13 +415,19 @@ değişiklik hissetmez.
 ### Faz 2 (3-6 ay) — Veri katmanı + giriş bileti
 - [ ] Event akışını ClickHouse'a taşı (Firestore operasyonel veride kalır)
 - [ ] `EVENT_CAP` kırpmasını kaldır — tam veri üzerinden çalış
-- [ ] **Retention (D1/D7/D30), kohort, huni** analizini ekle
+- [x] **Gerçek retention (D1/D7/D30) + kohort** — oyuncu rollup'ı
+      (`games/{gameId}/players/{playerAnonId}`) + 6 saatte bir çalışan
+      `computeRetention`. Kohort yalnızca `first_open` görülen oyunculardan
+      kurulur (SDK'yı bugün takıp herkesi "yeni kurulum" sayma tuzağı önlendi).
+      ClickHouse beklenmeden Firestore üzerinde çalışıyor; geçişte aynen taşınır.
+- [ ] Huni (funnel) dönüşüm analizi — hâlâ yok
 - [x] **`retentionD1Proxy` temizliği** — iç değişken adı düzeltildi; AI
       prompt'larına "bu metrikler ölçülmüyor, sayı uydurma" guard'ı eklendi;
       uydurmayı öğreten prompt örnekleri ve panelin önerdiği ölçülemez soru
       değiştirildi (§4.4)
-- [ ] Ölçülen gerçek retention'ı AI prompt'una besle (sütunlu veritabanı
-      geçişinden sonra — şu an hesaplanamıyor)
+- [x] **Ölçülen retention AI prompt'una besleniyor** — `gameContextBlock`
+      artık dinamik: ölçüm varsa gerçek sayıyı verir, yoksa uydurma yasağı
+      devreye girer. Huni/LTV için yasak her durumda sürüyor.
 
 **Çıktı:** panel aynı görünür, altı değişir; artık "oyun analitiği platformu" denebilir.
 

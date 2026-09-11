@@ -156,6 +156,9 @@ const I18N = {
         'page.last24h': 'Son 24 saat',
 
         // KPI labels
+        'kpi.d1': 'D1 Retention',
+        'kpi.d7': 'D7 Retention',
+        'kpi.d30': 'D30 Retention',
         'kpi.activeSession': 'Aktif Oturum',
         'kpi.events24h': '24s Event',
         'kpi.avgSession': 'Ortalama Oturum',
@@ -463,6 +466,9 @@ const I18N = {
         'page.last24h': 'Last 24 hours',
 
         // KPI labels
+        'kpi.d1': 'D1 Retention',
+        'kpi.d7': 'D7 Retention',
+        'kpi.d30': 'D30 Retention',
         'kpi.activeSession': 'Active Sessions',
         'kpi.events24h': '24h Events',
         'kpi.avgSession': 'Avg. Session',

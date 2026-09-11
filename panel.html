@@ -1378,6 +1378,21 @@
                 <section class="tab-view active" data-tab="overview">
                     <div class="kpi-grid">
                         <div class="kpi-card">
+                            <div class="kpi-label" data-i18n="kpi.d1">D1 Retention</div>
+                            <div class="kpi-value mono" id="kpi-d1">—</div>
+                            <div class="kpi-delta" id="kpi-d1-sub"></div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-label" data-i18n="kpi.d7">D7 Retention</div>
+                            <div class="kpi-value mono" id="kpi-d7">—</div>
+                            <div class="kpi-delta" id="kpi-d7-sub"></div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-label" data-i18n="kpi.d30">D30 Retention</div>
+                            <div class="kpi-value mono" id="kpi-d30">—</div>
+                            <div class="kpi-delta" id="kpi-d30-sub"></div>
+                        </div>
+                        <div class="kpi-card">
                             <div class="kpi-label" data-i18n="kpi.activeSession">Aktif Oturum</div>
                             <div class="kpi-value mono" id="kpi-sessions">—</div>
                             <div class="kpi-delta" id="kpi-sessions-delta"></div>
@@ -2186,6 +2201,7 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
         let unsubReport = null;
         let unsubAlerts = null;
         let unsubAutoHeal = null;
+        let unsubRetention = null;
         let copilotChatId = null;
 
         // ----- Auth gate -----
@@ -2331,6 +2347,7 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
             if (unsubReport) { unsubReport(); unsubReport = null; }
             if (unsubAlerts) { unsubAlerts(); unsubAlerts = null; }
             if (unsubAutoHeal) { unsubAutoHeal(); unsubAutoHeal = null; }
+            if (unsubRetention) { unsubRetention(); unsubRetention = null; }
 
             // Sentinel Alerts (real-time)
             const alertsQ = query(
@@ -2378,6 +2395,21 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
             );
 
             fetchGA4Overview();
+
+            // Kohort bazli retention — computeRetention her 6 saatte yaziyor.
+            // Her pencere KENDI en yeni tam kohortundan gelir; D1 ve D30'un
+            // farkli kohort gunlerinden gelmesi normaldir.
+            const retQ = query(
+                collection(db, 'games', gameId, 'retention'),
+                orderBy('cohortDay', 'desc'),
+                limit(32)
+            );
+            unsubRetention = onSnapshot(retQ, (snap) => {
+                renderRetention(snap.docs.map(d => d.data()));
+            }, (err) => {
+                console.warn('retention listener:', err.message);
+                renderRetention([]);
+            });
 
             const reportsQ = query(
                 collection(db, 'games', gameId, 'ai_reports'),
@@ -3054,6 +3086,36 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
                 .slice(0, 4)
                 .map(([k, v]) => k + '=' + (typeof v === 'string' ? v : JSON.stringify(v)))
                 .join(' ');
+        }
+
+        /**
+         * Kohort bazli retention kartlari.
+         * Her pencere (D1/D7/D30) KENDI en yeni TAMAMLANMIS kohortundan gelir:
+         * D1 dun+1 kapanan kohorttan, D30 ise 31 gun oncekinden. Bu yuzden
+         * alt satirda hangi kohorta ait oldugunu da gosteriyoruz — aksi halde
+         * "neden farkli tarihler" sorusu cikar.
+         */
+        function renderRetention(docs) {
+            const pencere = [1, 7, 30];
+            for (const n of pencere) {
+                const valEl = $('kpi-d' + n);
+                const subEl = $('kpi-d' + n + '-sub');
+                let bulundu = null;
+                for (const d of (docs || [])) {          // en yeniden eskiye
+                    const v = d && d['d' + n];
+                    if (v && typeof v.rate === 'number') { bulundu = { v, d }; break; }
+                }
+                if (!bulundu) {
+                    if (valEl) valEl.textContent = '—';
+                    if (subEl) subEl.textContent = '';
+                    continue;
+                }
+                const yuzde = Math.round(bulundu.v.rate * 1000) / 10;
+                if (valEl) valEl.textContent = '%' + yuzde;
+                if (subEl) {
+                    subEl.textContent = bulundu.d.cohortDay + ' · n=' + (bulundu.d.cohortSize || 0);
+                }
+            }
         }
 
         function renderStats(stats) {

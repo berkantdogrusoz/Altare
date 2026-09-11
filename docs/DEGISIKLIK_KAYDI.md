@@ -7,6 +7,106 @@
 
 ---
 
+# Oturum: GERÇEK retention — kohort bazlı D1/D7/D30
+
+**Kapsam:** oyuncu rollup + `computeRetention` + AI beslemesi + panel ·
+⚠️ **`firebase deploy --only functions` + `firestore:rules` GEREKİR**
+
+**Karar:** Bu iş yol haritasında Faz 2'ye, ClickHouse geçişinin arkasına
+konmuştu. Ama asıl eksik olan şey **depolama değil, oyuncu bazlı ilk-görülme
+verisiydi.** Onu toplamaya bugün başlarsak retention bugün çalışır ve geçişte
+aynen taşınır — bu yüzden ClickHouse beklenmeden yapıldı.
+
+## 🟢 Tamamlananlar
+
+### 1. Oyuncu rollup'ı — retention'ın temeli
+
+`games/{gameId}/players/{playerAnonId}` — oyuncu başına **tek** doküman
+(gün başına değil, doküman sayısı oyuncu sayısıyla sınırlı kalsın diye):
+
+```
+cohortDay    : "YYYY-MM-DD" | null   -> YALNIZCA first_open görüldüğünde
+firstSeenDay : "YYYY-MM-DD"          -> bizim ilk kaydımız
+lastSeenDay  : "YYYY-MM-DD"
+activeDays   : [gün...]              -> son 35 gün (D30 için yeterli)
+```
+
+`ingestEvents` her yığından sonra günceller. Aynı oyuncu için gün içinde
+tekrar yazmamak için bellekte önbellek var — yığınlar 30 sn'de bir geliyor
+ama rollup günde **bir kez** değişiyor.
+
+### 2. ⚠️ Kohort tuzağı — ve nasıl önlendiği
+
+**Tuzak:** Aylardır oynayan bir oyuncuyu bugün ilk kez görürsek "yeni
+kurulum" sanırız. SDK'yı yeni takan bir oyunda **bütün oyuncular** aynı gün
+kohortuna düşer, ertesi gün çoğu dönmez ve retention **yapay olarak çöker.**
+Sonra bu sahte rakamı stüdyoya rapor ederiz.
+
+**Çözüm:** Kohorta yalnızca **`first_open` event'i görülmüş** oyuncular
+girer. `first_open` yoksa oyuncu aktivitede sayılır ama kohortta sayılmaz.
+Yani retention, SDK entegrasyonundan sonra kurulan gerçek yeni oyuncular
+üzerinden hesaplanır.
+
+### 3. `computeRetention` — 6 saatte bir
+
+Standart tanım: `DN = (kohort gününde kuran VE D+N gününde aktif olan) /
+(kohort gününde kuran)`.
+
+Bir pencere **ancak dolduğunda** hesaplanır (D+N günü geçmiş olmalı) ve
+tamamlanan kohort tekrar hesaplanmaz. Çıktı:
+`games/{gameId}/retention/{cohortDay}`.
+
+### 4. Ölçülen retention AI'a besleniyor — döngü kapandı
+
+Bir önceki oturumda AI'a *"retention ölçülmüyor, sayı uydurma"* demiştik.
+Artık `gameContextBlock` **dinamik**:
+
+| Durum | AI'a giden |
+|---|---|
+| Ölçüm var | `D1=%42.3 (kohort 2026-09-09, n=812)` + "bunlar GERÇEK ölçüm" |
+| Ölçüm yok | "henüz retention ölçümü YOK, sayı uydurma" |
+
+Her iki durumda da baseline'daki hedeflerin **tür referansı** olduğu, bu
+oyunun ölçümü olmadığı ayrıca belirtiliyor. Huni/LTV için yasak **her
+durumda** sürüyor — onlar hâlâ ölçülmüyor.
+
+### 5. Panel — üç yeni KPI kartı
+
+D1 / D7 / D30, her birinin altında hangi kohorttan geldiği ve kohort boyu.
+Bu şeffaflık bilinçli: D1 dünkü kohorttan, D30 31 gün öncekinden gelir —
+tarihler farklı olmasa şaşırtıcı olurdu.
+
+## 🔍 Test
+
+- Gün aritmetiği 8/8: ay sonu, yıl sonu, artık yıl, negatif, bozuk girdi
+- Pencere uygunluğu: kohort N gün önceyse yalnızca `N > pencere` olanlar
+- Retention sayımı: elle kurulmuş 4 oyunculu kohortta D1/D7/D30 doğrulandı
+- AI bağlam bloğu 4 durumda: ölçüm var/yok × TR/EN — kısmi veride (yalnız D1
+  hazır) D7/D30 **uydurulmuyor**
+- Panel render: her pencere kendi en yeni **tamamlanmış** kohortundan geliyor
+- `firestore.indexes.json` değişmedi — sorgular tek alanlı, Firestore
+  otomatik indeksliyor
+
+## 🔴 Bu oturumda YAPILMAYANLAR
+
+| Eksik | Neden |
+|---|---|
+| **Huni (funnel) analizi** | Ayrı bir iş; level akışı var ama dönüşüm hunisi yok |
+| **Geriye dönük retention** | Rollup bugünden itibaren birikiyor; ilk D1 ~2 gün, D30 ~31 gün sonra çıkar |
+| **Eski SDK yolu** | Doğrudan Firestore yazan eski build'ler rollup üretmez; v3.0'a geçtikçe kapanır |
+| ClickHouse, A/B test, denetim kaydı | Faz 2/3'te duruyor |
+
+## ⚙️ Yayın durumu
+
+- ✅ Commit `main`'de
+- ⚠️ **`firebase deploy --only functions`** — yeni `computeRetention` job'ı ve
+  prompt değişikliği
+- ⚠️ **`firebase deploy --only firestore:rules`** — `players/` ve `retention/`
+  koleksiyonları için okuma kuralı; **bu olmadan panel kartları boş kalır**
+- ⏳ İlk D1 değeri, deploy'dan **~2 gün sonra** görünür (kohortun dolması lazım)
+
+---
+
 # Oturum: AI veri bütünlüğü — ölçülmeyen metrik uydurması engellendi
 
 **Kapsam:** `retentionD1Proxy` temizliği + AI prompt guard'ı · ⚠️ **Cloud
