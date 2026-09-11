@@ -206,6 +206,25 @@ namespace Altare.Analytics
         public static string SessionId => _instance != null ? _instance._sessionId : null;
         public static bool IsHealthy => _instance != null && !_instance._kapali;
 
+        /// <summary>
+        /// Panel anahtari. AltareConfig bunu getGameConfig cagrisinda
+        /// X-Altare-Key basligi olarak kullanir — kimlik tek yerde tutulur,
+        /// her modulde ayri ayri yapilandirilmasi gerekmez.
+        /// </summary>
+        public static string ApiKey => _instance != null ? _instance._apiKey : null;
+
+        /// <summary>Olay ucunun kok adresi — AltareConfig kendi ucunu bundan turetir.</summary>
+        public static string EndpointBase
+        {
+            get
+            {
+                string uc = _instance != null ? _instance._uc : null;
+                if (string.IsNullOrEmpty(uc)) uc = VarsayilanUc;
+                int i = uc.LastIndexOf('/');
+                return i > 0 ? uc.Substring(0, i) : uc;
+            }
+        }
+
         /// <summary>Tanilama: su an gonderilmeyi bekleyen olay sayisi.</summary>
         public static int PendingEventCount => _instance != null ? _instance._kuyruk.Count : 0;
 

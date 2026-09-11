@@ -205,8 +205,9 @@ function showGameCredentials(gameId) {
             <ul style="margin: 0 0 12px; padding-left: 18px; font-size: 0.85rem; color: var(--text-dim);">
                 <li><code>AltareAnalytics.cs</code> — drop-in Unity SDK (v3.0) · <strong>Firebase GEREKTIRMEZ</strong> · toplu gonderim + diske yazan kuyruk</li>
                 <li><code>AltareAnalyticsBootstrap.cs</code> — otomatik baslangic; GameId/GameName/<strong>ApiKey onceden dolu</strong></li>
-                <li><code>AltareFirebase.cs</code> — <em>istege bagli</em>, yalnizca asagidaki iki modul icin</li>
-                <li><code>AltareConfig.cs</code> — <em>istege bagli</em>: AI Auto-Heal remote config (Firebase ister)</li>
+                <li><code>AltareConfig.cs</code> — AI Auto-Heal remote config + <strong>A/B deneyleri</strong> · <strong>Firebase GEREKTIRMEZ</strong></li>
+                <li><code>AltareExperiments.cs</code> — A/B varyant atamasi (AltareConfig bunu kullanir)</li>
+                <li><code>AltareFirebase.cs</code> — <em>istege bagli</em>: anlik config + snapshot modulu icin</li>
                 <li><code>AltarePlayerState.cs</code> — <em>istege bagli</em>: snapshot &amp; rollback (Firebase ister)</li>
                 <li><code>AltareConfig.json</code> — gameId + ayarlar (pre-filled)</li>
                 <li><code>SampleUsage.cs</code> — ornek event cagrilari</li>
@@ -228,17 +229,23 @@ function showGameCredentials(gameId) {
 // SDK Download — client-side zip generation
 // ─────────────────────────────────────────────────────────────────────────────
 
-// SDK dosyalarini /unity-sdk/ kanonik yolundan ceker — JS gomulu kopyalardan
-// tek-kaynak guvenligi (drift olmaz). Fallback: embedded copies.
-async function fetchSdkFile(filename, fallback) {
-    try {
-        const res = await fetch(`/unity-sdk/${filename}?v=${Date.now()}`, { cache: 'no-store' });
-        if (res.ok) {
-            const text = await res.text();
-            if (text && text.length > 100) return text;
-        }
-    } catch (e) { /* fallthrough */ }
-    return typeof fallback === 'function' ? fallback() : fallback;
+// SDK dosyalarini /unity-sdk/ kanonik yolundan ceker — TEK KAYNAK.
+//
+// NEDEN FALLBACK YOK (bilincli karar):
+// Onceden bu fonksiyonun JS icine gomulu yedek kopyalari vardi. O kopyalar
+// zamanla v2.1.0'da dondu — yani Firestore'a dogrudan yazan, "veri panele
+// hic ulasmiyor" hatasinin KAYNAGI olan surum. Fetch bir kez basarisiz
+// oldugunda musteri sessizce o bozuk SDK'yi indiriyordu ve bunu anlamasinin
+// hicbir yolu yoktu.
+// Sessiz surum kaymasi, acik bir hatadan cok daha pahalidir: paket ayni
+// origin'den servis edilir, yani panel yuklendiyse bu dosyalar da yuklenir.
+// Yuklenemiyorsa indirmeyi DURDURUYORUZ.
+async function fetchSdkFile(filename) {
+    const res = await fetch(`/unity-sdk/${filename}?v=${Date.now()}`, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`${filename} alinamadi (HTTP ${res.status})`);
+    const text = await res.text();
+    if (!text || text.length < 100) throw new Error(`${filename} bos veya bozuk geldi`);
+    return text;
 }
 
 async function downloadSDK(gameId) {
@@ -255,16 +262,27 @@ async function downloadSDK(gameId) {
     const zip = new JSZip();
     const folder = zip.folder(`AltareSDK_${sanitizeFileName(game.gameName)}`);
 
-    // Canonical SDK files — fetched from /unity-sdk/ (always latest version)
-    // AltareFirebase.cs v2.4+ ZORUNLU: isimli "altare" Firebase app'i kurar;
-    // diger dosyalar ona referans verir — eksik olursa Unity derlemez.
-    const [analyticsCs, bootstrapCs, configCs, playerStateCs, altareFirebaseCs] = await Promise.all([
-        fetchSdkFile('AltareAnalytics.cs', generateSDKScript),
-        fetchSdkFile('AltareAnalyticsBootstrap.cs', () => generateBootstrapScript(game)),
-        fetchSdkFile('AltareConfig.cs', generateAltareConfigScript),
-        fetchSdkFile('AltarePlayerState.cs', generatePlayerStateScript),
-        fetchSdkFile('AltareFirebase.cs', generateAltareFirebaseScript),
-    ]);
+    // Kanonik SDK dosyalari — /unity-sdk/ her zaman en guncel surumdur.
+    // AltareExperiments.cs ZORUNLUDUR: AltareConfig ona referans verir,
+    // eksik olursa paket Unity'de DERLENMEZ.
+    let analyticsCs, experimentsCs, bootstrapCs, configCs, playerStateCs, altareFirebaseCs;
+    try {
+        [analyticsCs, experimentsCs, bootstrapCs, configCs, playerStateCs, altareFirebaseCs] =
+            await Promise.all([
+                fetchSdkFile('AltareAnalytics.cs'),
+                fetchSdkFile('AltareExperiments.cs'),
+                fetchSdkFile('AltareAnalyticsBootstrap.cs'),
+                fetchSdkFile('AltareConfig.cs'),
+                fetchSdkFile('AltarePlayerState.cs'),
+                fetchSdkFile('AltareFirebase.cs'),
+            ]);
+    } catch (e) {
+        alert('SDK dosyalari sunucudan alinamadi, indirme iptal edildi.\n\n' +
+              (e && e.message ? e.message : '') +
+              '\n\nEksik bir paket indirmektense durduruyoruz — lutfen sayfayi ' +
+              'yenileyip tekrar dene.');
+        return;
+    }
 
     // Bootstrap is per-game (gameId + gameName injected). If fetched canonical
     // version has placeholder strings, replace with game-specific values.
@@ -275,6 +293,7 @@ async function downloadSDK(gameId) {
         .replace(/private const string ApiKey = ".*?";/g, `private const string ApiKey = "${(game.apiKey || '').replace(/"/g, '\\"')}";`);
 
     folder.file('AltareAnalytics.cs', analyticsCs);
+    folder.file('AltareExperiments.cs', experimentsCs);
     folder.file('AltareAnalyticsBootstrap.cs', bootstrapFilled);
     folder.file('AltareConfig.cs', configCs);
     folder.file('AltarePlayerState.cs', playerStateCs);
@@ -299,392 +318,13 @@ function sanitizeFileName(name) {
     return (name || 'game').replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 40);
 }
 
-// Fallback: /unity-sdk/AltareFirebase.cs fetch edilemezse gomulu birebir kopya.
-// unity-sdk/AltareFirebase.cs ile SENKRON TUTUN.
-function generateAltareFirebaseScript() {
-    return `// =============================================================================
-// AltareFirebase.cs  —  v1.0.0
-// -----------------------------------------------------------------------------
-// Altare'nin KENDI Firebase projesine (altare-312a1) bagli, oyunun default
-// Firebase app'inden TAMAMEN BAGIMSIZ isimli FirebaseApp.
-//
-// - Oyunun kendi Firebase'i (Analytics, Remote Config, Crashlytics...)
-//   hicbir sekilde etkilenmez, dokunulmaz.
-// - Oyunda google-services.json OLMASA BILE calisir — tum config gomulu.
-//
-// GUVENLIK NOTU: Asagidaki degerler public web credential'laridir — gizli
-// DEGILDIR. Gercek koruma Firestore security rules + anonymous auth'tadir.
-// =============================================================================
-
-using System;
-using UnityEngine;
-using Firebase;
-using Firebase.Auth;
-using Firebase.Firestore;
-
-namespace Altare.Analytics
-{
-    public static class AltareFirebase
-    {
-        public const string AppName = "altare";
-        public const string FunctionsRegion = "europe-west1";
-
-        // altare-312a1 public config — js/firebase-config.js ile senkron tutun.
-        private const string ApiKey          = "AIzaSyDxHVD9iGm0WzPVDHvC0zRpvLBwhmVPdXs";
-        private const string AppId           = "1:525350962277:web:8afd370efeafb936f4328c";
-        private const string ProjectId       = "altare-312a1";
-        private const string MessageSenderId = "525350962277";
-        private const string StorageBucket   = "altare-312a1.firebasestorage.app";
-
-        private static FirebaseApp _app;
-
-        public static FirebaseApp App
-        {
-            get
-            {
-                EnsureApp();
-                return _app;
-            }
-        }
-
-        public static FirebaseAuth Auth => FirebaseAuth.GetAuth(App);
-        public static FirebaseFirestore Db => FirebaseFirestore.GetInstance(App);
-
-        public static void EnsureApp()
-        {
-            if (_app != null) return;
-
-            try { _app = FirebaseApp.GetInstance(AppName); }
-            catch (Exception) { _app = null; }
-            if (_app != null) return;
-
-            var options = new AppOptions
-            {
-                ApiKey          = ApiKey,
-                AppId           = AppId,
-                ProjectId       = ProjectId,
-                MessageSenderId = MessageSenderId,
-                StorageBucket   = StorageBucket,
-            };
-            _app = FirebaseApp.Create(options, AppName);
-            Debug.Log("[AltareFirebase] named app ready -> project=" + ProjectId);
-        }
-    }
-}
 `;
 }
 
-function generateBootstrapScript(game) {
-    return `// =============================================================================
-// AltareAnalyticsBootstrap.cs  —  v2.1.0
-// -----------------------------------------------------------------------------
-// AltareAnalytics SDK'sini sahnelere dokunmadan otomatik baslatir.
-// Drop-in: bu script projeye eklendiginde uygulama acilisinda kendiliginden
-// devreye girer.
-//
-// PRIVACY/CONSENT (KVKK/GDPR):
-// Consent panelinden gelen onayi (PlayerPrefs) kontrol eder. Onay yoksa
-// SDK'yi baslatmaz; onay sonradan verilirse sessizce retry yaparak baslatir.
-// =============================================================================
-
-using UnityEngine;
-
-public static class AltareAnalyticsBootstrap
-{
-    // ── Oyun ayarlari (pre-filled) ──
-    private const string GameId = "${game.gameId}";
-    private const string GameName = "${game.gameName}";
-
-    private const string ConsentAnalyticsKey = "app_consent_analytics";
-    private const float ConsentPollIntervalSec = 5f;
-
-    private static bool installed;
-
-    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-    private static void Install()
-    {
-        if (installed) return;
-        installed = true;
-
-        if (HasAnalyticsConsent())
-        {
-            StartSdk();
-            return;
-        }
-
-        BootstrapHost.EnsureExists().StartConsentWatch(StartSdk);
-    }
-
-    private static bool HasAnalyticsConsent()
-    {
-        return PlayerPrefs.GetInt(ConsentAnalyticsKey, 0) == 1;
-    }
-
-    private static void StartSdk()
-    {
-        Reflective.TryInvokeInitialize(GameId, GameName);
-    }
-
-    private class BootstrapHost : MonoBehaviour
-    {
-        private static BootstrapHost instance;
-
-        public static BootstrapHost EnsureExists()
-        {
-            if (instance != null) return instance;
-            GameObject go = new GameObject("[AltareAnalyticsBootstrap]");
-            DontDestroyOnLoad(go);
-            instance = go.AddComponent<BootstrapHost>();
-            return instance;
-        }
-
-        public void StartConsentWatch(System.Action onConsentGranted)
-        {
-            StartCoroutine(WatchConsent(onConsentGranted));
-        }
-
-        private System.Collections.IEnumerator WatchConsent(System.Action onConsentGranted)
-        {
-            while (true)
-            {
-                if (PlayerPrefs.GetInt(ConsentAnalyticsKey, 0) == 1)
-                {
-                    onConsentGranted?.Invoke();
-                    yield break;
-                }
-                yield return new WaitForSeconds(ConsentPollIntervalSec);
-            }
-        }
-    }
-
-    private static class Reflective
-    {
-        private static bool warned;
-
-        public static void TryInvokeInitialize(string gameId, string gameName)
-        {
-            System.Type t = System.Type.GetType("Altare.Analytics.AltareAnalytics, Assembly-CSharp")
-                            ?? System.Type.GetType("Altare.Analytics.AltareAnalytics");
-
-            if (t == null)
-            {
-                if (!warned)
-                {
-                    warned = true;
-                    Debug.Log("[AltareBootstrap] AltareAnalytics class henuz projede yok. " +
-                              "Firebase Auth+Firestore modulleri import edilince + SDK kopyalaninca aktif olur.");
-                }
-                return;
-            }
-
-            System.Reflection.MethodInfo m = t.GetMethod(
-                "Initialize",
-                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static,
-                null,
-                new[] { typeof(string), typeof(string) },
-                null);
-
-            if (m == null)
-            {
-                Debug.LogWarning("[AltareBootstrap] AltareAnalytics.Initialize(string,string) bulunamadi.");
-                return;
-            }
-
-            try
-            {
-                m.Invoke(null, new object[] { gameId, gameName });
-                Debug.Log("[AltareBootstrap] AltareAnalytics baslatildi: " + gameId + " / " + gameName);
-            }
-            catch (System.Exception e)
-            {
-                Debug.LogWarning("[AltareBootstrap] AltareAnalytics.Initialize hata: " + e.Message);
-            }
-        }
-    }
-}
 `;
 }
 
-function generatePlayerStateScript() {
-    // Fallback minimal — gercek versiyon /unity-sdk/AltarePlayerState.cs uzerinden fetched
-    return `// AltarePlayerState.cs (fallback stub) — Lutfen guncel versiyonu altarestudio.com.tr/unity-sdk/AltarePlayerState.cs adresinden indirin.
-// Bu modul oyuncu state'i snapshot + rollback icin kullanilir.
-namespace Altare.Analytics { public static class AltarePlayerState {
-    public static void Initialize() { UnityEngine.Debug.LogWarning("[AltarePlayerState] stub — guncel versiyonu sitedeki SDK paketinden indirin."); }
-    public static void SaveSnapshot(System.Collections.Generic.Dictionary<string,object> state, string label = "auto") {}
-    public static event System.Action<System.Collections.Generic.Dictionary<string,object>> OnRestoreRequested;
-} }`;
-}
 
-function generateAltareConfigScript() {
-    return `// =============================================================================
-// AltareConfig.cs — v2.2.0
-// -----------------------------------------------------------------------------
-// Altare Closed-Loop Remote Config client.
-// Oyununuzun sabitlerini (level zorlugu, reklam sikligi, IAP) server'dan
-// okutursunuz. AI Auto-Heal degisikleri uygulayinca oyun anlik ceker —
-// yeni APK gerekmez.
-//
-// KULLANIM:
-//   AltareConfig.Initialize();
-//   int targetScore = AltareConfig.GetInt("level_18_target_score", 5000);
-// =============================================================================
-
-using System;
-using System.Collections.Generic;
-using UnityEngine;
-using Firebase.Firestore;
-using Firebase.Extensions;
-
-namespace Altare.Analytics
-{
-    public static class AltareConfig
-    {
-        public static void Initialize()
-        {
-            if (_initialized) return;
-            _initialized = true;
-            string gameId = GetGameIdFromAnalytics();
-            if (string.IsNullOrEmpty(gameId))
-            {
-                _initialized = false;
-                AltareConfigRetry.Schedule();
-                return;
-            }
-            SubscribeToConfig(gameId);
-        }
-
-        public static int GetInt(string key, int defaultValue)
-        {
-            if (_values.TryGetValue(key, out object v))
-            {
-                if (v is long l) return (int)l;
-                if (v is int i) return i;
-                if (v is double d) return (int)d;
-                if (v is string s && int.TryParse(s, out int p)) return p;
-            }
-            return defaultValue;
-        }
-
-        public static float GetFloat(string key, float defaultValue)
-        {
-            if (_values.TryGetValue(key, out object v))
-            {
-                if (v is double d) return (float)d;
-                if (v is float f) return f;
-                if (v is long l) return (float)l;
-                if (v is int i) return (float)i;
-                if (v is string s && float.TryParse(s,
-                    System.Globalization.NumberStyles.Float,
-                    System.Globalization.CultureInfo.InvariantCulture, out float p)) return p;
-            }
-            return defaultValue;
-        }
-
-        public static string GetString(string key, string defaultValue)
-        {
-            if (_values.TryGetValue(key, out object v) && v != null) return v.ToString();
-            return defaultValue;
-        }
-
-        public static bool GetBool(string key, bool defaultValue)
-        {
-            if (_values.TryGetValue(key, out object v))
-            {
-                if (v is bool b) return b;
-                if (v is string s) return s == "true" || s == "1";
-                if (v is long l) return l != 0;
-            }
-            return defaultValue;
-        }
-
-        public static event Action OnConfigUpdated;
-        public static IReadOnlyDictionary<string, object> AllValues => _values;
-
-        private static bool _initialized;
-        private static readonly Dictionary<string, object> _values = new Dictionary<string, object>();
-        private static ListenerRegistration _listener;
-
-        private static string GetGameIdFromAnalytics()
-        {
-            try
-            {
-                var t = typeof(AltareAnalytics);
-                var instanceField = t.GetField("_instance",
-                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-                if (instanceField != null)
-                {
-                    var inst = instanceField.GetValue(null);
-                    if (inst != null)
-                    {
-                        var gameIdField = t.GetField("_gameId",
-                            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                        if (gameIdField != null) return gameIdField.GetValue(inst) as string;
-                    }
-                }
-            }
-            catch (Exception e)
-            {
-                Debug.LogWarning("[AltareConfig] gameId alimnamadi: " + e.Message);
-            }
-            return null;
-        }
-
-        private static void SubscribeToConfig(string gameId)
-        {
-            try
-            {
-                var db = FirebaseFirestore.DefaultInstance;
-                var docRef = db.Collection("games").Document(gameId)
-                    .Collection("config").Document("active");
-                _listener = docRef.Listen(snapshot =>
-                {
-                    try
-                    {
-                        if (!snapshot.Exists) return;
-                        var data = snapshot.ToDictionary();
-                        if (data.TryGetValue("values", out object vObj) && vObj is Dictionary<string, object> vMap)
-                        {
-                            _values.Clear();
-                            foreach (var kv in vMap) _values[kv.Key] = kv.Value;
-                            Debug.Log("[AltareConfig] guncellendi: " + _values.Count + " key.");
-                            try { OnConfigUpdated?.Invoke(); } catch { }
-                        }
-                    }
-                    catch (Exception e)
-                    {
-                        Debug.LogWarning("[AltareConfig] snapshot parse hata: " + e.Message);
-                    }
-                });
-            }
-            catch (Exception e)
-            {
-                Debug.LogError("[AltareConfig] subscribe hata: " + e.Message);
-            }
-        }
-
-        private class AltareConfigRetry : MonoBehaviour
-        {
-            private static AltareConfigRetry _host;
-            public static void Schedule()
-            {
-                if (_host != null) return;
-                var go = new GameObject("[AltareConfigRetry]");
-                UnityEngine.Object.DontDestroyOnLoad(go);
-                _host = go.AddComponent<AltareConfigRetry>();
-                _host.StartCoroutine(_host.Retry());
-            }
-            private System.Collections.IEnumerator Retry()
-            {
-                while (!_initialized)
-                {
-                    yield return new WaitForSeconds(2f);
-                    Initialize();
-                }
-            }
-        }
-    }
-}
 `;
 }
 
@@ -872,17 +512,25 @@ GEREKSINIMLER
 
 NOT (v3.0): Analitik artik HTTPS uzerinden calisir. Olaylar biriktirilip
 toplu gonderilir ve diske yazilir; oyun cokse bile veri kaybolmaz.
-Firebase yalnizca su iki ISTEGE BAGLI modul icin gerekir:
-  - AltareConfig      (canli Remote Config / AI Auto-Heal)
+Firebase yalnizca su ISTEGE BAGLI durumlar icin gerekir:
   - AltarePlayerState (snapshot & rollback)
-Bunlari kullanmayacaksaniz o .cs dosyalarini projeye hic eklemeyin.
+  - Config'in 60 sn yerine ANINDA guncellenmesini istiyorsaniz
+    (AltareFirebase.AttachRealtimeConfig)
+Bunlara ihtiyaciniz yoksa o .cs dosyalarini projeye hic eklemeyin.
+
+v3.0 NOTU: Remote Config ve A/B deneyleri artik duz HTTPS ile calisir —
+AltareConfig.cs icin Firebase GEREKMEZ.
 
 ================================================================================
 ADIM 1: (ISTEGE BAGLI) Firebase Unity SDK
 ================================================================================
 
-Yalnizca AltareConfig veya AltarePlayerState kullanacaksaniz gereklidir.
-Sadece olay/analitik gonderecekseniz BU ADIMI ATLAYIN.
+COGU OYUN BU ADIMI ATLAR. Analitik, Remote Config ve A/B deneylerinin
+tamami Firebase olmadan calisir.
+
+Yalnizca su iki durumda gereklidir:
+  - AltarePlayerState (snapshot & rollback) kullanacaksaniz
+  - Config guncellemesinin 60 sn yerine ANINDA inmesini istiyorsaniz
 
 1. https://firebase.google.com/download/unity adresinden SDK'yi indirin
 2. Unity'de Assets > Import Package > Custom Package secin
@@ -924,9 +572,12 @@ ADIM 4: SDK Dosyalarini Projeye Ekleme
    - AltareAnalytics.cs           (ana SDK — Firebase gerektirmez)
    - AltareAnalyticsBootstrap.cs  (otomatik baslangic; ayarlariniz dolu)
 
+   ONERILEN (Firebase GEREKTIRMEZ — ikisini birlikte ekleyin):
+   - AltareConfig.cs       (canli Remote Config / AI Auto-Heal / A/B testi)
+   - AltareExperiments.cs  (A/B varyant atamasi — AltareConfig bunu kullanir)
+
    ISTEGE BAGLI (Firebase modulleri gerektirir):
-   - AltareFirebase.cs     (asagidaki ikisinin ortak altyapisi)
-   - AltareConfig.cs       (canli Remote Config / AI Auto-Heal)
+   - AltareFirebase.cs     (anlik config guncellemesi + asagidaki modul)
    - AltarePlayerState.cs  (snapshot & rollback)
 
 2. Unity'nin dosyalari compile etmesini bekleyin (Console'da hata olmamali)
@@ -992,9 +643,9 @@ SORUN GIDERME:
 - "[AltareFirebase] named app ready" satiri Altare baglantisinin
   kuruldugunu gosterir
 - "[Altare] Ready. gameId=..." mesaji goruyorsaniz SDK calisiyor demektir
-- Gormuyorsaniz: zip'teki .cs dosyalarinin TAMAMININ (AltareFirebase.cs
-  dahil) kopyalandigindan ve Firebase Auth + Firestore modullerinin import
-  edildiginden emin olun
+- Gormuyorsaniz: zip'teki .cs dosyalarinin TAMAMININ kopyalandigindan
+  emin olun. AltareConfig.cs eklediyseniz AltareExperiments.cs de ZORUNLUDUR
+  (AltareConfig ona referans verir — eksikse Unity derlemez)
 - Panel'in "Canli Event Stream" sekmesinde eventlerin gorunup
   gorunmedigini kontrol edin
 
@@ -1029,19 +680,24 @@ REQUIREMENTS
 - Unity 2021.3 or newer
 - NOTHING ELSE. No Firebase, no google-services.json, no external packages.
 
-NOTE (v3.0): Analytics now runs over HTTPS. Events are batched and persisted
-to disk, so no data is lost even if the game crashes. Firebase is required
-ONLY for these two OPTIONAL modules:
-  - AltareConfig      (live Remote Config / AI Auto-Heal)
+NOTE (v3.0): Analytics, Remote Config and A/B experiments all run over plain
+HTTPS. Events are batched and persisted to disk, so no data is lost even if
+the game crashes. Firebase is required ONLY for:
   - AltarePlayerState (snapshot & rollback)
-If you don't use them, simply don't add those .cs files to your project.
+  - INSTANT config updates instead of the default 60 s poll
+    (AltareFirebase.AttachRealtimeConfig)
+If you don't need those, simply don't add those .cs files to your project.
 
 ================================================================================
 STEP 1: (OPTIONAL) Firebase Unity SDK
 ================================================================================
 
-Only needed if you'll use AltareConfig or AltarePlayerState.
-If you only send analytics events, SKIP THIS STEP.
+MOST GAMES SKIP THIS STEP. Analytics, Remote Config and A/B experiments all
+work without Firebase.
+
+Only needed if:
+  - you will use AltarePlayerState (snapshot & rollback), or
+  - you want config changes to land instantly instead of within 60 s
 
 1. Download the SDK from https://firebase.google.com/download/unity
 2. In Unity: Assets > Import Package > Custom Package
@@ -1083,9 +739,12 @@ STEP 4: Copy the SDK Files into Your Project
    - AltareAnalytics.cs           (main SDK — no Firebase needed)
    - AltareAnalyticsBootstrap.cs  (auto-init; your settings pre-filled)
 
+   RECOMMENDED (no Firebase needed — add BOTH together):
+   - AltareConfig.cs       (live Remote Config / AI Auto-Heal / A/B tests)
+   - AltareExperiments.cs  (A/B variant assignment — AltareConfig needs it)
+
    OPTIONAL (require Firebase modules):
-   - AltareFirebase.cs     (shared plumbing for the two below)
-   - AltareConfig.cs       (live Remote Config / AI Auto-Heal)
+   - AltareFirebase.cs     (instant config updates + the module below)
    - AltarePlayerState.cs  (snapshot & rollback)
 
 2. Wait for Unity to compile the files (no errors in Console)
@@ -1150,8 +809,11 @@ TROUBLESHOOTING:
 - Check the Unity Console for logs starting with [Altare]
 - "[AltareFirebase] named app ready" confirms the Altare connection is up
 - If you see "[Altare] Ready. gameId=..." the SDK is working
-- If not: make sure ALL .cs files from the zip (including AltareFirebase.cs)
-  were copied, and Firebase Auth + Firestore modules are imported
+- If not: make sure ALL .cs files from the zip were copied. If you added
+  AltareConfig.cs, then AltareExperiments.cs is REQUIRED too (AltareConfig
+  references it — Unity will not compile without it)
+- If you added AltarePlayerState.cs, make sure the Firebase Auth + Firestore
+  modules are imported (that module is the only one that still needs them)
 - Check the panel's "Live Event Stream" tab for incoming events
 
 ================================================================================
@@ -1168,320 +830,6 @@ Date: ${new Date().toISOString().slice(0, 10)}
 `;
 }
 
-function generateSDKScript() {
-    return `// =============================================================================
-// AltareAnalytics.cs  —  v2.1.0
-// -----------------------------------------------------------------------------
-// Drop-in Unity client for the Altare AI Live Game Intelligence platform.
-// Authenticates the device anonymously with Firebase Auth and writes events
-// into Firestore at  games/{gameId}/events/{eventId}.
-//
-// Usage:
-//   void Start() {
-//       AltareAnalytics.Initialize("your-game-id", "Your Game Name");
-//   }
-//
-// Required Unity packages:
-//   - Firebase Authentication
-//   - Firebase Firestore
-//
-// Privacy notes:
-//   - Stores only an anonymous UUID (playerAnonId) in PlayerPrefs.
-//   - Never collects email, phone, location, or 3rd-party app data.
-// =============================================================================
-
-using System;
-using System.Collections.Generic;
-using UnityEngine;
-using Firebase;
-using Firebase.Auth;
-using Firebase.Firestore;
-using Firebase.Extensions;
-
-namespace Altare.Analytics
-{
-    public class AltareAnalytics : MonoBehaviour
-    {
-        // Public static API
-
-        public static void Initialize(string gameId, string gameName)
-        {
-            if (_instance != null) return;
-            if (string.IsNullOrWhiteSpace(gameId))
-                throw new ArgumentException("gameId is required", nameof(gameId));
-
-            var go = new GameObject("[AltareAnalytics]");
-            DontDestroyOnLoad(go);
-            _instance = go.AddComponent<AltareAnalytics>();
-            _instance._gameId = gameId.Trim();
-            _instance._gameName = string.IsNullOrWhiteSpace(gameName) ? gameId : gameName.Trim();
-            _instance.Boot();
-        }
-
-        public static void LogEvent(string eventName, Dictionary<string, object> parameters = null)
-        {
-            if (string.IsNullOrWhiteSpace(eventName)) return;
-            if (_instance == null)
-            {
-                Debug.LogWarning("[Altare] LogEvent called before Initialize -- dropping: " + eventName);
-                return;
-            }
-            _instance.EnqueueEvent(eventName, parameters);
-        }
-
-        public static void LogSessionStart() => LogEvent("session_start", null);
-
-        public static void LogSessionEnd(float durationSeconds)
-        {
-            LogEvent("session_end", new Dictionary<string, object> {
-                { "duration_seconds", durationSeconds }
-            });
-        }
-
-        public static void SubmitFeedback(int rating, string text)
-        {
-            if (_instance == null) return;
-            _instance.WriteFeedback(rating, text);
-        }
-
-        public static string PlayerAnonId => _instance != null ? _instance._playerAnonId : null;
-
-        // Internals
-
-        private const string PrefsPlayerIdKey = "altare.playerAnonId";
-
-        private static AltareAnalytics _instance;
-
-        private string _gameId;
-        private string _gameName;
-        private string _playerAnonId;
-        private string _sessionId;
-        private string _platform;
-        private string _appVersion;
-        private string _deviceModel;
-        private bool _isFirstOpen;
-
-        private FirebaseFirestore _db;
-        private bool _ready;
-        private bool _initFailed;
-
-        private readonly Queue<PendingEvent> _buffer = new Queue<PendingEvent>(64);
-
-        private float _sessionStartTime;
-        private bool _quitting;
-
-        private const float FpsCheckIntervalSec = 5f;
-        private const float FpsWarningThreshold = 30f;
-        private const float FpsWarningCooldownSec = 60f;
-        private float _fpsAccum;
-        private int _fpsFrames;
-        private float _fpsCheckTimer;
-        private float _lastFpsWarnAt = -999f;
-
-        private void Boot()
-        {
-            _playerAnonId = LoadOrCreatePlayerId(out _isFirstOpen);
-            _sessionId = Guid.NewGuid().ToString("N");
-            _platform = Application.platform.ToString();
-            _appVersion = Application.version;
-            _deviceModel = SystemInfo.deviceModel;
-            _sessionStartTime = Time.realtimeSinceStartup;
-
-            FirebaseApp.CheckAndFixDependenciesAsync().ContinueWithOnMainThread(task =>
-            {
-                if (task.Result != DependencyStatus.Available)
-                {
-                    _initFailed = true;
-                    Debug.LogError("[Altare] Firebase deps unavailable: " + task.Result);
-                    return;
-                }
-                FirebaseAuth.DefaultInstance.SignInAnonymouslyAsync()
-                    .ContinueWithOnMainThread(authTask =>
-                    {
-                        if (authTask.IsFaulted || authTask.IsCanceled)
-                        {
-                            _initFailed = true;
-                            Debug.LogError("[Altare] Anonymous auth failed: " + authTask.Exception);
-                            return;
-                        }
-                        _db = FirebaseFirestore.DefaultInstance;
-                        _ready = true;
-                        Debug.Log("[Altare] Ready. uid=" + authTask.Result.User.UserId
-                                  + " playerAnonId=" + _playerAnonId
-                                  + " sessionId=" + _sessionId);
-                        if (_isFirstOpen)
-                            LogEvent("first_open", null);
-                        LogEvent("app_open", new Dictionary<string, object> {
-                            { "is_first_open", _isFirstOpen }
-                        });
-                        LogSessionStart();
-                        FlushBuffer();
-                    });
-            });
-        }
-
-        private string LoadOrCreatePlayerId(out bool created)
-        {
-            string id = PlayerPrefs.GetString(PrefsPlayerIdKey, null);
-            if (string.IsNullOrEmpty(id))
-            {
-                id = Guid.NewGuid().ToString("N");
-                PlayerPrefs.SetString(PrefsPlayerIdKey, id);
-                PlayerPrefs.Save();
-                created = true;
-                return id;
-            }
-            created = false;
-            return id;
-        }
-
-        private void EnqueueEvent(string eventName, Dictionary<string, object> parameters)
-        {
-            var pending = new PendingEvent
-            {
-                eventName = eventName,
-                parameters = parameters != null
-                    ? new Dictionary<string, object>(parameters)
-                    : new Dictionary<string, object>(),
-                clientTimestampUtc = DateTime.UtcNow,
-            };
-
-            if (!_ready)
-            {
-                if (_buffer.Count > 256) _buffer.Dequeue();
-                _buffer.Enqueue(pending);
-                return;
-            }
-            WriteEvent(pending);
-        }
-
-        private void FlushBuffer()
-        {
-            while (_buffer.Count > 0)
-            {
-                WriteEvent(_buffer.Dequeue());
-            }
-        }
-
-        private void WriteEvent(PendingEvent pending)
-        {
-            if (_db == null) return;
-
-            var payload = new Dictionary<string, object>
-            {
-                { "gameId",        _gameId },
-                { "gameName",      _gameName },
-                { "playerAnonId",  _playerAnonId },
-                { "sessionId",     _sessionId },
-                { "eventName",     pending.eventName },
-                { "eventParams",   pending.parameters ?? new Dictionary<string, object>() },
-                { "timestamp",     FieldValue.ServerTimestamp },
-                { "clientTimestamp", Timestamp.FromDateTime(pending.clientTimestampUtc) },
-                { "platform",      _platform },
-                { "appVersion",    _appVersion },
-                { "deviceModel",   _deviceModel },
-            };
-
-            _db.Collection("games").Document(_gameId)
-               .Collection("events").Document()
-               .SetAsync(payload)
-               .ContinueWithOnMainThread(t =>
-               {
-                   if (t.IsFaulted)
-                   {
-                       Debug.LogWarning("[Altare] event write failed (" + pending.eventName
-                                        + "): " + t.Exception?.GetBaseException()?.Message);
-                   }
-               });
-        }
-
-        private void WriteFeedback(int rating, string text)
-        {
-            if (_db == null)
-            {
-                LogEvent("player_feedback", new Dictionary<string, object> {
-                    { "rating", rating },
-                    { "text", text ?? "" },
-                });
-                return;
-            }
-            var payload = new Dictionary<string, object>
-            {
-                { "gameId",       _gameId },
-                { "gameName",     _gameName },
-                { "playerAnonId", _playerAnonId },
-                { "rating",       rating },
-                { "text",         text ?? "" },
-                { "platform",     _platform },
-                { "appVersion",   _appVersion },
-                { "deviceModel",  _deviceModel },
-                { "timestamp",    FieldValue.ServerTimestamp },
-            };
-            _db.Collection("games").Document(_gameId)
-               .Collection("feedback").Document()
-               .SetAsync(payload);
-
-            LogEvent("player_feedback", new Dictionary<string, object> {
-                { "rating", rating },
-                { "text", (text ?? "").Length > 80 ? (text.Substring(0, 80) + "\\u2026") : text ?? "" },
-            });
-        }
-
-        private void Update()
-        {
-            if (!_ready) return;
-
-            _fpsAccum += Time.unscaledDeltaTime;
-            _fpsFrames++;
-            _fpsCheckTimer += Time.unscaledDeltaTime;
-
-            if (_fpsCheckTimer >= FpsCheckIntervalSec)
-            {
-                float avg = _fpsFrames > 0 && _fpsAccum > 0 ? _fpsFrames / _fpsAccum : 60f;
-                _fpsAccum = 0; _fpsFrames = 0; _fpsCheckTimer = 0;
-
-                if (avg < FpsWarningThreshold &&
-                    Time.realtimeSinceStartup - _lastFpsWarnAt > FpsWarningCooldownSec)
-                {
-                    _lastFpsWarnAt = Time.realtimeSinceStartup;
-                    LogEvent("fps_warning", new Dictionary<string, object> {
-                        { "avg_fps", Mathf.RoundToInt(avg) },
-                        { "device", _deviceModel },
-                    });
-                }
-            }
-        }
-
-        private void OnApplicationPause(bool pauseStatus)
-        {
-            if (!_ready) return;
-            if (pauseStatus)
-            {
-                LogSessionEnd(Time.realtimeSinceStartup - _sessionStartTime);
-            }
-            else
-            {
-                _sessionId = Guid.NewGuid().ToString("N");
-                _sessionStartTime = Time.realtimeSinceStartup;
-                LogSessionStart();
-            }
-        }
-
-        private void OnApplicationQuit()
-        {
-            _quitting = true;
-            if (!_ready) return;
-            LogSessionEnd(Time.realtimeSinceStartup - _sessionStartTime);
-        }
-
-        private struct PendingEvent
-        {
-            public string eventName;
-            public Dictionary<string, object> parameters;
-            public DateTime clientTimestampUtc;
-        }
-    }
-}
 `;
 }
 

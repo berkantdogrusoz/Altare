@@ -30,6 +30,9 @@ const { setGlobalOptions } = require("firebase-functions/v2");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
 const crypto = require("crypto");
+// A/B deney motoru — saf matematik, Firebase bagimsiz, ayrica test edilir:
+//   node tools/test-experiments.js  ·  python3 tools/test-hash-parity.py
+const EXP = require("./experiments.js");
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -981,7 +984,13 @@ Cikti olarak guvenli, geri alinabilir bir Remote Config recetesi onerirsin.
 KATI KURALLAR
 - Asla kod degisikligi onerme. Sadece config value (Remote Config) degisikligi.
 - Her degisiklik: yeni deger + eski deger + neden + hedef metrik + beklenen etki.
-- Risk seviyesi degerlendir: low / medium / high. High ise A/B test zorunlu.
+- Risk seviyesi degerlendir: low / medium / high.
+- "ab_test_required" ARTIK GERCEK BIR YOLDUR, temenni degil: true dersen
+  recete tum oyunculara birden UYGULANAMAZ, once kucuk bir dilimde (orn.
+  %10) kontrol grubuyla karsilastirilarak olculur ve ancak istatistiksel
+  olarak kazanirsa yayginlastirilir. High risk ise her zaman true yaz.
+  Etkisi belirsiz ya da geri donusu pahali her degisiklikte de true yaz —
+  "olcelim" demek burada bir maliyet degil, urunun normal isleyisidir.
 - Eger veri yetersizse "veri_yetersiz: true" donderr, change array bos olsun.
 - Tum dogal dil metinleri Turkce. JSON anahtarlari Ingilizce sabit.
 - Sadece JSON dondur, oncesinde/sonrasinda metin yok.
@@ -1125,7 +1134,7 @@ exports.generateAutoHeal = onCall(
 // snapshot ile rollback'i garantiler.
 exports.applyAutoHeal = onCall(async (request) => {
   assertSignedIn(request);
-  const { gameId, prescriptionId } = request.data || {};
+  const { gameId, prescriptionId, force = false } = request.data || {};
   await assertOwnsGameOrAdmin(request, gameId);
   if (!prescriptionId) throw new HttpsError("invalid-argument", "prescriptionId required");
 
@@ -1145,13 +1154,47 @@ exports.applyAutoHeal = onCall(async (request) => {
     throw new HttpsError("failed-precondition", "Prescription marked data-insufficient by AI.");
   }
 
-  // High risk + a/b required ama biz simdilik direkt apply ediyoruz —
-  // A/B test feature'i v2'de. Yine de high-risk'i admin'e zorla.
-  if (presc.prescription.risk_level === "high" && request.auth.token.admin !== true) {
+  // RISKLI RECETELER ARTIK DENEY YOLUNA GIDER.
+  // Onceden A/B test altyapisi yoktu ve tek secenek "hepsine uygula" idi;
+  // bu yuzden high-risk receteler admin'e kilitlenmisti. Artik olculebilir
+  // bir alternatif VAR: promoteToExperiment ile once kucuk bir dilimde
+  // dene. Kilit yerine dogru yola yonlendir.
+  //
+  // force:true ile bu kapi asilabilir (acil mudahale) — ama bilincli bir
+  // karar olmasi icin acikca istenmesi gerekir.
+  const riskli = presc.prescription.risk_level === "high";
+  const abIsteniyor = presc.prescription.ab_test_required === true;
+  if ((riskli || abIsteniyor) && force !== true) {
+    throw new HttpsError(
+      "failed-precondition",
+      (riskli ? "Bu recete YUKSEK RISKLI" : "AI bu recete icin A/B test sart kostu") +
+      ". Tum oyunculara birden uygulamak yerine deneye donustur " +
+      "(promoteToExperiment) — kucuk bir dilimde olcup kazanirsa yayginlastirilir. " +
+      "Yine de dogrudan uygulamak icin force:true gonder."
+    );
+  }
+  if (riskli && force === true && request.auth.token.admin !== true) {
     throw new HttpsError(
       "permission-denied",
-      "High-risk receteler sadece admin tarafindan onaylanabilir (A/B test v2'de gelecek)."
+      "Yuksek riskli receteyi deney yapmadan uygulamak sadece admin yetkisiyle mumkun."
     );
+  }
+
+  // Deneyde olculen bir anahtari ayni anda herkese yazmak, o deneyi
+  // sessizce bozar (kontrol grubu da deneme degerini gorur).
+  const calisanSnap = await db.collection("games").doc(gameId)
+    .collection("experiments").where("status", "==", "running").get();
+  const receteKeyleri = new Set(changes.map((c) => c && c.key).filter(Boolean));
+  for (const doc of calisanSnap.docs) {
+    for (const v of doc.get("variants") || []) {
+      for (const k of Object.keys((v && v.values) || {})) {
+        if (receteKeyleri.has(k)) {
+          throw new HttpsError("failed-precondition",
+            `'${k}' anahtari su an "${doc.get("name") || doc.id}" deneyinde olculuyor. ` +
+            "Simdi herkese yazmak o deneyi gecersiz kilar — once deneyi sonuclandir.");
+        }
+      }
+    }
   }
 
   const configRef = db.collection("games").doc(gameId).collection("config").doc("active");
@@ -1228,6 +1271,537 @@ exports.rollbackAutoHeal = onCall(async (request) => {
   logger.info("auto-heal rolled back", { gameId, prescriptionId });
   return { success: true };
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// A/B DENEYLERI — kapali dongunun olculebilir hali
+//
+// SORUN: Auto-Heal bugune kadar receteyi %100 trafige uyguluyordu. Metrik
+// sonra duzelirse bunun receteden mi, mevsimsellikten mi, yeni bir
+// guncellemeden mi kaynaklandigini soylemenin YOLU YOKTU. "Duzeldi" demek
+// ile "duzelttik" demek arasindaki fark budur ve yatirimci sunumunda da,
+// musteri guveninde de tam olarak bu fark onemlidir.
+//
+// COZUM: receteyi once kucuk bir dilime uygula, kalanla karsilastir,
+// istatistiksel olarak kazandiysa yayginlastir.
+//
+//   Sentinel uyarisi → AI recetesi → %10'da DENEY → olc → kazandiysa yayginlastir
+//                                                     → kaybettiyse otomatik durdur
+//
+// Atama matematigi firebase/functions/experiments.js icindedir (test edilir);
+// burada yalnizca Firestore baglantisi ve is akisi vardir.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** Analiz basina okunacak azami olay. Kirpilirsa sonuc acikca isaretlenir. */
+const EXPERIMENT_EVENT_CAP = 40000;
+
+/** Deney tanimini istemciye sunulan kompakt bicime indirger. */
+function deneyKompakt(id, d) {
+  return {
+    id,
+    exposurePct: d.exposurePct,
+    variants: (d.variants || []).map((v) => ({
+      key: v.key,
+      allocation: v.allocation,
+      values: v.values || {},
+    })),
+  };
+}
+
+/**
+ * Calisan deneyleri config/active dokumanina yansitir.
+ * SDK bu diziyi okuyup oyuncuyu kendi tarafinda atar (ag turu yok).
+ * Deney bitince diziden dusulur → oyuncular otomatik taban degerlere doner.
+ */
+async function deneyleriConfigeYansit(gameId) {
+  const snap = await db.collection("games").doc(gameId)
+    .collection("experiments").where("status", "==", "running").get();
+  const liste = snap.docs.map((d) => deneyKompakt(d.id, d.data()));
+  await db.collection("games").doc(gameId).collection("config").doc("active")
+    .set({
+      experiments: liste,
+      experimentsUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+  return liste.length;
+}
+
+/**
+ * Deney olaylarini ceker.
+ *
+ * Maruz kalma olaylari AYRI sorgulanir: bunlar eksik kalirsa oyuncu deneyden
+ * tumuyle dusar (metrigi degil, KENDISI kaybolur). Sonuc olaylari kirpilirsa
+ * sadece hassasiyet duser — bu yuzden iki sorgu ayri butcelenir.
+ *
+ * Siralama ASCENDING: kirpma olursa EN YENI olaylar dusurulur. DESC olsaydi
+ * en ESKI olaylar — yani maruz kalma olaylari — dusurdu ve deney bosalirdi.
+ */
+async function deneyOlaylariniCek(gameId, deneyId, baslangicTs) {
+  const col = db.collection("games").doc(gameId).collection("events");
+
+  const maruzSnap = await col
+    .where("eventName", "==", EXP.EXPOSURE_EVENT)
+    .where("timestamp", ">=", baslangicTs)
+    .orderBy("timestamp", "asc")
+    .limit(EXPERIMENT_EVENT_CAP)
+    .get();
+
+  const sonucSnap = await col
+    .where("timestamp", ">=", baslangicTs)
+    .orderBy("timestamp", "asc")
+    .limit(EXPERIMENT_EVENT_CAP)
+    .get();
+
+  const ms = (d) => {
+    const t = d.get("timestamp") || d.get("clientTimestamp");
+    return t && typeof t.toMillis === "function" ? t.toMillis() : null;
+  };
+
+  const olaylar = [];
+  for (const d of maruzSnap.docs) {
+    const p = d.get("eventParams") || {};
+    // BASKA bir deneyin maruz kalma olayi bu deneye sayilmamali.
+    if (String(p.experiment_id || "") !== deneyId) continue;
+    olaylar.push({
+      playerAnonId: d.get("playerAnonId"),
+      eventName: EXP.EXPOSURE_EVENT,
+      eventParams: p,
+      sessionId: d.get("sessionId") || "",
+      timestampMs: ms(d),
+    });
+  }
+  for (const d of sonucSnap.docs) {
+    const ad = d.get("eventName");
+    if (ad === EXP.EXPOSURE_EVENT) continue;   // yukarida hedefli olarak alindi
+    olaylar.push({
+      playerAnonId: d.get("playerAnonId"),
+      eventName: ad,
+      eventParams: d.get("eventParams") || {},
+      sessionId: d.get("sessionId") || "",
+      timestampMs: ms(d),
+    });
+  }
+
+  return {
+    olaylar,
+    truncated: sonucSnap.size >= EXPERIMENT_EVENT_CAP,
+    exposureTruncated: maruzSnap.size >= EXPERIMENT_EVENT_CAP,
+  };
+}
+
+/** Bir deneyi analiz eder ve sonucu dokumana yazar. */
+async function deneyiAnalizEt(gameId, deneyId) {
+  const ref = db.collection("games").doc(gameId).collection("experiments").doc(deneyId);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError("not-found", "Deney bulunamadi.");
+  const d = snap.data();
+
+  const baslangic = d.startedAt;
+  if (!baslangic) throw new HttpsError("failed-precondition", "Deney henuz baslatilmamis.");
+
+  const { olaylar, truncated, exposureTruncated } =
+    await deneyOlaylariniCek(gameId, deneyId, baslangic);
+
+  const simdi = Date.now();
+  const oyuncular = EXP.summarizePlayers(olaylar, simdi);
+  const rapor = EXP.analyzeExperiment(
+    { id: deneyId, ...d }, oyuncular, simdi
+  );
+  rapor.truncated = truncated;
+  rapor.exposureTruncated = exposureTruncated;
+  rapor.eventsScanned = olaylar.length;
+
+  // Okunabilirligi bozan uyarilar tek yerde toplansin — panel ve AI bunu okur.
+  const uyarilar = [];
+  if (exposureTruncated) {
+    uyarilar.push("maruz_kalma_kirpildi: oyuncularin bir kismi analiz disi kaldi, " +
+      "sonuc temsili degildir");
+  } else if (truncated) {
+    uyarilar.push("olaylar_kirpildi: en yeni olaylar analiz disi kaldi, " +
+      "sonuc eksik veriyle hesaplandi");
+  }
+  if (rapor.mismatchRate > 0.01) {
+    uyarilar.push("atama_uyusmazligi: istemci ve sunucu ayni varyanti hesaplamiyor " +
+      "(oran %" + (rapor.mismatchRate * 100).toFixed(1) + ") — SDK surumunu kontrol et");
+  }
+  for (const [mk, m] of Object.entries(rapor.metrics || {})) {
+    for (const t of Object.values(m.vs_control || {})) {
+      if (t && t.zeroVariance) {
+        uyarilar.push("sifir_varyans: " + mk + " her oyuncuda ayni deger — " +
+          "klasik test gecerli degil, sonucu elle dogrula");
+      }
+    }
+  }
+  rapor.warnings = uyarilar;
+
+  await ref.set({
+    lastAnalysis: sanitizeForFirestore(rapor),
+    lastAnalyzedAt: admin.firestore.FieldValue.serverTimestamp(),
+  }, { merge: true });
+
+  return rapor;
+}
+
+/** AI'in serbest metin hedef metrigini bizim metrik anahtarimiza esler. */
+function metrikEslestir(serbestMetin) {
+  const s = String(serbestMetin || "").toLowerCase();
+  if (/retention|tutma|geri don|d1|d7/.test(s)) return "d1_return";
+  if (/crash|cokme|anr|stabil/.test(s)) return "crash_free_rate";
+  if (/revenue|gelir|arpu|arppu|ltv/.test(s)) return "revenue_per_player";
+  if (/iap|purchase|satin|conversion|donusum/.test(s)) return "iap_conversion";
+  if (/\bad\b|reklam|rewarded|odullu/.test(s)) return "rewarded_ad_engagement";
+  if (/fail|basarisiz|zorluk|difficulty/.test(s)) return "level_fail_rate";
+  if (/level|bolum|progress|ilerleme/.test(s)) return "levels_completed";
+  if (/session|oturum|playtime|sure/.test(s)) return "session_length_avg";
+  return null;
+}
+
+/** Ortak deney olusturma — hem manuel hem Auto-Heal yolu bunu kullanir. */
+async function deneyOlustur(gameId, uid, taslak) {
+  const hatalar = EXP.validateExperiment(taslak);
+  if (hatalar.length) {
+    throw new HttpsError("invalid-argument", "Deney tanimi gecersiz: " + hatalar.join(" · "));
+  }
+
+  // Ayni config key'i iki deneyde birden olamaz — aksi halde iki deney
+  // birbirinin degerini ezer ve IKISININ de sonucu anlamsizlasir.
+  const calisanSnap = await db.collection("games").doc(gameId)
+    .collection("experiments").where("status", "==", "running").get();
+  const yeniKeyler = new Set();
+  for (const v of taslak.variants) {
+    for (const k of Object.keys(v.values || {})) yeniKeyler.add(k);
+  }
+  for (const doc of calisanSnap.docs) {
+    for (const v of doc.get("variants") || []) {
+      for (const k of Object.keys(v.values || {})) {
+        if (yeniKeyler.has(k)) {
+          throw new HttpsError("failed-precondition",
+            `'${k}' anahtari zaten calisan bir deneyde kullaniliyor ` +
+            `(${doc.get("name") || doc.id}). Once o deneyi sonuclandir.`);
+        }
+      }
+    }
+  }
+
+  const ref = db.collection("games").doc(gameId).collection("experiments").doc();
+  await ref.set({
+    ...taslak,
+    status: "running",
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdBy: uid,
+    startedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  await deneyleriConfigeYansit(gameId);
+  logger.info("experiment started", {
+    gameId, experimentId: ref.id,
+    exposurePct: taslak.exposurePct, primaryMetric: taslak.primaryMetric,
+  });
+  return ref.id;
+}
+
+// ── createExperiment — manuel deney ──────────────────────────────────────────
+exports.createExperiment = onCall(async (request) => {
+  assertSignedIn(request);
+  const {
+    gameId, name, hypothesis = "", exposurePct, variants,
+    primaryMetric, secondaryMetrics = [], mde = 0.10,
+    minSamplePerVariant = 200,
+  } = request.data || {};
+  await assertOwnsGameOrAdmin(request, gameId);
+
+  const id = await deneyOlustur(gameId, request.auth.uid, {
+    name: String(name || "").slice(0, 120),
+    hypothesis: String(hypothesis || "").slice(0, 1000),
+    exposurePct: Number(exposurePct),
+    variants,
+    primaryMetric,
+    secondaryMetrics: Array.isArray(secondaryMetrics) ? secondaryMetrics.slice(0, 6) : [],
+    mde: Number(mde) || 0.10,
+    minSamplePerVariant: Math.max(1, Number(minSamplePerVariant) || 200),
+    fromPrescription: null,
+  });
+  return { success: true, experimentId: id };
+});
+
+// ── promoteToExperiment — Auto-Heal recetesini deneye cevirir ────────────────
+// URUNUN EN DEGERLI ADIMI: "uygula" yerine "once %10'da test et".
+exports.promoteToExperiment = onCall(async (request) => {
+  assertSignedIn(request);
+  const {
+    gameId, prescriptionId, exposurePct = 10,
+    primaryMetric, minSamplePerVariant = 200, mde = 0.10,
+  } = request.data || {};
+  await assertOwnsGameOrAdmin(request, gameId);
+  if (!prescriptionId) throw new HttpsError("invalid-argument", "prescriptionId required");
+
+  const prescRef = db.collection("games").doc(gameId)
+    .collection("auto_heal").doc(prescriptionId);
+  const prescSnap = await prescRef.get();
+  if (!prescSnap.exists) throw new HttpsError("not-found", "Recete bulunamadi.");
+  const presc = prescSnap.data();
+  if (presc.status !== "proposed") {
+    throw new HttpsError("failed-precondition", "Recete 'proposed' durumunda degil.");
+  }
+
+  const r = presc.prescription || {};
+  const changes = Array.isArray(r.changes) ? r.changes : [];
+  if (!changes.length) {
+    throw new HttpsError("failed-precondition", "Recetede uygulanacak degisiklik yok.");
+  }
+  if (r.data_sufficient === false) {
+    throw new HttpsError("failed-precondition", "AI receteyi 'veri yetersiz' isaretledi.");
+  }
+
+  const denemeDegerleri = {};
+  for (const c of changes) {
+    if (c && typeof c.key === "string" && c.key.length > 0) {
+      denemeDegerleri[c.key] = c.new_value;
+    }
+  }
+
+  // Hedef metrigi receteden turet; tanimadigimiz bir sey yazmissa istemcinin
+  // sectigine, o da yoksa guvenli varsayilana dus.
+  const metrik =
+    (primaryMetric && EXP.METRICS[primaryMetric] && primaryMetric) ||
+    metrikEslestir(changes.map((c) => c && c.target_metric).join(" ")) ||
+    metrikEslestir(r.diagnosis) ||
+    "session_length_avg";
+
+  const id = await deneyOlustur(gameId, request.auth.uid, {
+    name: "Auto-Heal: " + String(r.diagnosis || prescriptionId).slice(0, 90),
+    hypothesis: String(r.root_cause_hypothesis || "").slice(0, 1000),
+    exposurePct: Number(exposurePct),
+    variants: [
+      { key: "control", allocation: 50, values: {} },
+      { key: "treatment", allocation: 50, values: denemeDegerleri },
+    ],
+    primaryMetric: metrik,
+    secondaryMetrics: [],
+    mde: Number(mde) || 0.10,
+    minSamplePerVariant: Math.max(1, Number(minSamplePerVariant) || 200),
+    fromPrescription: prescriptionId,
+    alertId: presc.alertId || null,
+  });
+
+  await prescRef.update({
+    status: "experimenting",
+    experimentId: id,
+    experimentStartedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  return { success: true, experimentId: id, primaryMetric: metrik };
+});
+
+// ── analyzeExperimentNow — panelden "simdi olc" ──────────────────────────────
+exports.analyzeExperimentNow = onCall(
+  { timeoutSeconds: 300, memory: "512MiB" },
+  async (request) => {
+    assertSignedIn(request);
+    const { gameId, experimentId } = request.data || {};
+    await assertOwnsGameOrAdmin(request, gameId);
+    if (!experimentId) throw new HttpsError("invalid-argument", "experimentId required");
+    const rapor = await deneyiAnalizEt(gameId, experimentId);
+    return { success: true, analysis: rapor };
+  }
+);
+
+// ── stopExperiment — elle durdur (degerler taban degerlere doner) ────────────
+exports.stopExperiment = onCall(async (request) => {
+  assertSignedIn(request);
+  const { gameId, experimentId, reason = "manual" } = request.data || {};
+  await assertOwnsGameOrAdmin(request, gameId);
+  if (!experimentId) throw new HttpsError("invalid-argument", "experimentId required");
+
+  const ref = db.collection("games").doc(gameId).collection("experiments").doc(experimentId);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError("not-found", "Deney bulunamadi.");
+  if (snap.get("status") !== "running") {
+    throw new HttpsError("failed-precondition", "Deney zaten calismiyor.");
+  }
+
+  await ref.update({
+    status: "stopped",
+    stoppedAt: admin.firestore.FieldValue.serverTimestamp(),
+    stoppedBy: request.auth.uid,
+    stoppedReason: String(reason).slice(0, 200),
+  });
+  await deneyleriConfigeYansit(gameId);
+  return { success: true };
+});
+
+// ── concludeExperiment — kazanani yayginlastir ya da vazgec ─────────────────
+exports.concludeExperiment = onCall(async (request) => {
+  assertSignedIn(request);
+  const { gameId, experimentId, decision, force = false } = request.data || {};
+  await assertOwnsGameOrAdmin(request, gameId);
+  if (!experimentId) throw new HttpsError("invalid-argument", "experimentId required");
+  if (decision !== "ship" && decision !== "abandon") {
+    throw new HttpsError("invalid-argument", "decision 'ship' veya 'abandon' olmali.");
+  }
+
+  const ref = db.collection("games").doc(gameId).collection("experiments").doc(experimentId);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError("not-found", "Deney bulunamadi.");
+  const d = snap.data();
+  if (d.status === "concluded") {
+    throw new HttpsError("failed-precondition", "Deney zaten sonuclandirilmis.");
+  }
+
+  let yayginlastirilan = null;
+
+  if (decision === "ship") {
+    // En guncel olcumle karar ver — panelde acik duran eski analiz degil.
+    const rapor = d.status === "running"
+      ? await deneyiAnalizEt(gameId, experimentId)
+      : (d.lastAnalysis || null);
+
+    const kazanan = rapor && rapor.winner;
+    if (!kazanan || kazanan === "control") {
+      if (!force) {
+        throw new HttpsError("failed-precondition",
+          "Yayginlastirilacak bir kazanan yok (durum: " +
+          ((rapor && rapor.verdict) || "olculmedi") +
+          "). Yine de uygulamak icin force:true gonder.");
+      }
+    }
+    const hedef = (kazanan && kazanan !== "control") ? kazanan : null;
+    if (hedef) {
+      const v = (d.variants || []).find((x) => x.key === hedef);
+      const degerler = (v && v.values) || {};
+      if (Object.keys(degerler).length > 0) {
+        const configRef = db.collection("games").doc(gameId)
+          .collection("config").doc("active");
+        const cfgSnap = await configRef.get();
+        const mevcut = cfgSnap.exists ? (cfgSnap.data().values || {}) : {};
+        await configRef.set({
+          values: { ...mevcut, ...degerler },
+          snapshot_before: mevcut,
+          appliedFrom: "experiment:" + experimentId,
+          appliedAt: admin.firestore.FieldValue.serverTimestamp(),
+          appliedBy: request.auth.uid,
+          version: admin.firestore.FieldValue.increment(1),
+        }, { merge: true });
+        yayginlastirilan = hedef;
+      }
+    }
+  }
+
+  await ref.update({
+    status: "concluded",
+    decision,
+    shippedVariant: yayginlastirilan,
+    concludedAt: admin.firestore.FieldValue.serverTimestamp(),
+    concludedBy: request.auth.uid,
+  });
+
+  // Recete durumunu da kapat ki panelde asili kalmasin.
+  if (d.fromPrescription) {
+    try {
+      await db.collection("games").doc(gameId).collection("auto_heal")
+        .doc(d.fromPrescription).update({
+          status: yayginlastirilan ? "applied" : "rejected",
+          experimentDecision: decision,
+          experimentConcludedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+    } catch (e) {
+      logger.warn("recete durumu guncellenemedi", { gameId, message: e.message });
+    }
+  }
+
+  // Deneyi config'ten dus — bu ADIM SIRASI onemli: yayginlastirilan degerler
+  // yukarida zaten taban degerlere yazildi, dolayisiyla deney diziden
+  // cikarildiginda oyuncular deger KAYBETMEZ.
+  await deneyleriConfigeYansit(gameId);
+
+  logger.info("experiment concluded", {
+    gameId, experimentId, decision, shipped: yayginlastirilan,
+  });
+  return { success: true, shippedVariant: yayginlastirilan };
+});
+
+// ── monitorExperiments — guardrail nobetcisi ─────────────────────────────────
+// Kapali dongunun "kendi kendini durduran" halkasi: deneme grubu olculebilir
+// bicimde ZARAR veriyorsa kimse tiklamadan durdurulur.
+exports.monitorExperiments = onSchedule(
+  { schedule: "every 6 hours", timeZone: "Europe/Istanbul", timeoutSeconds: 540 },
+  async () => {
+    const gamesSnap = await db.collection("games").get();
+    for (const g of gamesSnap.docs) {
+      let calisan;
+      try {
+        calisan = await db.collection("games").doc(g.id)
+          .collection("experiments").where("status", "==", "running").get();
+      } catch (err) {
+        logger.error("deney listesi okunamadi", { gameId: g.id, message: err?.message });
+        continue;
+      }
+      if (calisan.empty) continue;
+
+      for (const doc of calisan.docs) {
+        try {
+          const rapor = await deneyiAnalizEt(g.id, doc.id);
+          if (rapor.verdict !== "guardrail_breach") continue;
+
+          await doc.ref.update({
+            status: "stopped",
+            stoppedAt: admin.firestore.FieldValue.serverTimestamp(),
+            stoppedBy: "system:guardrail",
+            stoppedReason: "guardrail_breach: " +
+              rapor.guardrailBreaches.map((b) => b.metric).join(", "),
+          });
+          await deneyleriConfigeYansit(g.id);
+
+          // Sahibi haberdar et — sessizce durdurmak guveni asindirir.
+          await db.collection("games").doc(g.id).collection("alerts").add({
+            ruleId: "experiment_guardrail",
+            severity: "high",
+            title_tr: "Deney otomatik durduruldu",
+            title_en: "Experiment auto-stopped",
+            rationale_tr: `"${doc.get("name") || doc.id}" deneyi guvenlik esigini ` +
+              `astigi icin durduruldu (${rapor.guardrailBreaches
+                .map((b) => b.label_tr).join(", ")}). Oyuncular otomatik olarak ` +
+              `onceki degerlere dondu.`,
+            rationale_en: `Experiment "${doc.get("name") || doc.id}" was stopped ` +
+              `because it breached a guardrail (${rapor.guardrailBreaches
+                .map((b) => b.label_en).join(", ")}). Players reverted automatically.`,
+            metric: rapor.guardrailBreaches[0] && rapor.guardrailBreaches[0].metric,
+            experimentId: doc.id,
+            read: false,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+
+          logger.warn("experiment auto-stopped", {
+            gameId: g.id, experimentId: doc.id,
+            breaches: rapor.guardrailBreaches.map((b) => b.metric),
+          });
+        } catch (err) {
+          logger.error("deney izleme hatasi", {
+            gameId: g.id, experimentId: doc.id, message: err?.message,
+          });
+        }
+      }
+    }
+  }
+);
+
+/** AI baglami icin calisan deneylerin ozeti. */
+async function getRunningExperiments(gameId) {
+  try {
+    const snap = await db.collection("games").doc(gameId)
+      .collection("experiments").where("status", "==", "running").limit(10).get();
+    if (snap.empty) return null;
+    return snap.docs.map((d) => ({
+      id: d.id,
+      name: d.get("name") || d.id,
+      exposurePct: d.get("exposurePct"),
+      primaryMetric: d.get("primaryMetric"),
+      keys: Array.from(new Set((d.get("variants") || [])
+        .flatMap((v) => Object.keys((v && v.values) || {})))),
+      verdict: (d.get("lastAnalysis") || {}).verdict || null,
+    }));
+  } catch (err) {
+    logger.warn("getRunningExperiments failed", { gameId, message: err?.message });
+    return null;
+  }
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PLAYER STATE SNAPSHOT & ROLLBACK — Yigit Ozturk'un onerisi
@@ -2545,6 +3119,9 @@ async function getGameContext(gameId) {
     // OLCULMUS retention — varsa AI'a gercek sayiyi veriyoruz, yoksa
     // "olculmuyor" uyarisi devreye giriyor (bkz. gameContextBlock).
     const retention = await getLatestRetention(gameId);
+    // Calisan deneyler — AI'in test altindaki anahtara cakisan recete
+    // yazmasini onler ve sonuclari yorumlayabilmesini saglar.
+    const experiments = await getRunningExperiments(gameId);
     return {
       gameName: g.gameName || gameId,
       gameType: g.gameType || "unknown",
@@ -2554,6 +3131,7 @@ async function getGameContext(gameId) {
       description: g.description || "",
       platforms: g.platforms || [],
       retention,
+      experiments,
     };
   } catch (e) {
     logger.warn("getGameContext failed", { gameId, error: e.message });
@@ -2628,6 +3206,41 @@ function retentionBlokEN(r) {
   ].join("\n");
 }
 
+/**
+ * Calisan deneyler bolumu.
+ * Iki isi var: (1) AI'in test altindaki bir anahtari degistirmeyi onermesini
+ * engellemek — bu, kontrol grubunu da deneme degerine tasiyip deneyi sessizce
+ * bozar; (2) modelin "su an sunu olcuyoruz" bilgisiyle konusabilmesi.
+ */
+function deneyBloku(deneyler, lang) {
+  if (!deneyler || !deneyler.length) return "";
+  const satirlar = deneyler.map((d) => {
+    const keyler = d.keys && d.keys.length ? d.keys.join(", ") : "-";
+    return lang === "en"
+      ? `• "${d.name}" — ${d.exposurePct}% of players · metric: ${d.primaryMetric} · keys under test: ${keyler}`
+      : `• "${d.name}" — oyuncularin %${d.exposurePct}'i · metrik: ${d.primaryMetric} · test edilen anahtarlar: ${keyler}`;
+  });
+  if (lang === "en") {
+    return [
+      "=== RUNNING EXPERIMENTS ===",
+      ...satirlar,
+      "DO NOT propose changes to the keys listed above while their experiment",
+      "is running — writing them for everyone moves the control group onto the",
+      "treatment value and silently invalidates the experiment. If a change to",
+      "one of those keys is truly necessary, say the experiment must be",
+      "concluded first.",
+    ].join("\n");
+  }
+  return [
+    "=== ÇALIŞAN DENEYLER ===",
+    ...satirlar,
+    "Yukarıda listelenen anahtarlar için deney sürerken DEĞİŞİKLİK ÖNERME —",
+    "onları herkese yazmak kontrol grubunu da deneme değerine taşır ve deneyi",
+    "sessizce geçersiz kılar. O anahtarlardan birinde değişiklik gerçekten",
+    "gerekiyorsa, önce deneyin sonuçlandırılması gerektiğini söyle.",
+  ].join("\n");
+}
+
 // Returns a paragraph to prepend to the user prompt with game-specific context.
 function gameContextBlock(ctx, lang) {
   if (!ctx) return "";
@@ -2643,6 +3256,8 @@ function gameContextBlock(ctx, lang) {
       "",
       retentionBlokEN(ctx.retention),
       "",
+      deneyBloku(ctx.experiments, "en"),
+      "",
     ].filter(Boolean).join("\n");
   }
   return [
@@ -2654,6 +3269,8 @@ function gameContextBlock(ctx, lang) {
     "ÖNEMLİ: Metrikleri bu oyun türü bağlamında yorumla. 'Yüksek fail rate' Match-3 ile Idle veya RPG için farklı anlam taşır. Yukarıdaki baseline'ları referans al.",
     "",
     retentionBlokTR(ctx.retention),
+    "",
+    deneyBloku(ctx.experiments, "tr"),
     "",
   ].filter(Boolean).join("\n");
 }
@@ -3554,6 +4171,95 @@ exports.ingestEvents = onRequest(
       res.json({ ok: true, written: yazilan });
     } catch (err) {
       logger.error("ingestEvents unhandled", { message: err?.message });
+      res.status(500).json({ error: "internal" });
+    }
+  }
+);
+
+// ═══════════════════════════════════════════════════════════════════════════
+// getGameConfig — Remote Config + calisan deneyler, FIREBASE'SIZ
+//
+// NEDEN VAR:
+// AltareConfig eskiden Firestore dinleyicisi kullaniyordu; bu, Firebase Unity
+// SDK'sini ZORUNLU kiliyordu. Oysa hedef kitlenin buyuk kismi Firebase
+// entegre etmiyor. Daha kotusu: A/B deneyleri de bu kanaldan dagitildigi icin
+// Faz 3'un tamami yalnizca Firebase'li oyunlarda calisabilirdi.
+//
+// Bu uc ile config ve deney tanimlari duz HTTPS/JSON uzerinden dagitilir:
+// iki C# dosyasi ekleyen HER oyun (Unity, Godot, native, web — fark etmez)
+// deneylere katilabilir.
+//
+// OLCEK NOTU: yanit gameId basina bellekte kisa sure onbeleklenir, yani
+// Firestore okumasi oyuncu sayisiyla degil OYUN SAYISI × instance ile
+// olceklenir. Cache-Control basligi istemci/CDN tarafinda ikinci bir kalkan.
+// ═══════════════════════════════════════════════════════════════════════════
+
+const CONFIG_CACHE_MS = 30 * 1000;
+const _configCache = new Map(); // gameId -> { at, body }
+
+exports.getGameConfig = onRequest(
+  { timeoutSeconds: 15, memory: "256MiB", cors: false },
+  async (req, res) => {
+    if (applyCors(req, res)) return;
+    if (req.method !== "GET" && req.method !== "POST") {
+      res.status(405).json({ error: "method_not_allowed" });
+      return;
+    }
+    try {
+      const gameId = String(
+        (req.query && req.query.gameId) || (req.body && req.body.gameId) || ""
+      ).trim();
+      if (!gameId) {
+        res.status(400).json({ error: "missing_gameId" });
+        return;
+      }
+
+      const game = await ingestGameIsKnown(gameId);
+      if (!game.ok) {
+        res.status(404).json({ error: "unknown_gameId", gameId });
+        return;
+      }
+
+      // Anahtar gonderilmisse dogrulanir; gonderilmemisse ingestEvents ile
+      // ayni yumusak gecis kurali gecerlidir (bkz. INGEST_REQUIRE_API_KEY).
+      const sentKey = String(req.get("x-altare-key") || "").trim();
+      if (game.apiKey && sentKey && !apiKeyMatches(sentKey, game.apiKey)) {
+        res.status(401).json({ error: "invalid_api_key" });
+        return;
+      }
+
+      const hit = _configCache.get(gameId);
+      if (hit && Date.now() - hit.at < CONFIG_CACHE_MS) {
+        res.set("Cache-Control", "public, max-age=30");
+        res.json(hit.body);
+        return;
+      }
+
+      const snap = await db.collection("games").doc(gameId)
+        .collection("config").doc("active").get();
+      const d = snap.exists ? snap.data() : {};
+
+      const body = {
+        values: d.values || {},
+        // Yalnizca istemcinin ihtiyaci olan alanlar. Hipotez, metrik, analiz
+        // sonucu gibi ic bilgiler istemciye GITMEZ.
+        experiments: Array.isArray(d.experiments)
+          ? d.experiments.map((e) => ({
+              id: e.id,
+              exposurePct: e.exposurePct,
+              variants: (e.variants || []).map((v) => ({
+                key: v.key, allocation: v.allocation, values: v.values || {},
+              })),
+            }))
+          : [],
+        version: d.version || 0,
+      };
+
+      _configCache.set(gameId, { at: Date.now(), body });
+      res.set("Cache-Control", "public, max-age=30");
+      res.json(body);
+    } catch (err) {
+      logger.error("getGameConfig unhandled", { message: err?.message });
       res.status(500).json({ error: "internal" });
     }
   }

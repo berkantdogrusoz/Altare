@@ -153,6 +153,21 @@ service cloud.firestore {
         allow write: if false;
       }
 
+      // A/B deneyleri — Cloud Functions yazar, owner okur.
+      //
+      // OYUN ISTEMCISINE ACIK DEGIL, bilerek: istemcinin deney tanimina
+      // ihtiyaci var ama onu buradan degil, config/active icindeki kompakt
+      // kopyadan (ya da getGameConfig HTTP ucundan) alir. Boylece hipotez,
+      // hedef metrik ve analiz sonuclari gibi ic bilgiler oyuna sizmaz.
+      //
+      // Yazma her durumda kapali: deney tanimi CALISIRKEN DEGISMEMELIDIR —
+      // sunucu atamayi sonradan yeniden hesaplayabildigi icin tanim degisirse
+      // gecmis olaylar yanlis varyanta atfedilir ve sonuc sessizce bozulur.
+      match /experiments/{experimentId} {
+        allow read: if isAdmin() || isGameOwner(gameId);
+        allow write: if false;
+      }
+
       // Remote Config (Altare Closed-Loop) — Cloud Functions yazar.
       // OYUN (anonymous) ve OWNER + ADMIN okuyabilir. Oyun bu doc'tan canli
       // ayarlarini ceker (level zorluk, reklam sikligi, IAP vb.).

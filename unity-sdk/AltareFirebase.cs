@@ -6,10 +6,17 @@
 //
 // ⚠️ BU DOSYA ARTIK ISTEGE BAGLIDIR.
 //    v3.0'dan itibaren AltareAnalytics HTTPS ile calisir ve Firebase'e HIC
-//    ihtiyac duymaz. Bu dosya yalnizca su iki modul kullanilacaksa gerekir:
-//      - AltareConfig      (canli Remote Config — Firestore dinleyicisi ister)
+//    ihtiyac duymaz. v3.0.1'den itibaren AltareConfig de oyle: Remote Config
+//    ve A/B deneyleri duz HTTPS uzerinden dagitilir.
+//
+//    Bu dosya yalnizca su iki durumda gerekir:
 //      - AltarePlayerState (snapshot & rollback — Firestore + Functions ister)
-//    Bu ikisini kullanmayan oyunlar AltareFirebase.cs / AltareConfig.cs /
+//      - ANLIK config guncellemesi istiyorsaniz (bkz. AttachRealtimeConfig).
+//        AltareConfig varsayilan olarak 60 sn'de bir yoklar; Auto-Heal ve A/B
+//        icin bu fazlasiyla yeterlidir. Anlik guncelleme bir konfor
+//        ozelligidir, gereklilik degil.
+//
+//    Bu ikisine ihtiyaci olmayan oyunlar AltareFirebase.cs ve
 //    AltarePlayerState.cs dosyalarini projeye HIC eklemeyebilir; Firebase
 //    Unity SDK'sini de import etmeleri gerekmez.
 //
@@ -129,6 +136,78 @@ namespace Altare.Analytics
             };
             _app = FirebaseApp.Create(options, AppName);
             Debug.Log("[AltareFirebase] named app ready -> project=" + ProjectId);
+        }
+
+        // ─────────────────────────────────────────────────────────────────────
+        // OPSIYONEL: ANLIK CONFIG GUNCELLEMESI
+        //
+        // AltareConfig kendi basina HTTPS ile 60 sn'de bir yoklar ve Firebase
+        // gerektirmez. Bu metod cagrilirsa ustune bir Firestore dinleyicisi
+        // eklenir ve degisiklikler saniyeler icinde iner.
+        //
+        // BAGIMLILIK YONU ONEMLI: opsiyonel dosya (bu dosya) cekirdek dosyaya
+        // (AltareConfig) bagimlidir, tersi degil. Boylece AltareConfig.cs
+        // Firebase olmayan bir projede sorunsuz derlenir.
+        //
+        // KULLANIM:
+        //     AltareConfig.Initialize();
+        //     AltareFirebase.AttachRealtimeConfig();   // istege bagli
+        // ─────────────────────────────────────────────────────────────────────
+
+        private static ListenerRegistration _configListener;
+
+        public static void AttachRealtimeConfig()
+        {
+            if (_configListener != null) return;
+
+            EnsureReady(hazir =>
+            {
+                if (!hazir)
+                {
+                    Debug.LogWarning("[AltareFirebase] Anlik config acilamadi — " +
+                                     "AltareConfig HTTPS yoklamasiyla calismaya devam ediyor.");
+                    return;
+                }
+
+                string gameId = AltareAnalytics.GameId;
+                if (string.IsNullOrEmpty(gameId))
+                {
+                    Debug.LogWarning("[AltareFirebase] gameId yok — anlik config atlandi.");
+                    return;
+                }
+
+                try
+                {
+                    var docRef = Db.Collection("games").Document(gameId)
+                                   .Collection("config").Document("active");
+                    _configListener = docRef.Listen(snapshot =>
+                    {
+                        try
+                        {
+                            if (!snapshot.Exists) return;
+                            AltareConfig.PushRealtimeConfig(snapshot.ToDictionary());
+                        }
+                        catch (Exception e)
+                        {
+                            Debug.LogWarning("[AltareFirebase] anlik config islenemedi: " + e.Message);
+                        }
+                    });
+                    Debug.Log("[AltareFirebase] anlik config dinleyicisi acildi.");
+                }
+                catch (Exception e)
+                {
+                    Debug.LogWarning("[AltareFirebase] anlik config dinleyicisi kurulamadi: " +
+                                     e.Message + " — HTTPS yoklamasi devam ediyor.");
+                }
+            });
+        }
+
+        /// <summary>Anlik config dinleyicisini kapatir (yoklama devam eder).</summary>
+        public static void DetachRealtimeConfig()
+        {
+            if (_configListener == null) return;
+            try { _configListener.Stop(); } catch { }
+            _configListener = null;
         }
     }
 }
