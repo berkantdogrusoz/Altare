@@ -139,14 +139,14 @@ const I18N = {
         'benchmark.gap': 'Fark',
 
         // ── Copilot ──
-        'copilot.banner': '<strong>AI Copilot</strong> oyunun verileriyle sohbet etmeni sağlar. "Retention neden düştü?", "Level 18\'i nasıl optimize ederim?", "Hangi cihazda en çok crash var?" gibi sorular sor.',
+        'copilot.banner': '<strong>AI Copilot</strong> oyunun verileriyle sohbet etmeni sağlar. "Oturum süresi nerede kısalıyor?", "Level 18\'i nasıl optimize ederim?", "Hangi cihazda en çok crash var?" gibi sorular sor.',
         'copilot.title': 'AI Copilot',
         'copilot.online': 'Çevrimiçi · Claude Sonnet 4.5',
         'copilot.greeting': 'Merhaba! 👋 Oyununun verileriyle ilgili bir şey sor. Event\'leri, level istatistiklerini ve son AI raporunu görebiliyorum.',
         'copilot.placeholder': 'Sorunu yaz...',
         'copilot.send': 'Gönder',
         'copilot.sending': 'Düşünüyor...',
-        'copilot.q1': 'Retention neden düşüyor?',
+        'copilot.q1': 'Oturum süresi nerede kısalıyor?',
         'copilot.q2': 'En problemli level hangisi?',
         'copilot.q3': 'Hangi cihazda crash var?',
         'copilot.q4': 'Reklam stratejimi nasıl iyileştiririm?',
@@ -446,14 +446,14 @@ const I18N = {
         'benchmark.gap': 'Gap',
 
         // ── Copilot ──
-        'copilot.banner': '<strong>AI Copilot</strong> lets you chat with your game data. Ask things like "Why is retention dropping?", "How can I optimize Level 18?", "Which device crashes most?"',
+        'copilot.banner': '<strong>AI Copilot</strong> lets you chat with your game data. Ask things like "Where are sessions getting shorter?", "How can I optimize Level 18?", "Which device crashes most?"',
         'copilot.title': 'AI Copilot',
         'copilot.online': 'Online · Claude Sonnet 4.5',
         'copilot.greeting': 'Hi! 👋 Ask anything about your game data. I can see events, level stats and the latest AI report.',
         'copilot.placeholder': 'Type your question...',
         'copilot.send': 'Send',
         'copilot.sending': 'Thinking...',
-        'copilot.q1': 'Why is retention dropping?',
+        'copilot.q1': 'Where are sessions getting shorter?',
         'copilot.q2': 'Which level is the most problematic?',
         'copilot.q3': 'Which devices crash most?',
         'copilot.q4': 'How can I improve my ad strategy?',

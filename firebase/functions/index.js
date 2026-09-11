@@ -138,7 +138,9 @@ KATI KURALLAR
 VURGU PRENSIBI (BLUF — Bottom Line Up Front)
 Raporun en kritik yapisi 'executive_briefing' alani. Stüdyo paneli acar acmaz
 "BU HAFTA NE YAPMALIYIM?" sorusunun cevabini buradan goruyor. Bu yuzden:
-- headline: 1 cumle, net deger ifadesi (orn: "Level 18'de %47 drop-off, D-3 retention'i %18 dususuyor.")
+- headline: 1 cumle, net deger ifadesi (orn: "Level 18'de 412 baslangic / 38 tamamlama — %9 win rate, turun cok altinda.")
+  DIKKAT: Ornekteki gibi SADECE veride bulunan sayilari kullan. Retention/LTV
+  gibi olculmeyen metrikler uzerinden headline yazma.
 - value_summary: 1-2 cumle, beklenen ETKI (DAU/retention/ARPDAU/monetization).
 - critical_actions: en fazla 3 madde, urgency='critical' veya 'high'. Hepsi BU HAFTA yapilabilir olmali.
 - opportunities: 1-2 madde, urgency='medium' veya 'low'. Trend/fırsat yakalama.
@@ -148,7 +150,10 @@ Her aksiyonda:
 - urgency: "critical" | "high" | "medium" | "low"
 - impact: "critical" | "high" | "medium" | "low"  -> beklenen is etkisi
 - rationale: VERIDEKI ozel sayilarla destekli (orn: "402sn ort. oturum / 3 fps_warning Samsung S908E'de")
-- expected_metric: olcebilecegi sayisal hedef (orn: "D-3 retention +12pp" veya "level_18_completion 53% -> 78%")
+- expected_metric: olcebilecegi sayisal hedef — YALNIZCA bu veri setinde
+  OLCULEN bir metrik olmali (orn: "level_18_completion %9 -> %25",
+  "crash_rate 0.8 -> 0.3 / oturum", "avg_session 402sn -> 480sn").
+  Retention/LTV/kohort hedefi YAZMA: olculmuyorlar, dogrulanamazlar.
 - timeline: "bu hafta" | "2 hafta" | "1 ay" | "sonraki sprint"
 
 OUTPUT JSON SHAPE (kati)
@@ -451,7 +456,14 @@ exports.aggregateIndustryBenchmark = onSchedule(
         fpsWarnRates: [],
         adsPerSession: [],
         iapRevenuePerPlayer: [],
-        retentionD1Proxy: [], // uniquePlayers / uniqueSessions as a weak proxy
+        // Oyuncu basina oturum = uniqueSessions / uniquePlayers.
+        // DIKKAT: Bu RETENTION DEGILDIR. Gercek D1 retention =
+        // (1. gun geri donen oyuncu) / (0. gun kuran oyuncu) olup gunluk
+        // toplu istatistiklerden HESAPLANAMAZ; oyuncu bazli ilk-gorulme
+        // tarihi gerekir (bkz. yol haritasi Faz 2).
+        // Eski ad 'retentionD1Proxy' yanilticiydi — saklanan alan zaten
+        // dogru sekilde 'sessionsPerPlayer' adiyla yaziliyor.
+        sessionsPerPlayer: [],
       };
 
       for (const gameId of gameIds) {
@@ -477,7 +489,7 @@ exports.aggregateIndustryBenchmark = onSchedule(
               if (d.uniquePlayers > 0) {
                 metrics.iapRevenuePerPlayer.push((d.purchaseRevenueUsd || 0) / d.uniquePlayers);
                 if (d.uniqueSessions > 0) {
-                  metrics.retentionD1Proxy.push(d.uniqueSessions / d.uniquePlayers);
+                  metrics.sessionsPerPlayer.push(d.uniqueSessions / d.uniquePlayers);
                 }
               }
             }
@@ -522,9 +534,9 @@ exports.aggregateIndustryBenchmark = onSchedule(
           avg: avg(metrics.iapRevenuePerPlayer),
         },
         sessionsPerPlayer: {
-          median: quantile(metrics.retentionD1Proxy, 0.5),
-          top10: quantile(metrics.retentionD1Proxy, 0.9),
-          avg: avg(metrics.retentionD1Proxy),
+          median: quantile(metrics.sessionsPerPlayer, 0.5),
+          top10: quantile(metrics.sessionsPerPlayer, 0.9),
+          avg: avg(metrics.sessionsPerPlayer),
         },
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       };
@@ -2432,6 +2444,15 @@ function gameContextBlock(ctx, lang) {
       `Industry baselines for this type: ${JSON.stringify(baseline)}`,
       "IMPORTANT: Interpret metrics in the context of this game type. A 'high fail rate' means different things for Match-3 vs Idle vs RPG. Use the baselines above as reference.",
       "",
+      "=== NOT MEASURED — NEVER STATE A NUMBER FOR THESE ===",
+      "The dataset does NOT contain: retention (D1/D7/D30), cohort analysis,",
+      "funnel conversion rates, LTV, or churn rate.",
+      "The retention figures in the baselines above are GENRE REFERENCE VALUES,",
+      "not measurements from this game. You must NOT claim, estimate, or imply",
+      "any retention/cohort/LTV number for this game. If asked, say the metric",
+      "is not currently measured. You MAY reason qualitatively about likely",
+      "retention impact, but without inventing figures.",
+      "",
     ].filter(Boolean).join("\n");
   }
   return [
@@ -2441,6 +2462,15 @@ function gameContextBlock(ctx, lang) {
     ctx.description ? `Açıklama: ${ctx.description}` : "",
     `Bu tür için sektör baseline'ları: ${JSON.stringify(baseline)}`,
     "ÖNEMLİ: Metrikleri bu oyun türü bağlamında yorumla. 'Yüksek fail rate' Match-3 ile Idle veya RPG için farklı anlam taşır. Yukarıdaki baseline'ları referans al.",
+    "",
+    "=== ÖLÇÜLMEYEN METRİKLER — BUNLAR İÇİN ASLA SAYI VERME ===",
+    "Veri setinde ŞUNLAR YOK: retention (D1/D7/D30), kohort analizi,",
+    "huni dönüşüm oranları, LTV, churn oranı.",
+    "Yukarıdaki baseline'lardaki retention değerleri TÜR REFERANSIDIR,",
+    "bu oyundan ölçülmüş değerler DEĞİLDİR. Bu oyun için retention/kohort/LTV",
+    "sayısı iddia etme, tahmin etme veya ima etme. Sorulursa 'bu metrik şu an",
+    "ölçülmüyor' de. Retention etkisi üzerine NİTEL yorum yapabilirsin,",
+    "ama sayı uydurmadan.",
     "",
   ].filter(Boolean).join("\n");
 }

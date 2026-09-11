@@ -33,10 +33,10 @@ tek yapısal borç budur.
 |---|---|---|
 | **Denetimde çıkan canlı hatalar** | ✅ Hepsi kapatıldı ve yayında | **8 / 8** |
 | **Faz 1** — maliyet + veri kaybı | 🟢 Neredeyse tamam | **7 / 8** |
-| **Faz 2** — veri katmanı + retention | 🔴 Başlanmadı | **0 / 5** |
+| **Faz 2** — veri katmanı + retention | 🟡 Başladı | **1 / 5** |
 | **Faz 3** — A/B test + kurumsal güven | 🔴 Başlanmadı | **0 / 3** |
 | **Paralel** — benchmark, çoklu platform, KVKK | 🔴 Başlanmadı | **0 / 4** |
-| **Yol haritası toplamı** | 🟡 İlerliyor | **7 / 20** |
+| **Yol haritası toplamı** | 🟡 İlerliyor | **8 / 20** |
 
 ### Daha güvenli miyiz? — Evet, ama sınırlı biçimde
 
@@ -58,7 +58,7 @@ tek yapısal borç budur.
 | ~~SDK event başına 1 yazma, çökmede kayıp~~ | ✅ Kapatıldı | SDK v3.0 |
 | `ingestEvents` anahtarı **zorunlu değil** | 🟡 Yumuşak geçiş | ChopHero güncellenmeyecek; zorunlu yapılırsa akış kesilir |
 | ChopHero `sessionId` göndermiyor | 🟡 Kabul edildi | Kullanıcı kararı. O oyunun oturum metriği yanlış kalır. |
-| `retentionD1Proxy` retention değil | 🔴 Duruyor | Yanlış isimli metrik benchmark'ta sunuluyor (§4.4) |
+| ~~`retentionD1Proxy` yanıltıcı adı~~ | ✅ Düzeltildi | AI'ın retention uydurması da engellendi (§4.4) |
 | Denetim kaydı, veri silme API'si, DPA | 🔴 Yok | Faz 3 / §5. Kurumsal satışın ön koşulu. |
 
 ### Tek cümlelik dürüst özet
@@ -280,7 +280,7 @@ değil:**
 
 | Yer | Ne var | Sorun |
 |---|---|---|
-| `aggregateIndustryBenchmark` | `retentionD1Proxy = uniqueSessions / uniquePlayers` | Bu **retention değil**, oyuncu başına oturum sayısıdır. Gerçek D1 retention = (1. gün geri dönen oyuncu) / (0. gün kuran oyuncu). Tamamen farklı iki büyüklük — ve "retention" adıyla benchmark'ta sunuluyor. |
+| `aggregateIndustryBenchmark` | ~~`retentionD1Proxy`~~ → `sessionsPerPlayer` | ✅ **Düzeltildi.** İç değişken adı yanıltıcıydı (ve yorumdaki oran ters yazılmıştı). *Düzeltme notu: bu dokümanın ilk sürümünde "benchmark'ta retention adıyla sunuluyor" yazmıştım — bu **yanlıştı**. Saklanan alan ve panel etiketi zaten doğru şekilde "Oyuncu Başına Oturum" idi; sorun yalnızca kod içindeydi.* |
 | `gameTypeBaseline` | `d1_retention_target: "30-40%"` | Bunlar **hedef** değerler, ölçüm değil. AI prompt'una besleniyor. |
 | AI system prompt'ları | "D-3 retention +12pp" gibi örnekler | AI'dan retention üzerine yorum yapması isteniyor |
 
@@ -292,9 +292,22 @@ Bu, ürünün en zayıf noktasıdır: teknik bir eksiklikten öte, **AI çıktı
 güvenilirliğini doğrudan etkiliyor.** Bir stüdyo raporu okuyup "bu retention
 rakamı nereden geldi" diye sorduğunda verecek cevabımız olmalı.
 
-**Yapılacak:** `retentionD1Proxy`'yi ya gerçek retention ile değiştir ya da
-adını dürüstçe `sessionsPerPlayer` yap. Yanlış isimlendirilmiş metrik, hiç
-olmayan metrikten daha tehlikelidir.
+**✅ Yapıldı:** İç değişken `sessionsPerPlayer` olarak yeniden adlandırıldı,
+ters yazılmış yorum düzeltildi ve gerçek retention'ın neden günlük toplu
+istatistiklerden hesaplanamayacağı koda not düşüldü.
+
+**✅ Asıl düzeltme — AI'ın uydurması engellendi:** Tüm AI prompt'larına giren
+ortak bağlam bloğuna (`gameContextBlock`, TR+EN) **ÖLÇÜLMEYEN METRİKLER**
+uyarısı eklendi: veri setinde retention/kohort/huni/LTV olmadığı, baseline'daki
+retention değerlerinin tür referansı olduğu ve bu oyun için sayı iddia
+edilemeyeceği açıkça yazıyor. Ayrıca sistem prompt'undaki **uydurmayı öğreten
+iki örnek** (`"D-3 retention'ı %18 düşüyor"`, `expected_metric: "D-3 retention
++12pp"`) ölçülebilir metriklerle değiştirildi — prompt'ta "asla uydurma" kuralı
+zaten vardı ama örnekler onu baltalıyordu.
+
+**✅ Panel:** Copilot'un önerdiği "Retention neden düşüyor?" sorusu ölçülebilir
+bir soruyla değiştirildi (TR+EN, banner ve buton dahil) — ölçmediğimiz bir
+metriği kullanıcıya sormak için önermek doğru değildi.
 
 Bu, mobil oyun dünyasında **kabul edilebilir bir eksik değildir**, çünkü:
 
@@ -403,10 +416,12 @@ değişiklik hissetmez.
 - [ ] Event akışını ClickHouse'a taşı (Firestore operasyonel veride kalır)
 - [ ] `EVENT_CAP` kırpmasını kaldır — tam veri üzerinden çalış
 - [ ] **Retention (D1/D7/D30), kohort, huni** analizini ekle
-- [ ] `retentionD1Proxy`'yi gerçek retention ile değiştir (§4.4) ve ölçülen
-      değeri AI prompt'una besle
-- [ ] Ölçülen retention'ı AI prompt'una besle (şu an AI göremediği metrik
-      hakkında yorum yapıyor)
+- [x] **`retentionD1Proxy` temizliği** — iç değişken adı düzeltildi; AI
+      prompt'larına "bu metrikler ölçülmüyor, sayı uydurma" guard'ı eklendi;
+      uydurmayı öğreten prompt örnekleri ve panelin önerdiği ölçülemez soru
+      değiştirildi (§4.4)
+- [ ] Ölçülen gerçek retention'ı AI prompt'una besle (sütunlu veritabanı
+      geçişinden sonra — şu an hesaplanamıyor)
 
 **Çıktı:** panel aynı görünür, altı değişir; artık "oyun analitiği platformu" denebilir.
 

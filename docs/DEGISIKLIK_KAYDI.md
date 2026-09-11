@@ -7,6 +7,77 @@
 
 ---
 
+# Oturum: AI veri bütünlüğü — ölçülmeyen metrik uydurması engellendi
+
+**Kapsam:** `retentionD1Proxy` temizliği + AI prompt guard'ı · ⚠️ **Cloud
+Functions deploy'u GEREKİR** (prompt değişiklikleri sunucuda)
+
+## 🔎 Önce bir öz-düzeltme
+
+Yol haritasının ilk sürümünde şöyle yazmıştım: *"`retentionD1Proxy` 'retention'
+adıyla benchmark'ta sunuluyor."* Kodu tekrar okuyunca bunun **yanlış** olduğu
+ortaya çıktı. Saklanan alan zaten doğru şekilde `sessionsPerPlayer` adıyla
+yazılıyordu ve panel de "Oyuncu Başına Oturum" diye gösteriyordu. Sorun
+yalnızca **kod içindeki iç değişken adındaydı** — kullanıcı hiçbir zaman
+yanlış etiket görmedi. Doküman düzeltildi.
+
+## 🟢 Tamamlananlar
+
+### 1. İç değişken adı ve ters yazılmış yorum
+
+`metrics.retentionD1Proxy` → `metrics.sessionsPerPlayer`. Ayrıca yorumda oran
+**ters** yazılmıştı (`uniquePlayers / uniqueSessions`, oysa kod
+`uniqueSessions / uniquePlayers` yapıyor). Gerçek retention'ın neden günlük
+toplu istatistiklerden hesaplanamayacağı da koda not düşüldü.
+
+### 2. ⭐ Asıl düzeltme: AI'ın retention uydurması engellendi
+
+**Neydi:** `gameTypeBaseline`, her AI prompt'una `d1_retention_target: "35-45%"`
+gibi hedefler besliyordu. Ama veri setinde **ölçülmüş retention yok.** Üstelik
+sistem prompt'undaki örnekler doğrudan retention iddiası öğretiyordu:
+
+```
+- headline: (orn: "Level 18'de %47 drop-off, D-3 retention'ı %18 düşüşüyor.")
+- expected_metric: (orn: "D-3 retention +12pp")
+```
+
+**Neden önemliydi:** Prompt'ta *"Veri yetersizse 'Veri yetersiz' yaz, asla
+uydurma"* kuralı **zaten vardı** — ama hemen altındaki örnekler onu
+baltalıyordu. Model örneği taklit eder. Yani stüdyoya gönderdiğimiz raporda
+**doğrulanamaz retention rakamları** çıkabilirdi.
+
+**Ne yapıldı:**
+- Ortak bağlam bloğuna (`gameContextBlock`, TR+EN — tüm AI prompt'larına girer)
+  **ÖLÇÜLMEYEN METRİKLER** uyarısı eklendi: retention/kohort/huni/LTV veride
+  yok, baseline'daki değerler tür referansı, bu oyun için sayı iddia edilemez.
+  Nitel yorum serbest, sayı uydurmak yasak.
+- Uydurmayı öğreten iki örnek **ölçülebilir** metriklerle değiştirildi
+  (`level_18_completion %9 → %25`, `crash_rate 0.8 → 0.3 / oturum`).
+
+### 3. Panel: ölçemediğimiz metriği sormayı önermeyi bıraktık
+
+Copilot'un önerdiği ilk soru **"Retention neden düşüyor?"** idi — ölçmediğimiz
+bir metrik. Kullanıcıyı doğrudan "bu metrik ölçülmüyor" cevabına sürüklüyordu.
+TR+EN, banner ve buton dahil, ölçülebilir bir soruyla değiştirildi:
+*"Oturum süresi nerede kısalıyor?"*
+
+## 🔴 Bu oturumda YAPILMAYANLAR
+
+| Eksik | Neden |
+|---|---|
+| **Gerçek retention hesabı** | Günlük toplu istatistiklerden hesaplanamaz; oyuncu bazlı ilk-görülme tarihi gerekir → Faz 2, sütunlu veritabanıyla |
+| Kohort / huni analizi | Aynı sebep |
+| `EVENT_CAP` kırpması | Duruyor |
+
+## ⚙️ Yayın durumu
+
+- ✅ Commit `main`'de
+- ⚠️ **`firebase deploy --only functions` GEREKLİ** — prompt değişiklikleri
+  sunucu tarafında; deploy edilmeden AI eski örneklerle çalışmaya devam eder
+- ✅ Panel değişikliği (copilot sorusu) site yayınıyla otomatik
+
+---
+
 # Oturum: SDK v3.0 — evrensel analitik istemcisi
 
 **Kapsam:** `041a464` · Cloud Functions deploy'u gerektirmez (yalnızca istemci
