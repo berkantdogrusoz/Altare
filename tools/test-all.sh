@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# Altare — tum testler. Deploy oncesi bunu calistir.
+#
+#   bash tools/test-all.sh
+#
+# Hicbiri ag, Firebase emulatoru ya da Unity gerektirmez.
+
+set -u
+cd "$(dirname "$0")/.."
+
+basarisiz=0
+calistir() {
+  local ad="$1"; shift
+  printf '\n\033[1m▶ %s\033[0m\n' "$ad"
+  if "$@"; then :; else basarisiz=$((basarisiz + 1)); fi
+}
+
+calistir "A/B deney motoru (atama + istatistik + karar kurallari)" \
+  node tools/test-experiments.js
+calistir "Istemci/sunucu hash paritesi (C# modeli ≡ JavaScript)" \
+  python3 tools/test-hash-parity.py
+calistir "AltareJson ayristirici (≡ JSON.parse)" \
+  node tools/test-json-parser.js
+calistir "Panel deney karti render'i" \
+  node tools/test-panel-experiments.mjs
+calistir "Unity SDK C# yapisal denge" \
+  python3 tools/check-csharp.py
+
+printf '\n\033[1m▶ Sozdizimi\033[0m\n'
+for f in firebase/functions/index.js firebase/functions/experiments.js \
+         js/games.js js/i18n.js; do
+  if node --check "$f"; then echo "✓ $f"; else
+    echo "✗ $f"; basarisiz=$((basarisiz + 1)); fi
+done
+if python3 -c "import json,sys;json.load(open('firebase/firestore.indexes.json'))"; then
+  echo "✓ firebase/firestore.indexes.json"
+else
+  echo "✗ firebase/firestore.indexes.json"; basarisiz=$((basarisiz + 1))
+fi
+
+echo
+echo "================================================================"
+if [ "$basarisiz" -eq 0 ]; then
+  echo "✅  HER SEY GECTI — deploy edilebilir"
+else
+  echo "❌  $basarisiz ADIM BASARISIZ — deploy ETME"
+fi
+echo "================================================================"
+exit "$basarisiz"

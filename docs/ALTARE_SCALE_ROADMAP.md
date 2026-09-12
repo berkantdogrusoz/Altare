@@ -8,7 +8,7 @@
 > yazdıracağı**. Mevcut kod tabanının satır satır incelenmesine dayanır —
 > genel startup tavsiyesi değil, Altare'ye özel tespitlerdir.
 >
-> Son güncelleme: 2026-08 · Kapsam: `firebase/functions/`, `unity-sdk/`, `panel.html`
+> Son güncelleme: 2026-09 · Kapsam: `firebase/functions/`, `unity-sdk/`, `panel.html`
 
 ---
 
@@ -34,9 +34,9 @@ tek yapısal borç budur.
 | **Denetimde çıkan canlı hatalar** | ✅ Hepsi kapatıldı ve yayında | **8 / 8** |
 | **Faz 1** — maliyet + veri kaybı | 🟢 Neredeyse tamam | **7 / 8** |
 | **Faz 2** — veri katmanı + retention | 🟡 İlerliyor | **3 / 6** |
-| **Faz 3** — A/B test + kurumsal güven | 🔴 Başlanmadı | **0 / 3** |
+| **Faz 3** — A/B test + kurumsal güven | 🟢 Neredeyse tamam | **3 / 4** |
 | **Paralel** — benchmark, çoklu platform, KVKK | 🔴 Başlanmadı | **0 / 4** |
-| **Yol haritası toplamı** | 🟡 İlerliyor | **10 / 21** |
+| **Yol haritası toplamı** | 🟡 İlerliyor | **13 / 22** |
 
 ### Daha güvenli miyiz? — Evet, ama sınırlı biçimde
 
@@ -48,6 +48,17 @@ tek yapısal borç budur.
   hatalı config yazımı** zinciri kırıldı
 - Yanlış API anahtarı artık reddediliyor; anahtarlar kriptografik üretiliyor
 - Panelden inen SDK paketi derleniyor
+- **Gerçek retention ölçülüyor** — kohort bazlı D1/D7/D30, uydurma değil
+- **Auto-Heal artık ölçülüyor** — reçete %100 trafiğe değil, %10'luk bir
+  dilime uygulanıp kontrol grubuyla karşılaştırılabiliyor; zarar veriyorsa
+  sistem kendiliğinden durduruyor (§4.2)
+- **Remote Config ve A/B artık Firebase'siz** — `AltareConfig.cs` Firebase
+  olmayan bir projede derlenmiyordu bile; A/B de bu kanaldan dağıtıldığı için
+  Faz 3'ün tamamı yalnızca Firebase'li oyunlarda çalışabilirdi
+- **Panelden inen pakette sessiz sürüm kayması kapatıldı** — gömülü yedek
+  kopyalar v2.1.0'da donmuştu (Firestore'a doğrudan yazan, "veri panele hiç
+  ulaşmıyor" hatasının kaynağı olan sürüm); fetch bir kez başarısız olsa
+  müşteri sessizce o bozuk SDK'yı indiriyordu
 
 **Hâlâ açık olanlar — bunları bilerek taşıyoruz:**
 
@@ -59,13 +70,33 @@ tek yapısal borç budur.
 | `ingestEvents` anahtarı **zorunlu değil** | 🟡 Yumuşak geçiş | ChopHero güncellenmeyecek; zorunlu yapılırsa akış kesilir |
 | ChopHero `sessionId` göndermiyor | 🟡 Kabul edildi | Kullanıcı kararı. O oyunun oturum metriği yanlış kalır. |
 | ~~`retentionD1Proxy` yanıltıcı adı~~ | ✅ Düzeltildi | AI'ın retention uydurması da engellendi (§4.4) |
+| ~~A/B testi yok, Auto-Heal ölçülemiyor~~ | ✅ Kapatıldı | §4.2 — deney altyapısı + guardrail nöbetçisi |
+| Huni (funnel) dönüşüm analizi | 🔴 Yok | Faz 2. AI'a hâlâ "bu metrik ölçülmüyor" diyor. |
 | Denetim kaydı, veri silme API'si, DPA | 🔴 Yok | Faz 3 / §5. Kurumsal satışın ön koşulu. |
+
+### Testler — neyin doğruluğu kanıtlı
+
+Deploy öncesi tek komut: `bash tools/test-all.sh` (ağ, emulator, Unity gerekmez)
+
+| Ne | Kontrol |
+|---|---|
+| A/B deney motoru — atama, istatistik, karar kuralları | 116 |
+| İstemci/sunucu hash paritesi (C# modeli ≡ JavaScript) | 1919 |
+| `AltareJson` ayrıştırıcı (≡ `JSON.parse`, 400 fuzz yapısı dahil) | 43 |
+| Panel deney kartı render'ı (bozuk/eksik veri dahil) | 40 |
+| Unity SDK C# yapısal denge | 6 dosya |
+
+Bunlar süs değil: parite testi, istemci ile sunucunun **tek bit** ayrışması
+hâlinde her deneyin sessizce "fark yok" demesini engelliyor — o hata hiçbir
+log üretmez, yalnızca sonuçları rastgeleleştirir.
 
 ### Tek cümlelik dürüst özet
 
-**Yanan evi söndürdük, ama evi henüz sağlamlaştırmadık.** Bugün çalışan,
-güvenli ve demoya hazır bir sistem var; ölçeğe ve yatırımcı denetimine
-dayanacak bir sistem için Faz 1'in kalanı ve Faz 2 şart.
+**Yanan evi söndürdük, evin oturma odasını da döşedik; temel hâlâ eski.**
+Bugün çalışan, güvenli, demoya hazır ve artık **kendi etkisini ölçebilen**
+bir sistem var. Ölçeğe ve yatırımcı denetimine dayanacak bir sistem için
+kalan tek yapısal borç Faz 2'nin veri katmanı (§2) — event akışı hâlâ
+doküman başına ücretlendirilen bir veritabanında.
 
 ---
 
@@ -226,25 +257,40 @@ GameAnalytics gösterir ama müdahale etmez. Mixpanel/Amplitude gösterir ama
 müdahale etmez. Müdahale eden araçlar (LiveOps platformları) ise AI ile
 teşhis koymaz ve pahalıdır.
 
-### Bir sonraki seviye: A/B test altyapısı
+### ✅ Bir sonraki seviye KURULDU: A/B test altyapısı
 
-Kapalı döngünün doğal evrimi şudur:
+Kapalı döngünün doğal evrimi tamamlandı:
 
-| Bugün | Yarın |
+| Önce | Şimdi |
 |---|---|
 | "Bu değişikliği uygula" | "Bu değişikliği %10'a uygula, ölç, kazanırsa yaygınlaştır" |
 
-Bu **sıfırdan bir ürün değil** — mevcut döngünün bir üst sürümüdür, çünkü
-iki bileşeni de zaten var:
+Döngü artık şöyle:
 
-- **Remote Config dağıtımı** → deneyin *kolunu* çevirir (`AltareConfig`)
-- **Event akışı** → deneyin *sonucunu* ölçer
+```
+Anomali → AI reçetesi → %10'da DENEY → ölç
+                                        ├─ kazandıysa → yaygınlaştır
+                                        └─ zarar veriyorsa → OTOMATİK durdur
+```
 
-Eksik olan tek şey: oyuncuyu deterministik biçimde gruba atayan bir
-bölümleme (`playerAnonId` hash'i) ve istatistiksel anlamlılık hesabı.
+**Neden bu kadar önemli:** daha önce bir reçete %100 trafiğe uygulanıyordu.
+Metrik sonra düzeldiğinde bunun reçeteden mi, mevsimsellikten mi, yeni bir
+güncellemeden mi geldiğini söylemenin yolu **yoktu**. *"Düzeldi"* demek ile
+*"düzelttik"* demek arasındaki fark tam olarak budur — ve yatırımcı
+sunumunda da, kurumsal satışta da önemli olan bu farktır.
 
-**Bu, satış konuşmasının merkezine oturacak özelliktir.** Stüdyo "verimi
-görüyorum" için değil, **"deneyi otomatik yürütüyorsunuz"** için para verir.
+**Kurulan parçalar:**
+
+| Parça | Nerede |
+|---|---|
+| Deterministik bölümleme (FNV-1a, oyuncu sabit grupta kalır) | `firebase/functions/experiments.js` + `unity-sdk/AltareExperiments.cs` |
+| İstatistiksel anlamlılık (iki oran z-testi, Welch t, güven aralığı) | `experiments.js` — harici bağımlılık yok |
+| Erken bakma (peeking) koruması | minimum örneklem dolmadan kazanan ilan edilmez |
+| Guardrail nöbetçisi (çökme/oturum/gelir kötüleşirse otomatik durdur) | `monitorExperiments`, 6 saatte bir |
+| Panel arayüzü | `panel.html` → Auto-Heal sekmesi |
+
+**Satış konuşmasının merkezi bu özelliktir.** Stüdyo "verimi görüyorum"
+için değil, **"deneyi otomatik yürütüyorsunuz"** için para verir.
 
 ## 4.3 Moat #2: Sektörel benchmark — ve kritik kütle tuzağı
 
@@ -432,8 +478,17 @@ değişiklik hissetmez.
 **Çıktı:** panel aynı görünür, altı değişir; artık "oyun analitiği platformu" denebilir.
 
 ### Faz 3 (6-12 ay) — Asıl satış argümanı
-- [ ] A/B test altyapısı (bölümleme + istatistiksel anlamlılık)
-- [ ] Auto-Heal'i deneye dönüştür: "uygula" → "%10'da test et, kazanırsa yaygınlaştır"
+- [x] **A/B test altyapısı** — deterministik bölümleme (FNV-1a, istemci ve
+      sunucu bit bit aynı kovayı hesaplar) + iki oran z-testi / Welch t +
+      güven aralıkları + gereken örneklem hesabı. Harici bağımlılık yok.
+      `firebase/functions/experiments.js`
+- [x] **Auto-Heal'i deneye dönüştür** — reçetede artık iki buton var:
+      "⚡ Uygula" ve "🧪 %10'da Test Et". AI `ab_test_required: true`
+      dediğinde ya da risk yüksekse doğrudan uygulama **kapanır** ve deney
+      yolu zorunlu olur (`force: true` ile aşılabilir, admin şartı sürer).
+- [x] **Guardrail nöbetçisi** — deneme grubu ölçülebilir biçimde zarar
+      veriyorsa (çökme / oturum süresi / gelir) `monitorExperiments` deneyi
+      kimse tıklamadan durdurur ve sahibine uyarı yazar.
 - [ ] Denetim kaydı + veri silme API'si
 
 **Çıktı:** kimsede olmayan bir özellik seti.

@@ -372,6 +372,71 @@
         .autoheal-risk.low { background: rgba(74,222,128,0.15); color: #4ade80; }
         .autoheal-risk.medium { background: rgba(250,204,21,0.15); color: #facc15; }
         .autoheal-risk.high { background: rgba(239,68,68,0.15); color: #ef4444; }
+        .autoheal-experiment { background: linear-gradient(135deg, #6366f1, #818cf8); color: white; }
+
+        /* A/B Deneyleri */
+        .exp-list { display: flex; flex-direction: column; gap: 12px; }
+        .exp-card {
+            padding: 16px;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--border);
+            border-left: 3px solid #6366f1;
+            border-radius: 10px;
+        }
+        .exp-card.stopped { border-left-color: #ef4444; }
+        .exp-card.concluded { border-left-color: #4ade80; }
+        .exp-card .head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .exp-card .head .title { font-weight: 700; font-size: 0.95rem; }
+        .exp-card .head .status {
+            font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.08em; padding: 3px 8px; border-radius: 8px; white-space: nowrap;
+        }
+        .exp-card .head .status.running   { background: rgba(99,102,241,0.18); color: #a5b4fc; }
+        .exp-card .head .status.stopped   { background: rgba(239,68,68,0.15); color: #f87171; }
+        .exp-card .head .status.concluded { background: rgba(74,222,128,0.15); color: #4ade80; }
+        .exp-hypothesis { color: var(--text-dim); font-size: 0.88rem; margin-bottom: 10px; line-height: 1.5; }
+        .exp-variants { font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; background: rgba(0,0,0,0.3); padding: 10px 12px; border-radius: 6px; margin: 6px 0; }
+        .exp-variants .v { display: flex; gap: 8px; padding: 2px 0; flex-wrap: wrap; }
+        .exp-variants .v .vk { color: #a5b4fc; min-width: 82px; font-weight: 700; }
+        .exp-variants .v .vv { color: #4ade80; }
+        .exp-variants .v .vn { color: var(--text-faint); margin-left: auto; }
+        .exp-verdict {
+            display: inline-block; font-size: 0.74rem; font-weight: 700;
+            padding: 4px 10px; border-radius: 6px; margin: 8px 0;
+        }
+        .exp-verdict.winner            { background: rgba(74,222,128,0.15); color: #4ade80; }
+        .exp-verdict.control_wins      { background: rgba(250,204,21,0.15); color: #facc15; }
+        .exp-verdict.no_difference     { background: rgba(148,163,184,0.15); color: #94a3b8; }
+        .exp-verdict.insufficient_sample { background: rgba(148,163,184,0.12); color: #94a3b8; }
+        .exp-verdict.guardrail_breach  { background: rgba(239,68,68,0.18); color: #f87171; }
+        .exp-verdict.assignment_mismatch { background: rgba(239,68,68,0.18); color: #f87171; }
+        .exp-metrics { margin-top: 8px; font-size: 0.8rem; }
+        .exp-metrics .m {
+            display: flex; gap: 10px; align-items: baseline; padding: 5px 0;
+            border-top: 1px solid rgba(255,255,255,0.05); flex-wrap: wrap;
+        }
+        .exp-metrics .m .name { color: var(--text-dim); min-width: 190px; }
+        .exp-metrics .m .lift { font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+        .exp-metrics .m .lift.up { color: #4ade80; }
+        .exp-metrics .m .lift.down { color: #f87171; }
+        .exp-metrics .m .lift.flat { color: var(--text-faint); }
+        .exp-metrics .m .p { color: var(--text-faint); font-family: 'JetBrains Mono', monospace; font-size: 0.74rem; }
+        .exp-metrics .m .gr { font-size: 0.65rem; color: #facc15; letter-spacing: 0.06em; }
+        .exp-warn {
+            margin-top: 8px; padding: 8px 10px; border-radius: 6px; font-size: 0.76rem;
+            background: rgba(250,204,21,0.08); border-left: 2px solid #facc15; color: #facc15;
+        }
+        .exp-meta { font-size: 0.72rem; color: var(--text-faint); margin-top: 8px; }
+        .exp-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+        .exp-actions button {
+            font-size: 0.78rem; font-weight: 700; padding: 8px 14px;
+            border-radius: 6px; cursor: pointer; border: none;
+        }
+        .exp-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .exp-analyze { background: rgba(99,102,241,0.18); color: #a5b4fc; border: 1px solid rgba(99,102,241,0.35); }
+        .exp-ship { background: linear-gradient(135deg, #10b981, #34d399); color: white; }
+        .exp-stop { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+        .exp-abandon { background: rgba(148,163,184,0.12); color: #94a3b8; border: 1px solid rgba(148,163,184,0.25); }
 
         /* Auto-Heal Modal */
         .autoheal-modal-overlay {
@@ -1989,6 +2054,20 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
                     </div>
                     <div class="section-block">
                         <div class="section-head">
+                            <h3 data-i18n="exp.title">🧪 A/B Deneyleri</h3>
+                            <span class="head-meta" id="exp-meta">—</span>
+                        </div>
+                        <div class="section-content">
+                            <div class="info-banner" style="background: rgba(99,102,241,0.08); border-left: 3px solid #6366f1; margin-bottom: 12px;" data-i18n-html="exp.banner">
+                                <strong>Değişiklik işe yaradı mı?</strong> Bir reçeteyi herkese birden uygulamak yerine <strong>%10'luk bir dilimde</strong> test et. Kalan %90 kontrol grubudur; fark istatistiksel olarak anlamlıysa yaygınlaştırılır. Deneme grubu zarar veriyorsa sistem <strong>kendiliğinden durdurur</strong>.
+                            </div>
+                            <div class="exp-list" id="exp-list">
+                                <div class="empty-state" data-i18n="exp.empty">Henüz deney yok. Bir reçetede <strong>"%10'da Test Et"</strong> butonuna bas.</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="section-block">
+                        <div class="section-head">
                             <h3 data-i18n="autoheal.history">Reçete Geçmişi</h3>
                             <span class="head-meta" id="autoheal-meta">—</span>
                         </div>
@@ -2202,6 +2281,7 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
         let unsubAlerts = null;
         let unsubAutoHeal = null;
         let unsubRetention = null;
+        let unsubExperiments = null;
         let copilotChatId = null;
 
         // ----- Auth gate -----
@@ -2348,6 +2428,7 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
             if (unsubAlerts) { unsubAlerts(); unsubAlerts = null; }
             if (unsubAutoHeal) { unsubAutoHeal(); unsubAutoHeal = null; }
             if (unsubRetention) { unsubRetention(); unsubRetention = null; }
+            if (unsubExperiments) { unsubExperiments(); unsubExperiments = null; }
 
             // Sentinel Alerts (real-time)
             const alertsQ = query(
@@ -2371,6 +2452,19 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
                 const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
                 renderAutoHealList(list);
             }, (err) => console.warn('autoheal listener:', err.message));
+
+            // A/B deneyleri (real-time). Calisanlar ustte gorunur.
+            const expQ = query(
+                collection(db, 'games', gameId, 'experiments'),
+                orderBy('startedAt', 'desc'),
+                limit(20)
+            );
+            unsubExperiments = onSnapshot(expQ, (snap) => {
+                renderExperiments(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+            }, (err) => {
+                console.warn('experiments listener:', err.message);
+                renderExperiments([]);
+            });
 
             copilotChatId = null; // reset per-game
 
@@ -2590,8 +2684,11 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
                         <div class="autoheal-meta">${escapeHtml(tsStr)} · ${escapeHtml(p.model || 'opus-4.8')}</div>
                         ${status === 'proposed' ? `
                             <div class="autoheal-actions">
+                                <button class="autoheal-experiment" data-promote-id="${escapeHtml(p.id)}">🧪 ${t('exp.promote')}</button>
                                 <button class="autoheal-apply" data-presc-id="${escapeHtml(p.id)}">⚡ ${t('autoheal.apply')}</button>
                             </div>` : ''}
+                        ${status === 'experimenting' ? `
+                            <div class="autoheal-meta">🧪 ${t('exp.inExperiment')}</div>` : ''}
                         ${status === 'applied' ? `
                             <div class="autoheal-actions">
                                 <button class="autoheal-rollback" data-presc-id="${escapeHtml(p.id)}">↺ ${t('autoheal.rollback')}</button>
@@ -2602,9 +2699,208 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
             root.querySelectorAll('.autoheal-apply').forEach(btn => {
                 btn.addEventListener('click', () => applyAutoHeal(btn.dataset.prescId, btn));
             });
+            root.querySelectorAll('.autoheal-experiment').forEach(btn => {
+                btn.addEventListener('click', () => promoteToExperiment(btn.dataset.promoteId, btn));
+            });
             root.querySelectorAll('.autoheal-rollback').forEach(btn => {
                 btn.addEventListener('click', () => rollbackAutoHeal(btn.dataset.prescId, btn));
             });
+        }
+
+        // ─────────────────────────────────────────────────────────────────
+        // A/B Deneyleri
+        // ─────────────────────────────────────────────────────────────────
+
+        /** Oran metrikleri yuzde, ortalama metrikleri ham sayi olarak okunur. */
+        function formatMetricValue(v, type) {
+            if (v == null || !isFinite(v)) return '—';
+            if (type === 'rate') return (v * 100).toFixed(1) + '%';
+            return Math.abs(v) >= 100 ? v.toFixed(0) : v.toFixed(2);
+        }
+
+        function formatP(p) {
+            if (p == null || !isFinite(p)) return '';
+            if (p < 0.001) return 'p<0.001';
+            return 'p=' + p.toFixed(3);
+        }
+
+        function renderExperiments(items) {
+            const root = $('exp-list');
+            const meta = $('exp-meta');
+            if (!root) return;
+            if (!items || items.length === 0) {
+                root.innerHTML = `<div class="empty-state">${t('exp.empty')}</div>`;
+                if (meta) meta.textContent = '0';
+                return;
+            }
+            const lang = getLanguage();
+            const running = items.filter(x => x.status === 'running').length;
+            if (meta) meta.textContent = `${items.length} ${t('exp.metaTotal')} · ${running} ${t('exp.metaRunning')}`;
+
+            // Calisan deneyler her zaman ustte — kullanicinin ilgilendigi onlar.
+            const sirali = items.slice().sort((a, b) => {
+                const rank = s => (s === 'running' ? 0 : s === 'stopped' ? 1 : 2);
+                return rank(a.status) - rank(b.status);
+            });
+
+            root.innerHTML = sirali.map(e => {
+                const status = e.status || 'running';
+                const an = e.lastAnalysis || null;
+                const ts = e.startedAt && e.startedAt.toDate ? e.startedAt.toDate() : null;
+                const tsStr = ts ? ts.toLocaleString(lang === 'en' ? 'en-US' : 'tr-TR',
+                    { dateStyle: 'short', timeStyle: 'short' }) : '';
+
+                const varyantlar = (e.variants || []).map(v => {
+                    const n = an && an.perVariantExposed ? an.perVariantExposed[v.key] : null;
+                    const degerler = Object.keys(v.values || {}).length
+                        ? Object.entries(v.values).map(([k, val]) => `${k}=${val}`).join(', ')
+                        : t('exp.currentValues');
+                    return `<div class="v">
+                        <span class="vk">${escapeHtml(v.key)}</span>
+                        <span class="vv">${escapeHtml(degerler)}</span>
+                        <span class="vn">${v.allocation}%${n != null ? ` · n=${n}` : ''}</span>
+                    </div>`;
+                }).join('');
+
+                let verdictHtml = '';
+                let metricsHtml = '';
+                let warnHtml = '';
+                if (an) {
+                    const v = an.verdict || 'insufficient_sample';
+                    let vText = t('exp.verdict.' + v);
+                    if (v === 'winner' && an.winner) vText += ' — ' + an.winner;
+                    if (v === 'insufficient_sample' && an.requiredSamplePerVariant) {
+                        vText += ` (${t('exp.needPerVariant')}: ${an.requiredSamplePerVariant})`;
+                    }
+                    verdictHtml = `<div class="exp-verdict ${escapeHtml(v)}">${escapeHtml(vText)}</div>`;
+
+                    const satirlar = [];
+                    for (const [mk, m] of Object.entries(an.metrics || {})) {
+                        const isim = lang === 'en' ? (m.label_en || mk) : (m.label_tr || mk);
+                        for (const [vk, test] of Object.entries(m.vs_control || {})) {
+                            if (!test) continue;
+                            const lift = test.relativeLift;
+                            const yon = lift == null || Math.abs(lift) < 0.001 ? 'flat'
+                                      : (test.improved ? 'up' : 'down');
+                            const liftStr = lift == null ? '—'
+                                : (lift > 0 ? '+' : '') + (lift * 100).toFixed(1) + '%';
+                            const birincil = mk === an.primaryMetric;
+                            satirlar.push(`<div class="m">
+                                <span class="name">${birincil ? '★ ' : ''}${escapeHtml(isim)}${
+                                    Object.keys(m.vs_control).length > 1 ? ' · ' + escapeHtml(vk) : ''}</span>
+                                <span class="lift ${yon}">${escapeHtml(liftStr)}</span>
+                                <span class="p">${escapeHtml(formatMetricValue(test.baseline, m.type))} → ${
+                                    escapeHtml(formatMetricValue(test.treatment, m.type))} · ${
+                                    escapeHtml(formatP(test.p))} · n=${test.n1}/${test.n2}</span>
+                                ${m.guardrail ? `<span class="gr">${t('exp.guardrail')}</span>` : ''}
+                            </div>`);
+                        }
+                    }
+                    if (satirlar.length) metricsHtml = `<div class="exp-metrics">${satirlar.join('')}</div>`;
+
+                    if (Array.isArray(an.warnings) && an.warnings.length) {
+                        warnHtml = `<div class="exp-warn">⚠ ${an.warnings.map(escapeHtml).join('<br>⚠ ')}</div>`;
+                    }
+                }
+
+                let actions = '';
+                if (status === 'running') {
+                    actions = `
+                        <button class="exp-analyze" data-exp-analyze="${escapeHtml(e.id)}">📊 ${t('exp.analyze')}</button>
+                        ${an && an.verdict === 'winner'
+                            ? `<button class="exp-ship" data-exp-ship="${escapeHtml(e.id)}">🚀 ${t('exp.ship')}</button>` : ''}
+                        <button class="exp-stop" data-exp-stop="${escapeHtml(e.id)}">⏹ ${t('exp.stop')}</button>`;
+                } else if (status === 'stopped') {
+                    actions = `
+                        ${an && an.verdict === 'winner'
+                            ? `<button class="exp-ship" data-exp-ship="${escapeHtml(e.id)}">🚀 ${t('exp.ship')}</button>` : ''}
+                        <button class="exp-abandon" data-exp-abandon="${escapeHtml(e.id)}">🗑 ${t('exp.abandon')}</button>`;
+                }
+
+                const durdurulma = e.stoppedReason
+                    ? ` · ${t('exp.stoppedReason')}: ${escapeHtml(String(e.stoppedReason))}` : '';
+                const sonuc = status === 'concluded'
+                    ? ` · ${e.shippedVariant ? t('exp.shipped') + ': ' + escapeHtml(e.shippedVariant) : t('exp.abandoned')}` : '';
+
+                return `
+                    <div class="exp-card ${escapeHtml(status)}">
+                        <div class="head">
+                            <div class="title">${escapeHtml(e.name || e.id)}</div>
+                            <div class="status ${escapeHtml(status)}">${escapeHtml(t('exp.status.' + status))}</div>
+                        </div>
+                        ${e.hypothesis ? `<div class="exp-hypothesis">${escapeHtml(e.hypothesis)}</div>` : ''}
+                        <div class="exp-variants">${varyantlar}</div>
+                        ${verdictHtml}
+                        ${metricsHtml}
+                        ${warnHtml}
+                        <div class="exp-meta">${escapeHtml(tsStr)} · ${t('exp.exposure')}: %${
+                            e.exposurePct} · ${t('exp.minSample')}: ${e.minSamplePerVariant || '—'}${durdurulma}${sonuc}</div>
+                        ${actions ? `<div class="exp-actions">${actions}</div>` : ''}
+                    </div>`;
+            }).join('');
+
+            root.querySelectorAll('[data-exp-analyze]').forEach(b =>
+                b.addEventListener('click', () => analyzeExperiment(b.dataset.expAnalyze, b)));
+            root.querySelectorAll('[data-exp-ship]').forEach(b =>
+                b.addEventListener('click', () => concludeExperiment(b.dataset.expShip, 'ship', b)));
+            root.querySelectorAll('[data-exp-abandon]').forEach(b =>
+                b.addEventListener('click', () => concludeExperiment(b.dataset.expAbandon, 'abandon', b)));
+            root.querySelectorAll('[data-exp-stop]').forEach(b =>
+                b.addEventListener('click', () => stopExperiment(b.dataset.expStop, b)));
+        }
+
+        async function promoteToExperiment(prescriptionId, btn) {
+            if (!confirm(t('exp.confirmPromote'))) return;
+            if (btn) { btn.disabled = true; btn.textContent = t('exp.starting'); }
+            try {
+                const fn = httpsCallable(functions, 'promoteToExperiment', { timeout: 60000 });
+                await fn({ gameId: currentGame, prescriptionId, exposurePct: 10 });
+                showToast(t('exp.startSuccess'));
+            } catch (err) {
+                alert(t('autoheal.error') + '\n' + (err.message || ''));
+                if (btn) { btn.disabled = false; btn.textContent = '🧪 ' + t('exp.promote'); }
+            }
+        }
+
+        async function analyzeExperiment(experimentId, btn) {
+            if (btn) { btn.disabled = true; btn.textContent = t('exp.analyzing'); }
+            try {
+                const fn = httpsCallable(functions, 'analyzeExperimentNow', { timeout: 240000 });
+                await fn({ gameId: currentGame, experimentId });
+                showToast(t('exp.analyzeSuccess'));
+            } catch (err) {
+                alert(t('autoheal.error') + '\n' + (err.message || ''));
+            }
+            // Basarili olsa da olmasa da butonu geri ac: snapshot dinleyicisi
+            // karti yeniden cizecek, ama hata durumunda kart degismez.
+            if (btn) { btn.disabled = false; btn.textContent = '📊 ' + t('exp.analyze'); }
+        }
+
+        async function stopExperiment(experimentId, btn) {
+            if (!confirm(t('exp.confirmStop'))) return;
+            if (btn) { btn.disabled = true; }
+            try {
+                const fn = httpsCallable(functions, 'stopExperiment', { timeout: 30000 });
+                await fn({ gameId: currentGame, experimentId, reason: 'manual' });
+                showToast(t('exp.stopSuccess'));
+            } catch (err) {
+                alert(t('autoheal.error') + '\n' + (err.message || ''));
+                if (btn) btn.disabled = false;
+            }
+        }
+
+        async function concludeExperiment(experimentId, decision, btn) {
+            const soru = decision === 'ship' ? t('exp.confirmShip') : t('exp.confirmAbandon');
+            if (!confirm(soru)) return;
+            if (btn) { btn.disabled = true; }
+            try {
+                const fn = httpsCallable(functions, 'concludeExperiment', { timeout: 240000 });
+                await fn({ gameId: currentGame, experimentId, decision });
+                showToast(decision === 'ship' ? t('exp.shipSuccess') : t('exp.abandonSuccess'));
+            } catch (err) {
+                alert(t('autoheal.error') + '\n' + (err.message || ''));
+                if (btn) btn.disabled = false;
+            }
         }
 
         async function applyAutoHeal(prescriptionId, btn) {

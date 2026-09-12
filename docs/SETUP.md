@@ -239,8 +239,10 @@ Panel'in **Canlı Event Stream** sekmesi anında bu event'i göstermeli.
 > - Oyunda **hiçbir Firebase kurulumu gerekmez** — ne modül, ne
 >   `google-services.json`. Sadece 2 `.cs` dosyası yeter.
 > - Oyunun **kendi Firebase projesi varsa** ona hiç dokunulmaz.
-> - Firebase yalnızca **isteğe bağlı** iki modül için gerekir:
->   `AltareConfig` (canlı Remote Config) ve `AltarePlayerState` (rollback).
+> - Firebase yalnızca **isteğe bağlı** şunlar için gerekir:
+>   `AltarePlayerState` (rollback) ve config'in 60 sn yerine *anında*
+>   güncellenmesi (`AltareFirebase.AttachRealtimeConfig`).
+>   **Remote Config ve A/B deneyleri Firebase gerektirmez** (v3.0.1).
 >
 > Kazanımlar: 50 olay = 50 istek yerine **1 istek** (pil + faturalanan çağrı),
 > oyun çökse/uçak modunda kapansa bile **veri kaybı yok**, kalıcı hatalarda
@@ -262,11 +264,27 @@ Herhangi bir oyunun Unity projesine:
        AltareAnalytics.Initialize("royal-dreams", "Royal Dreams", "altr_...");
    }
    ```
-3. **İsteğe bağlı:** Canlı Remote Config (`AltareConfig`) veya rollback
-   (`AltarePlayerState`) kullanacaksan `AltareFirebase.cs` ile birlikte o
-   dosyaları da ekle ve Firebase Unity SDK'nın Auth + Firestore
-   (+ PlayerState için Functions) modüllerini import et.
-4. **Consent (KVKK/GDPR):** Varsayılan opt-out modelidir — kullanıcı açıkça
+3. **Önerilen — Firebase gerektirmez:** Canlı Remote Config, AI Auto-Heal
+   ve **A/B deneyleri** için şu iki dosyayı **birlikte** ekle:
+   - `AltareConfig.cs`
+   - `AltareExperiments.cs` — ⚠️ `AltareConfig` buna referans verir, eksikse
+     Unity **derlemez**
+
+   Bir deney çalıştığında `AltareConfig.GetInt(...)` çağrıları zaten o
+   oyuncunun varyantına ait değeri döndürür; ekstra bir şey yapmak gerekmez.
+   Varyantı doğrudan sormak istersen:
+   ```csharp
+   if (AltareExperiments.GetVariant("exp_abc123") == "treatment") { ... }
+   ```
+   Sunucu paritesini cihazda doğrulamak için:
+   `Debug.Log(AltareExperiments.SelfTest());`
+
+4. **İsteğe bağlı (Firebase gerekir):** Oyuncu state rollback
+   (`AltarePlayerState.cs`) veya anlık config güncellemesi
+   (`AltareFirebase.cs` + `AltareFirebase.AttachRealtimeConfig()`)
+   kullanacaksan bu dosyaları da ekle ve Firebase Unity SDK'nın
+   Auth + Firestore (+ PlayerState için Functions) modüllerini import et.
+5. **Consent (KVKK/GDPR):** Varsayılan opt-out modelidir — kullanıcı açıkça
    reddetmedikçe anonim analitik akar (PII yok). Consent ekranı olan oyunlarda
    kullanıcının seçimini tek satırla yaz:
    ```csharp

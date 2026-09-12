@@ -18,8 +18,29 @@ Altare resmi sitesi + **Altare AI Live Game Intelligence** platformu.
 ├── login.html              # Firebase Auth giriş
 ├── js/                     # Firebase init + auth helpers
 ├── firebase/               # Firestore rules + Cloud Functions
-├── unity-sdk/              # AltareAnalytics.cs (drop-in Unity)
-└── docs/                   # Vizyon + kurulum
+├── unity-sdk/              # Drop-in Unity SDK (Firebase gerektirmez)
+├── tools/                  # Testler — ağ/emulator/Unity gerekmez
+└── docs/                   # Vizyon + kurulum + yol haritası
 ```
 
 İlk kurulum için [`docs/SETUP.md`](docs/SETUP.md)'yi sırayla takip et.
+
+## Testler
+
+Deploy öncesi tek komut:
+
+```bash
+bash tools/test-all.sh
+```
+
+Ağ, Firebase emulator'ü veya Unity gerektirmez. A/B deney motorunun
+istatistiği, istemci/sunucu hash paritesi (C# ≡ JavaScript — tek bit
+ayrışma her deneyi sessizce anlamsızlaştırır), JSON ayrıştırıcı,
+panel render'ı ve Unity SDK'nın yapısal dengesi kontrol edilir.
+
+## Nerede durduğumuzu görmek için
+
+[`docs/ALTARE_SCALE_ROADMAP.md` §0.1](docs/ALTARE_SCALE_ROADMAP.md) —
+durum panosu: ne kapatıldı, ne açık, neden bekliyor.
+[`docs/DEGISIKLIK_KAYDI.md`](docs/DEGISIKLIK_KAYDI.md) — ne değişti ve
+**neden önemliydi**.

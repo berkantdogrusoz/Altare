@@ -7,6 +7,168 @@
 
 ---
 
+# Oturum: A/B test altyapısı — Auto-Heal artık ölçülüyor (Faz 3)
+
+**Kapsam:** deney motoru + guardrail nöbetçisi + SDK'nın Firebase'den
+kurtulması + panel arayüzü ·
+⚠️ **`firebase deploy --only functions` + `firestore:rules,firestore:indexes` GEREKİR**
+
+**Sorun:** Auto-Heal reçeteleri **%100 trafiğe** uygulanıyordu. Metrik sonra
+düzeldiğinde bunun reçeteden mi, mevsimsellikten mi, yeni bir güncellemeden
+mi geldiğini söylemenin yolu **yoktu**. *"Düzeldi"* demek ile *"düzelttik"*
+demek arasındaki fark tam olarak budur.
+
+**Döngü artık şöyle:**
+
+```
+Anomali → AI reçetesi → %10'da DENEY → ölç
+                                        ├─ kazandıysa → yaygınlaştır
+                                        └─ zarar veriyorsa → OTOMATİK durdur
+```
+
+## 🟢 Tamamlananlar
+
+### 1. Deney motoru — `firebase/functions/experiments.js` (yeni)
+
+Firebase'siz saf matematik katmanı. **Neden ayrı dosya:** deploy etmeden,
+emulator çalıştırmadan, tek `node` komutuyla test edilebilsin diye. Yanlış
+bir z-testi canlı oyuna yanlış config yazdırır; bu kodun test edilebilir
+olması opsiyonel değil.
+
+| Karar | Neden böyle |
+|---|---|
+| Atama sunucuda **yeniden hesaplanabilir** (FNV-1a, saf fonksiyon) | İstemcinin yalan söylemesine karşı koruma |
+| Ama atama tek başına yetmez — **exposure olayı şart** | Sunucu atamayı hesaplayabilir, ama oyuncunun değerleri *gerçekten gördüğünü* bilemez. Eski bir istemci config'i hiç okumuyor olabilir; onları deneye katmak etkiyi sulandırıp her deneyi "fark yok" gösterir (dilution bias) |
+| Giriş ve varyant hash'leri **ayrı** | `exposurePct` büyütüldüğünde mevcut oyuncular varyant değiştirmesin ("%10 ile başla, %50'ye çık" çalışsın) |
+| Analiz birimi **oyuncu**, olay değil | Olay bazında test sahte bağımsızlık (pseudo-replication) üretir: 100 oturum açan tek oyuncu 100 oyuncu gibi sayılır ve p-değeri yapay olarak küçülür |
+| Minimum örneklem dolmadan **kazanan ilan edilmez** | p-değerine her gün bakmak yanlış pozitif oranını %5'ten %20'lere çıkarır (peeking) |
+| Guardrail'ler tek yönlü ve **daha katı** (p<0.01) | İyi bir deneyi gürültüden durdurmak, kötü bir deneyi bir gün fazla çalıştırmaktan pahalıdır — her durdurma güveni aşındırır |
+
+İstatistik tamamen elde yazıldı (Cloud Functions'a scipy kurulamaz):
+`erf` (Abramowitz–Stegun 7.1.26), ters normal (Acklam), iki oran z-testi
+(test havuzlanmış, güven aralığı ayrık varyansla — doğru kombinasyon),
+Welch t-testi, gereken örneklem hesabı.
+
+**Metrikler:** çökmesiz oyuncu oranı · D1 dönüş · IAP dönüşüm · ödüllü
+reklam · ortalama oturum süresi · oyuncu başına oturum · tamamlanan bölüm ·
+bölüm başarısızlık oranı · oyuncu başına gelir. Her metriğin kendi
+**uygunluk** kuralı var — örneğin D1'de penceresi kapanmamış oyuncu paydaya
+girmez, yoksa "dönmedi" sayılır ve retention yapay olarak düşük çıkar.
+
+### 2. Guardrail nöbetçisi — `monitorExperiments` (6 saatte bir)
+
+Deneme grubu ölçülebilir biçimde zarar veriyorsa (çökme / oturum süresi /
+gelir) deney **kimse tıklamadan** durur, oyuncular önceki değerlere döner ve
+sahibine uyarı yazılır. Sessizce durdurmak güveni aşındırır.
+
+### 3. Auto-Heal artık deney yoluna bağlı
+
+Reçetede iki buton var: **⚡ Uygula** ve **🧪 %10'da Test Et**.
+AI `ab_test_required: true` dediğinde ya da risk yüksekse doğrudan uygulama
+**kapanır** — `force: true` ile aşılabilir (acil müdahale), yüksek riskte
+admin şartı sürer. Ayrıca bir deneyde ölçülen anahtarı aynı anda herkese
+yazmak **engellendi**: o, kontrol grubunu da deneme değerine taşıyıp deneyi
+sessizce geçersiz kılar.
+
+AI prompt'u da düzeltildi: eskiden "High ise A/B test zorunlu" yazıyordu ama
+A/B **yoktu** — temenniydi. Artık gerçek bir yol.
+
+### 4. ⚠️ SDK Firebase'den kurtuldu — bu bir gap'ti
+
+`AltareConfig.cs` `using Firebase.Firestore` içeriyordu, yani **Firebase'i
+olmayan bir projede derlenmiyordu bile.** A/B deneyleri de bu kanaldan
+dağıtıldığı için **Faz 3'ün tamamı yalnızca Firebase'li oyunlarda
+çalışabilirdi** — "birçok oyunda Firebase olmayacak" şartıyla doğrudan
+çelişiyordu.
+
+v3.0'da düz HTTPS'e geçti (yeni `getGameConfig` ucu, gameId başına 30 sn
+bellekte önbellek → Firestore okuması oyuncu sayısıyla değil oyun sayısıyla
+ölçeklenir). Firebase artık yalnızca `AltarePlayerState` ve **isteğe bağlı**
+anlık güncelleme için gerekli. Bağımlılık yönü de düzeltildi: opsiyonel dosya
+çekirdeğe bağımlı, tersi değil.
+
+`AltareJson` — küçük, bağımsız JSON okuyucu (Unity'nin `JsonUtility`'si
+`Dictionary<string,object>` okuyamaz, Newtonsoft ise oyuna zorunlu paket
+ekler).
+
+### 5. ⚠️ Panelden inen pakette sessiz sürüm kayması kapatıldı
+
+`js/games.js` içindeki gömülü yedek kopyalar **v2.1.0'da donmuştu** — yani
+Firestore'a doğrudan yazan, *"veri panele hiç ulaşmıyor"* hatasının **kaynağı
+olan** sürüm. Fetch bir kez başarısız olsa müşteri sessizce o bozuk SDK'yı
+indiriyor ve bunu anlamasının hiçbir yolu olmuyordu.
+
+Yedekler kaldırıldı (~690 satır); dosya alınamazsa indirme artık **açıkça
+duruyor**. Sessiz sürüm kayması, açık bir hatadan çok daha pahalıdır.
+
+### 6. Panel arayüzü
+
+Auto-Heal sekmesinde yeni **🧪 A/B Deneyleri** bölümü: varyantlar ve
+oyuncu sayıları, birincil metrik yıldızlı, bağıl artış + p-değeri + n,
+guardrail etiketleri, uyarı blokları, ve duruma göre aksiyonlar
+(Şimdi Ölç / Yaygınlaştır / Durdur / Vazgeç). TR+EN tam (39 anahtar × 2).
+
+## 🔴 Bu oturumda YAPILMAYANLAR
+
+| Ne | Neden |
+|---|---|
+| Event akışını ClickHouse'a taşımak | **Altyapı kararı sende:** ClickHouse Cloud mu BigQuery mi, bütçe, KVKK için bölge. Provision edilmeden başlanamaz. |
+| `EVENT_CAP = 10000` kırpması | ClickHouse'a bağlı |
+| Huni (funnel) dönüşüm analizi | Sırada, ClickHouse'a bağlı değil |
+| Denetim kaydı + veri silme API'si | Faz 3'ün kalan kalemi |
+| Çok kollu deney (3+ varyant) panelden oluşturma | `createExperiment` ucu destekliyor, panelde form yok — Auto-Heal yolu 2 kollu |
+
+## 🐛 Kendi kodumda bulup düzelttiğim hata
+
+Welch testinde `se > 0 ? t : 0` guard'ı, **her iki grupta varyans sıfırken**
+net bir farkı `p=1` ile *"fark yok"* ilan ediyordu. Ayrık metriklerde bu
+gerçekten olur: "her oyuncu tam 1 oturum açtı". Sessiz ve tehlikeli bir hata
+— testte 4 vs 2 oturum farkı "anlamsız" çıktığı için yakalandı. Dejenere
+durum artık ayrıca ele alınıyor ve raporda işaretleniyor.
+
+## ⚠️ İstemci/sunucu paritesi — sessiz hata sınıfı
+
+Atama iki yerde hesaplanıyor. **Tek bit** ayrışırsa deney sessizce
+anlamsızlaşır: hata mesajı çıkmaz, yalnızca sonuçlar rastgele gruplara
+dağılır ve her deney "fark yok" der. Üç savunma katmanı:
+
+1. `tools/test-hash-parity.py` — C# `uint` semantiğini birebir modelleyip
+   JS ile karşılaştırır (1919 kontrol, Türkçe/emoji/GUID girdiler dahil)
+2. `AltareExperiments.SelfTest()` — aynı referans değerleri Unity içinde
+   doğrular (IL2CPP/farklı .NET sürümünde sapma olursa yakalar)
+3. Yüzdeler **%0.01 ızgarasına** zorlanır: tam yarım değerde JS `Math.round`,
+   C# `AwayFromZero` ve Python banker's rounding **üç farklı** sonuç verir.
+   Girdiyi kısıtlayarak o sınıfı tamamen kaldırdık — üç dilde yuvarlama
+   davranışını eşleştirmeye çalışmaktan çok daha sağlam.
+
+## Testler
+
+`bash tools/test-all.sh` — ağ, emulator, Unity gerekmez.
+
+| Ne | Kontrol |
+|---|---|
+| A/B deney motoru (atama, istatistik, karar kuralları) | 116 |
+| İstemci/sunucu hash paritesi | 1919 |
+| `AltareJson` ayrıştırıcı (≡ `JSON.parse`, 400 fuzz yapısı) | 43 |
+| Panel deney kartı render'ı (bozuk/eksik veri dahil) | 40 |
+| Unity SDK C# yapısal denge | 6 dosya |
+
+## Yayın durumu
+
+```bash
+firebase deploy --only functions
+firebase deploy --only firestore:rules,firestore:indexes
+```
+
+`firestore:indexes` **şart**: deney analizi maruz kalma olaylarını
+`eventName` + `timestamp` bileşik index'i üzerinden çekiyor. İndeks
+olmadan analiz hata verir.
+
+Site (panel + SDK dosyaları) GitHub Pages ile `main`'den otomatik yayına
+girer — ek işlem yok.
+
+---
+
 # Oturum: GERÇEK retention — kohort bazlı D1/D7/D30
 
 **Kapsam:** oyuncu rollup + `computeRetention` + AI beslemesi + panel ·
