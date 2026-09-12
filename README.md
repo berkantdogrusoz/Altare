@@ -33,10 +33,12 @@ Deploy öncesi tek komut:
 bash tools/test-all.sh
 ```
 
-Ağ, Firebase emulator'ü veya Unity gerektirmez. A/B deney motorunun
-istatistiği, istemci/sunucu hash paritesi (C# ≡ JavaScript — tek bit
-ayrışma her deneyi sessizce anlamsızlaştırır), JSON ayrıştırıcı,
-panel render'ı ve Unity SDK'nın yapısal dengesi kontrol edilir.
+Ağ, Firebase emulator'ü veya Unity gerektirmez. Kontrol edilenler:
+A/B deney motorunun istatistiği, huni analizinin sıralı-yol ve olgunlaşma
+kuralları, AI'ın uydurma yasağının iki yönlü doğruluğu, istemci/sunucu hash
+paritesi (C# ≡ JavaScript — tek bit ayrışma her deneyi sessizce
+anlamsızlaştırır), JSON ayrıştırıcı, panel render'ı ve Unity SDK'nın
+yapısal dengesi.
 
 ## Nerede durduğumuzu görmek için
 

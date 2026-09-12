@@ -33,10 +33,10 @@ tek yapısal borç budur.
 |---|---|---|
 | **Denetimde çıkan canlı hatalar** | ✅ Hepsi kapatıldı ve yayında | **8 / 8** |
 | **Faz 1** — maliyet + veri kaybı | 🟢 Neredeyse tamam | **7 / 8** |
-| **Faz 2** — veri katmanı + retention | 🟡 İlerliyor | **3 / 6** |
+| **Faz 2** — veri katmanı + retention + huni | 🟡 İlerliyor | **4 / 6** |
 | **Faz 3** — A/B test + kurumsal güven | 🟢 Neredeyse tamam | **3 / 4** |
 | **Paralel** — benchmark, çoklu platform, KVKK | 🔴 Başlanmadı | **0 / 4** |
-| **Yol haritası toplamı** | 🟡 İlerliyor | **13 / 22** |
+| **Yol haritası toplamı** | 🟡 İlerliyor | **14 / 22** |
 
 ### Daha güvenli miyiz? — Evet, ama sınırlı biçimde
 
@@ -71,7 +71,7 @@ tek yapısal borç budur.
 | ChopHero `sessionId` göndermiyor | 🟡 Kabul edildi | Kullanıcı kararı. O oyunun oturum metriği yanlış kalır. |
 | ~~`retentionD1Proxy` yanıltıcı adı~~ | ✅ Düzeltildi | AI'ın retention uydurması da engellendi (§4.4) |
 | ~~A/B testi yok, Auto-Heal ölçülemiyor~~ | ✅ Kapatıldı | §4.2 — deney altyapısı + guardrail nöbetçisi |
-| Huni (funnel) dönüşüm analizi | 🔴 Yok | Faz 2. AI'a hâlâ "bu metrik ölçülmüyor" diyor. |
+| ~~Huni (funnel) dönüşüm analizi~~ | ✅ Kapatıldı | Sıralı yol + olgunlaşma kuralı; ölçülünce AI'ın yasağı otomatik kalkıyor |
 | Denetim kaydı, veri silme API'si, DPA | 🔴 Yok | Faz 3 / §5. Kurumsal satışın ön koşulu. |
 
 ### Testler — neyin doğruluğu kanıtlı
@@ -81,9 +81,12 @@ Deploy öncesi tek komut: `bash tools/test-all.sh` (ağ, emulator, Unity gerekme
 | Ne | Kontrol |
 |---|---|
 | A/B deney motoru — atama, istatistik, karar kuralları | 116 |
+| Huni analizi — sıralı yol, olgunlaşma, dönüşüm | 85 |
+| AI bağlam bloğu — uydurma yasağı iki yönlü | 60 |
 | İstemci/sunucu hash paritesi (C# modeli ≡ JavaScript) | 1919 |
 | `AltareJson` ayrıştırıcı (≡ `JSON.parse`, 400 fuzz yapısı dahil) | 43 |
 | Panel deney kartı render'ı (bozuk/eksik veri dahil) | 40 |
+| Panel huni kartı render'ı (bozuk/eksik veri dahil) | 34 |
 | Unity SDK C# yapısal denge | 6 dosya |
 
 Bunlar süs değil: parite testi, istemci ile sunucunun **tek bit** ayrışması
@@ -119,7 +122,7 @@ doküman başına ücretlendirilen bir veritabanında.
 |---|---|---|---|
 | Event depolama | Doküman başına ücretli DB'de append-heavy analitik yük | 🔴 Duruyor | §2 |
 | ~~SDK gönderim~~ | ~~Event başına 1 yazma, bellekte tampon, çökmede kayıp~~ | ✅ v3.0'da kapatıldı | §3 |
-| ~~Ürün derinliği~~ | ~~Retention / kohort analizi yok~~ | ✅ Eklendi (huni hâlâ yok) | §4.4 |
+| ~~Ürün derinliği~~ | ~~Retention / kohort / huni analizi yok~~ | ✅ Üçü de eklendi | §4.4 |
 | Kurumsal hazırlık | Veri silme API'si, denetim kaydı, DPA yok | 🔴 Duruyor | §5 |
 | ~~Ingest şema/kimlik~~ | ~~`sessionId` eksikti, kimlik doğrulaması yoktu~~ | ✅ Kapatıldı | §7 Faz 1 |
 
@@ -351,6 +354,16 @@ iki örnek** (`"D-3 retention'ı %18 düşüyor"`, `expected_metric: "D-3 retent
 +12pp"`) ölçülebilir metriklerle değiştirildi — prompt'ta "asla uydurma" kuralı
 zaten vardı ama örnekler onu baltalıyordu.
 
+**✅ Yasak listesi artık TEK KAYNAKTAN türetiliyor.** Liste dört ayrı yerde
+elle yazılıydı (TR/EN × ölçüldü/ölçülmedi). Huni ölçülmeye başladığında
+dördünü birden güncellemek gerekiyordu ve biri atlanırsa AI ölçülen bir
+metriği "ölçülmüyor" sanacak ya da — daha kötüsü — ölçülmeyen bir metrik
+için sayı uyduracaktı. Kayma tam böyle olur. Artık
+`OLCULEBILIR_METRIKLER` kayıt defteri var: bir metrik ölçülmeye başladığı
+anda yasak listesinden **kendiliğinden** çıkıyor, ölçüm yoksa yasak
+**kendiliğinden** duruyor. `tools/test-ai-context.js` bunu iki yönlü
+doğruluyor (60 kontrol).
+
 **✅ Panel:** Copilot'un önerdiği "Retention neden düşüyor?" sorusu ölçülebilir
 bir soruyla değiştirildi (TR+EN, banner ve buton dahil) — ölçmediğimiz bir
 metriği kullanıcıya sormak için önermek doğru değildi.
@@ -466,7 +479,12 @@ değişiklik hissetmez.
       `computeRetention`. Kohort yalnızca `first_open` görülen oyunculardan
       kurulur (SDK'yı bugün takıp herkesi "yeni kurulum" sayma tuzağı önlendi).
       ClickHouse beklenmeden Firestore üzerinde çalışıyor; geçişte aynen taşınır.
-- [ ] Huni (funnel) dönüşüm analizi — hâlâ yok
+- [x] **Huni (funnel) dönüşüm analizi** — sıralı yol olarak: her adım
+      öncekinden *sonra* gerçekleşmiş olmak zorunda (bağımsız sayaç değil).
+      Olgunlaşma kuralı retention'daki kohort tuzağının aynısını kapatıyor:
+      penceresi kapanmamış oyuncu "koptu" sayılmıyor. Hazır şablonlar
+      (onboarding / monetizasyon / ödüllü reklam), medyan geçiş süreleri ve
+      en büyük kopuş adımı. `firebase/functions/funnels.js`
 - [x] **`retentionD1Proxy` temizliği** — iç değişken adı düzeltildi; AI
       prompt'larına "bu metrikler ölçülmüyor, sayı uydurma" guard'ı eklendi;
       uydurmayı öğreten prompt örnekleri ve panelin önerdiği ölçülemez soru

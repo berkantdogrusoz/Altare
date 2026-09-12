@@ -33,6 +33,8 @@ const crypto = require("crypto");
 // A/B deney motoru — saf matematik, Firebase bagimsiz, ayrica test edilir:
 //   node tools/test-experiments.js  ·  python3 tools/test-hash-parity.py
 const EXP = require("./experiments.js");
+// Huni (funnel) analizi — yine saf matematik: node tools/test-funnels.js
+const FUN = require("./funnels.js");
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -1803,6 +1805,251 @@ async function getRunningExperiments(gameId) {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// HUNI (FUNNEL) DONUSUM ANALIZI
+//
+// SORUN: "Oyuncular nerede kopuyor?" sorusu bugune kadar CEVAPSIZDI. Panelde
+// bolum bazli fail/complete sayilari vardi ama bunlar SIRALI BIR YOL degil,
+// bagimsiz sayaclardi: tutorial'i gormeden bolum bitiren bir oyuncu ile
+// tutorial'dan sonra bitiren oyuncu ayni sayiliyordu. AI da huni sayisi
+// istendiginde "bu metrik olculmuyor" demek zorunda kaliyordu (§4.4).
+//
+// Matematigi firebase/functions/funnels.js icindedir (test edilir);
+// burada yalnizca Firestore baglantisi ve is akisi var.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** Analiz basina okunacak azami olay. Kirpilirsa sonuc acikca isaretlenir. */
+const FUNNEL_EVENT_CAP = 40000;
+const FUNNEL_DEFAULT_LOOKBACK_DAYS = 14;
+const FUNNEL_MAX_LOOKBACK_DAYS = 30;
+
+/**
+ * Olaylari oyuncu basina gruplar.
+ *
+ * Siralama ASCENDING: kirpma olursa EN YENI olaylar dusurulur. DESC olsaydi
+ * en ESKI olaylar dusurdu — yani huninin GIRIS adimlari — ve huni bosalirdi.
+ */
+async function huniOlaylariniCek(gameId, sinceTs) {
+  const snap = await db.collection("games").doc(gameId).collection("events")
+    .where("timestamp", ">=", sinceTs)
+    .orderBy("timestamp", "asc")
+    .limit(FUNNEL_EVENT_CAP)
+    .get();
+
+  const oyuncular = new Map();
+  for (const d of snap.docs) {
+    const pid = d.get("playerAnonId");
+    if (!pid) continue;
+    const t = d.get("timestamp") || d.get("clientTimestamp");
+    const ms = t && typeof t.toMillis === "function" ? t.toMillis() : null;
+    if (ms == null) continue;
+    let liste = oyuncular.get(pid);
+    if (!liste) { liste = []; oyuncular.set(pid, liste); }
+    liste.push({
+      eventName: d.get("eventName"),
+      eventParams: d.get("eventParams") || {},
+      timestampMs: ms,
+    });
+  }
+  return { oyuncular, truncated: snap.size >= FUNNEL_EVENT_CAP };
+}
+
+/** Bir huniyi hesaplar ve sonucu dokumana yazar. */
+async function huniyiAnalizEt(gameId, funnelId) {
+  const ref = db.collection("games").doc(gameId).collection("funnels").doc(funnelId);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError("not-found", "Huni bulunamadi.");
+  const f = snap.data();
+
+  const geriGun = Math.min(
+    FUNNEL_MAX_LOOKBACK_DAYS,
+    Math.max(1, Number(f.lookbackDays) || FUNNEL_DEFAULT_LOOKBACK_DAYS)
+  );
+  const sinceTs = admin.firestore.Timestamp.fromMillis(
+    Date.now() - geriGun * 86400000
+  );
+
+  const { oyuncular, truncated } = await huniOlaylariniCek(gameId, sinceTs);
+  const rapor = FUN.analyzeFunnel(f, oyuncular, Date.now());
+  rapor.lookbackDays = geriGun;
+  rapor.truncated = truncated;
+
+  const uyarilar = [];
+  if (truncated) {
+    uyarilar.push("olaylar_kirpildi: en yeni olaylar analiz disi kaldi, " +
+      "donusum oranlari eksik veriyle hesaplandi");
+  }
+  if (rapor.playersTruncated > 0) {
+    uyarilar.push(`oyuncu_kirpildi: ${rapor.playersTruncated} oyuncu ` +
+      "maliyet tavani yuzunden atlandi");
+  }
+  // Olgunlasmamis oyuncu orani yuksekse sayiyi okumak yaniltici olur.
+  if (rapor.enteredIncludingInProgress > 0) {
+    const devamOrani = rapor.inProgress / rapor.enteredIncludingInProgress;
+    if (devamOrani > 0.5) {
+      uyarilar.push("cogu oyuncu hala pencere icinde (%" +
+        Math.round(devamOrani * 100) + ") — oran henuz temsili degil, " +
+        "pencere suresi kadar bekle");
+    }
+  }
+  if (rapor.entered === 0) {
+    uyarilar.push("hicbir oyuncu huniye girmedi — ilk adimin event adi " +
+      "oyunun gerceken gonderdigi adla ayni mi?");
+  }
+  rapor.warnings = uyarilar;
+
+  await ref.set({
+    lastResult: sanitizeForFirestore(rapor),
+    lastComputedAt: admin.firestore.FieldValue.serverTimestamp(),
+  }, { merge: true });
+
+  return rapor;
+}
+
+// ── createFunnel ─────────────────────────────────────────────────────────────
+exports.createFunnel = onCall(async (request) => {
+  assertSignedIn(request);
+  const {
+    gameId, preset, name, steps, windowHours,
+    lookbackDays = FUNNEL_DEFAULT_LOOKBACK_DAYS, language = "tr",
+  } = request.data || {};
+  await assertOwnsGameOrAdmin(request, gameId);
+
+  // Hazir sablon secildiyse tanimi ondan kur — bos bir form kimseye
+  // yardim etmez, oyun turune gore anlamli bir baslangic noktasi verir.
+  let taslak;
+  if (preset) {
+    taslak = FUN.presetToFunnel(preset, language);
+    if (!taslak) throw new HttpsError("invalid-argument", "Bilinmeyen sablon: " + preset);
+  } else {
+    taslak = {
+      name: String(name || "").slice(0, 120),
+      steps: Array.isArray(steps) ? steps.slice(0, FUN.MAX_STEPS) : [],
+      windowHours: Number(windowHours) || FUN.DEFAULT_WINDOW_HOURS,
+      preset: null,
+    };
+  }
+
+  const hatalar = FUN.validateFunnel(taslak);
+  if (hatalar.length) {
+    throw new HttpsError("invalid-argument", "Huni tanimi gecersiz: " + hatalar.join(" · "));
+  }
+
+  const ref = db.collection("games").doc(gameId).collection("funnels").doc();
+  await ref.set({
+    ...taslak,
+    lookbackDays: Math.min(FUNNEL_MAX_LOOKBACK_DAYS,
+      Math.max(1, Number(lookbackDays) || FUNNEL_DEFAULT_LOOKBACK_DAYS)),
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    createdBy: request.auth.uid,
+  });
+
+  logger.info("funnel created", { gameId, funnelId: ref.id, preset: taslak.preset });
+  return { success: true, funnelId: ref.id };
+});
+
+// ── analyzeFunnelNow — panelden "simdi olc" ──────────────────────────────────
+exports.analyzeFunnelNow = onCall(
+  { timeoutSeconds: 300, memory: "512MiB" },
+  async (request) => {
+    assertSignedIn(request);
+    const { gameId, funnelId } = request.data || {};
+    await assertOwnsGameOrAdmin(request, gameId);
+    if (!funnelId) throw new HttpsError("invalid-argument", "funnelId required");
+    const rapor = await huniyiAnalizEt(gameId, funnelId);
+    return { success: true, result: rapor };
+  }
+);
+
+// ── deleteFunnel ─────────────────────────────────────────────────────────────
+exports.deleteFunnel = onCall(async (request) => {
+  assertSignedIn(request);
+  const { gameId, funnelId } = request.data || {};
+  await assertOwnsGameOrAdmin(request, gameId);
+  if (!funnelId) throw new HttpsError("invalid-argument", "funnelId required");
+  await db.collection("games").doc(gameId).collection("funnels").doc(funnelId).delete();
+  return { success: true };
+});
+
+// ── listFunnelPresets — panel formu icin ─────────────────────────────────────
+exports.listFunnelPresets = onCall(async (request) => {
+  assertSignedIn(request);
+  const lang = (request.data || {}).language === "en" ? "en" : "tr";
+  return {
+    presets: Object.keys(FUN.PRESETS).map((key) => {
+      const f = FUN.presetToFunnel(key, lang);
+      return { key, name: f.name, windowHours: f.windowHours, steps: f.steps };
+    }),
+  };
+});
+
+// ── computeFunnels — zamanlanmis ─────────────────────────────────────────────
+exports.computeFunnels = onSchedule(
+  { schedule: "every 6 hours", timeZone: "Europe/Istanbul", timeoutSeconds: 540 },
+  async () => {
+    const gamesSnap = await db.collection("games").get();
+    for (const g of gamesSnap.docs) {
+      let huniler;
+      try {
+        huniler = await db.collection("games").doc(g.id).collection("funnels").get();
+      } catch (err) {
+        logger.error("huni listesi okunamadi", { gameId: g.id, message: err?.message });
+        continue;
+      }
+      if (huniler.empty) continue;
+
+      for (const doc of huniler.docs) {
+        try {
+          const r = await huniyiAnalizEt(g.id, doc.id);
+          logger.info("funnel computed", {
+            gameId: g.id, funnelId: doc.id,
+            entered: r.entered, conversion: r.overallConversion,
+          });
+        } catch (err) {
+          logger.error("huni hesaplanamadi", {
+            gameId: g.id, funnelId: doc.id, message: err?.message,
+          });
+        }
+      }
+    }
+  }
+);
+
+/**
+ * AI baglami icin OLCULMUS huni ozetleri.
+ * Yalnizca anlamli sonuc dondurenler (entered > 0) verilir — bos bir huni
+ * AI'a "huni olculuyor" izlenimi verip uydurma kapisini acmamali.
+ */
+async function getMeasuredFunnels(gameId) {
+  try {
+    const snap = await db.collection("games").doc(gameId)
+      .collection("funnels").limit(10).get();
+    if (snap.empty) return null;
+    const cikti = [];
+    for (const d of snap.docs) {
+      const r = d.get("lastResult");
+      if (!r || !(r.entered > 0)) continue;
+      cikti.push({
+        name: d.get("name") || d.id,
+        windowHours: r.windowHours,
+        entered: r.entered,
+        overallConversion: r.overallConversion,
+        steps: (r.steps || []).map((s) => ({
+          label: s.label,
+          reached: s.reached,
+          conversionFromPrev: s.conversionFromPrev,
+        })),
+        biggestDropStep: r.biggestDropStep,
+        biggestDropRate: r.biggestDropRate,
+      });
+    }
+    return cikti.length ? cikti : null;
+  } catch (err) {
+    logger.warn("getMeasuredFunnels failed", { gameId, message: err?.message });
+    return null;
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // PLAYER STATE SNAPSHOT & ROLLBACK — Yigit Ozturk'un onerisi
 // Whale oyuncu progress kaybetti → tek tikla geri yukle.
@@ -3122,6 +3369,9 @@ async function getGameContext(gameId) {
     // Calisan deneyler — AI'in test altindaki anahtara cakisan recete
     // yazmasini onler ve sonuclari yorumlayabilmesini saglar.
     const experiments = await getRunningExperiments(gameId);
+    // Olculmus huniler — bunlar varsa AI'in huni sayisi verme yasagi
+    // otomatik olarak kalkar (bkz. olculmeyenler()).
+    const funnels = await getMeasuredFunnels(gameId);
     return {
       gameName: g.gameName || gameId,
       gameType: g.gameType || "unknown",
@@ -3132,6 +3382,7 @@ async function getGameContext(gameId) {
       platforms: g.platforms || [],
       retention,
       experiments,
+      funnels,
     };
   } catch (e) {
     logger.warn("getGameContext failed", { gameId, error: e.message });
@@ -3140,10 +3391,43 @@ async function getGameContext(gameId) {
 }
 
 /**
- * Retention bolumu — OLCULDUYSE gercek sayi, olculmediyse uydurma yasagi.
- * Kritik: baseline'lardaki d1_retention_target TUR REFERANSIDIR; model onu
- * bu oyunun olcumu sanmasin diye ayrimi her iki durumda da acikca yaziyoruz.
+ * ÖLÇÜLEBİLİR METRİK KAYIT DEFTERİ — uydurma yasağının TEK KAYNAĞI.
+ *
+ * NEDEN BÖYLE: "şunlar ölçülmüyor, sayı verme" listesi daha önce DÖRT ayrı
+ * yerde elle yazılıydı (TR/EN × ölçüldü/ölçülmedi). Huni ölçülmeye
+ * başladığında dördünü birden güncellemek gerekiyordu ve biri atlanırsa AI
+ * ölçülen bir metriği "ölçülmüyor" sanacak ya da — daha kötüsü —
+ * ölçülmeyen bir metrik için sayı uyduracaktı. Kayma tam böyle olur.
+ * Artık liste bağlamdan TÜRETİLİYOR.
  */
+const OLCULEBILIR_METRIKLER = [
+  {
+    key: "retention",
+    tr: "retention (D1/D7/D30)", en: "retention (D1/D7/D30)",
+    olculdu: (ctx) => !!(ctx && ctx.retention),
+  },
+  {
+    key: "funnel",
+    tr: "huni dönüşüm oranları", en: "funnel conversion rates",
+    olculdu: (ctx) => !!(ctx && ctx.funnels && ctx.funnels.length),
+  },
+];
+
+/** Altyapımızda HİÇ ölçülmeyenler — her durumda yasak. */
+const ASLA_OLCULMEYENLER = {
+  tr: ["LTV", "churn oranı", "segment kırılımları"],
+  en: ["LTV", "churn rate", "segment breakdowns"],
+};
+
+/** Bu oyun için sayı verilmesi YASAK olan metriklerin listesi. */
+function olculmeyenler(ctx, lang) {
+  const l = lang === "en" ? "en" : "tr";
+  return OLCULEBILIR_METRIKLER
+    .filter((m) => !m.olculdu(ctx))
+    .map((m) => m[l])
+    .concat(ASLA_OLCULMEYENLER[l]);
+}
+
 function retentionSatirlari(r) {
   if (!r) return null;
   const p = [];
@@ -3154,8 +3438,78 @@ function retentionSatirlari(r) {
   return p.length ? p.join(" · ") : null;
 }
 
-function retentionBlokTR(r) {
+/**
+ * Yüzdeye çevir — AI'a 0.4237 değil "%42.4" ver. Modelin oranı yüzde
+ * sanıp "%0.42 dönüşüm" yazması gerçek bir hata kaynağıdır.
+ */
+function yuzde(x) {
+  return Number.isFinite(x) ? (x * 100).toFixed(1) : null;
+}
+
+/** Ölçülen huni özetleri — AI bunları yorumlar. */
+function huniSatirlari(huniler, lang) {
+  if (!huniler || !huniler.length) return null;
+  // Dil tutarliligi: adim satirlari da yerelleshtirilmeli. Karisik dilli
+  // baglam modelin ciktisini da karistirir (localizeSystemPrompt'un amaci
+  // tam olarak bunu onlemek).
+  const en = lang === "en";
+  return huniler.map((f) => {
+    const adimlar = (f.steps || []).map((s, i) => {
+      if (i === 0) return `${s.label}: ${s.reached}`;
+      const o = yuzde(s.conversionFromPrev);
+      return en
+        ? `${s.label}: ${s.reached} (${o}% from previous step)`
+        : `${s.label}: ${s.reached} (önceki adımdan %${o})`;
+    }).join(" → ");
+    const kopus = f.biggestDropStep != null && f.steps && f.steps[f.biggestDropStep]
+      ? (lang === "en"
+          ? ` · biggest drop-off: "${f.steps[f.biggestDropStep].label}" (${yuzde(f.biggestDropRate)}% lost)`
+          : ` · en büyük kopuş: "${f.steps[f.biggestDropStep].label}" (%${yuzde(f.biggestDropRate)} kayıp)`)
+      : "";
+    const bas = lang === "en"
+      ? `"${f.name}" (window ${f.windowHours}h, n=${f.entered}, overall ${yuzde(f.overallConversion)}%)`
+      : `"${f.name}" (pencere ${f.windowHours}sa, n=${f.entered}, genel %${yuzde(f.overallConversion)})`;
+    return `• ${bas}: ${adimlar}${kopus}`;
+  }).join("\n");
+}
+
+function huniBlokTR(ctx) {
+  const satirlar = huniSatirlari(ctx && ctx.funnels, "tr");
+  if (!satirlar) return "";
+  return [
+    "=== ÖLÇÜLEN HUNİ DÖNÜŞÜMLERİ (bu oyundan) ===",
+    satirlar,
+    "Bu sayılar GERÇEK ölçümdür. Sayılar yalnızca penceresi KAPANMIŞ",
+    "oyunculardan hesaplanır — huniye yeni girenler paydaya dahil değildir,",
+    "bu yüzden n toplam oyuncudan küçüktür ve bu NORMALDİR.",
+    "En büyük kopuş adımı aksiyon alınacak tek noktadır; önerilerini",
+    "oraya odakla.",
+  ].join("\n");
+}
+
+function huniBlokEN(ctx) {
+  const satirlar = huniSatirlari(ctx && ctx.funnels, "en");
+  if (!satirlar) return "";
+  return [
+    "=== MEASURED FUNNEL CONVERSIONS (this game) ===",
+    satirlar,
+    "These are REAL measurements. Rates are computed only from players whose",
+    "window has CLOSED — recent entrants are excluded from the denominator,",
+    "so n is smaller than total players and that is NORMAL.",
+    "The biggest drop-off step is the one actionable point; focus your",
+    "recommendations there.",
+  ].join("\n");
+}
+
+/**
+ * Retention bolumu — OLCULDUYSE gercek sayi, olculmediyse uydurma yasagi.
+ * Kritik: baseline'lardaki d1_retention_target TUR REFERANSIDIR; model onu
+ * bu oyunun olcumu sanmasin diye ayrimi her iki durumda da acikca yaziyoruz.
+ */
+function retentionBlokTR(ctx) {
+  const r = ctx && ctx.retention;
   const olculen = retentionSatirlari(r);
+  const yasak = olculmeyenler(ctx, "tr").join(", ");
   if (olculen) {
     return [
       "=== ÖLÇÜLEN RETENTION (bu oyundan, kohort bazlı) ===",
@@ -3163,15 +3517,14 @@ function retentionBlokTR(r) {
       "Bu sayılar GERÇEK ölçümdür — yorumlarken bunları kullan.",
       "Baseline'lardaki retention hedefleri TÜR REFERANSIDIR, karşılaştırma",
       "için kullanılabilir ama bu oyunun ölçümü değildir.",
-      "Hâlâ ÖLÇÜLMEYENLER (bunlar için sayı verme): huni dönüşüm oranları,",
-      "LTV, churn oranı, segment kırılımları.",
+      "ÖLÇÜLMEYENLER (bunlar için sayı verme): " + yasak + ".",
     ].join("\n");
   }
   return [
     "=== ÖLÇÜLMEYEN METRİKLER — BUNLAR İÇİN ASLA SAYI VERME ===",
     "Bu oyun için henüz retention ölçümü YOK (kohort verisi birikiyor;",
     "ilk D1 değeri SDK entegrasyonundan ~2 gün sonra çıkar).",
-    "Veri setinde ayrıca ŞUNLAR YOK: huni dönüşüm oranları, LTV, churn.",
+    "Veri setinde ayrıca ŞUNLAR YOK: " + yasak + ".",
     "Yukarıdaki baseline'lardaki retention değerleri TÜR REFERANSIDIR,",
     "bu oyundan ölçülmüş değerler DEĞİLDİR. Bu oyun için retention/LTV",
     "sayısı iddia etme, tahmin etme veya ima etme. Sorulursa 'bu metrik şu an",
@@ -3180,8 +3533,10 @@ function retentionBlokTR(r) {
   ].join("\n");
 }
 
-function retentionBlokEN(r) {
+function retentionBlokEN(ctx) {
+  const r = ctx && ctx.retention;
   const olculen = retentionSatirlari(r);
+  const yasak = olculmeyenler(ctx, "en").join(", ");
   if (olculen) {
     return [
       "=== MEASURED RETENTION (this game, cohort-based) ===",
@@ -3189,15 +3544,14 @@ function retentionBlokEN(r) {
       "These are REAL measurements — use them in your analysis.",
       "The retention targets in the baselines are GENRE REFERENCE values,",
       "usable for comparison but not measurements of this game.",
-      "STILL NOT MEASURED (never state a number): funnel conversion rates,",
-      "LTV, churn rate, segment breakdowns.",
+      "NOT MEASURED (never state a number): " + yasak + ".",
     ].join("\n");
   }
   return [
     "=== NOT MEASURED — NEVER STATE A NUMBER FOR THESE ===",
     "Retention is not yet measured for this game (cohort data is",
     "accumulating; the first D1 value appears ~2 days after SDK integration).",
-    "Also absent: funnel conversion rates, LTV, churn.",
+    "Also absent: " + yasak + ".",
     "The retention figures in the baselines above are GENRE REFERENCE VALUES,",
     "not measurements from this game. You must NOT claim, estimate, or imply",
     "any retention/LTV number for this game. If asked, say the metric is not",
@@ -3254,7 +3608,9 @@ function gameContextBlock(ctx, lang) {
       `Industry baselines for this type: ${JSON.stringify(baseline)}`,
       "IMPORTANT: Interpret metrics in the context of this game type. A 'high fail rate' means different things for Match-3 vs Idle vs RPG. Use the baselines above as reference.",
       "",
-      retentionBlokEN(ctx.retention),
+      retentionBlokEN(ctx),
+      "",
+      huniBlokEN(ctx),
       "",
       deneyBloku(ctx.experiments, "en"),
       "",
@@ -3268,7 +3624,9 @@ function gameContextBlock(ctx, lang) {
     `Bu tür için sektör baseline'ları: ${JSON.stringify(baseline)}`,
     "ÖNEMLİ: Metrikleri bu oyun türü bağlamında yorumla. 'Yüksek fail rate' Match-3 ile Idle veya RPG için farklı anlam taşır. Yukarıdaki baseline'ları referans al.",
     "",
-    retentionBlokTR(ctx.retention),
+    retentionBlokTR(ctx),
+    "",
+    huniBlokTR(ctx),
     "",
     deneyBloku(ctx.experiments, "tr"),
     "",

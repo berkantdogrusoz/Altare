@@ -17,18 +17,24 @@ calistir() {
 
 calistir "A/B deney motoru (atama + istatistik + karar kurallari)" \
   node tools/test-experiments.js
+calistir "Huni analizi (sirali yol + olgunlasma + donusum)" \
+  node tools/test-funnels.js
+calistir "AI baglam blogu (uydurma yasagi tek kaynaktan)" \
+  node tools/test-ai-context.js
 calistir "Istemci/sunucu hash paritesi (C# modeli ≡ JavaScript)" \
   python3 tools/test-hash-parity.py
 calistir "AltareJson ayristirici (≡ JSON.parse)" \
   node tools/test-json-parser.js
 calistir "Panel deney karti render'i" \
   node tools/test-panel-experiments.mjs
+calistir "Panel huni karti render'i" \
+  node tools/test-panel-funnels.mjs
 calistir "Unity SDK C# yapisal denge" \
   python3 tools/check-csharp.py
 
 printf '\n\033[1m▶ Sozdizimi\033[0m\n'
 for f in firebase/functions/index.js firebase/functions/experiments.js \
-         js/games.js js/i18n.js; do
+         firebase/functions/funnels.js js/games.js js/i18n.js; do
   if node --check "$f"; then echo "✓ $f"; else
     echo "✗ $f"; basarisiz=$((basarisiz + 1)); fi
 done

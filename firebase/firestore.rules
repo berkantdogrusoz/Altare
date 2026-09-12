@@ -135,6 +135,15 @@ service cloud.firestore {
         allow write: if false;
       }
 
+      // Huni (funnel) tanimlari + son hesaplanan donusum sonuclari.
+      // Yazma Cloud Functions uzerinden (createFunnel / deleteFunnel):
+      // tanim dogrulamasi (adim sayisi, event adi bicimi, pencere siniri)
+      // orada yapiliyor; istemciye yazma acmak o dogrulamayi atlatirdi.
+      match /funnels/{funnelId} {
+        allow read: if isAdmin() || isGameOwner(gameId);
+        allow write: if false;
+      }
+
       // Benchmark snapshots — Cloud Functions yazar.
       match /benchmarks/{benchmarkId} {
         allow read: if isAdmin() || isGameOwner(gameId);

@@ -7,6 +7,110 @@
 
 ---
 
+# Oturum: Huni (funnel) dönüşüm analizi — "oyuncular nerede kopuyor"
+
+**Kapsam:** huni motoru + AI beslemesi + panel ·
+⚠️ **`firebase deploy --only functions` + `firestore:rules` GEREKİR**
+
+**Sorun:** *"Oyuncular tam olarak nerede kopuyor?"* sorusu cevapsızdı.
+Panelde bölüm bazlı fail/complete sayıları vardı ama bunlar **sıralı bir yol
+değil, bağımsız sayaçlardı**: tutorial'ı hiç görmeden bölüm bitiren bir
+oyuncu ile tutorial'dan sonra bitiren oyuncu aynı sayılıyordu. AI da huni
+sayısı istendiğinde *"bu metrik ölçülmüyor"* demek zorundaydı.
+
+## 🟢 Tamamlananlar
+
+### 1. Huni motoru — `firebase/functions/funnels.js` (yeni)
+
+Yine Firebase'siz saf matematik (`node tools/test-funnels.js`).
+
+| Karar | Neden böyle |
+|---|---|
+| Huni **küme kesişimi değil, sıralı yol** | "IAP satın alan oyuncu" ile "mağazayı GÖRDÜKTEN SONRA satın alan oyuncu" farklı şeyler. Adım N, adım N-1'den sonra olmak zorunda; yoksa mağazayı hiç görmemiş oyuncu "dönüştü" sayılır |
+| ⚠️ **Olgunlaşma kuralı** | Retention'daki kohort tuzağının aynısı: huniye 10 dk önce giren oyuncu "koptu" sayılamaz. Sayılırsa dönüşüm yapay olarak düşer — ve **makul görünen** bir yanlış sayı üretir. Penceresi kapanmayanlar `inProgress` olarak ayrı raporlanır ki n'in neden küçük olduğu görünsün |
+| Pencere zorunlu | Adım 1'i Ocak'ta, adım 2'yi Mart'ta yapan oyuncu "dönüştü" sayılmamalı |
+| İlk gerçekleşme kuralı | Tek oyuncunun aynı adımı tekrar tekrar yapması sayıyı şişirmesin |
+| Analiz birimi oyuncu | Olay bazında sayım çok oynayan oyuncuyu birden fazla sayar |
+| `paramValue` metne çevrilerek karşılaştırılır | İstemciler tutarsız: `level` bazen `3`, bazen `"3"`. Bu tutarsızlık yüzünden huninin **sessizce boş çıkması** gerçek bir risk |
+
+Çıktı: adım başına ulaşan oyuncu, önceki adımdan ve ilk adımdan dönüşüm,
+**medyan geçiş süresi** (nerede takılıyor vs. nerede terk ediyor) ve **en
+büyük kopuş adımı** — aksiyon alınacak tek nokta.
+
+Hazır şablonlar: onboarding · monetizasyon · ödüllü reklam (TR+EN etiketli).
+Boş bir "huni oluştur" formu kimseye yardım etmez.
+
+### 2. ⚠️ AI'ın uydurma yasağı artık TEK KAYNAKTAN türetiliyor
+
+Bu, huni işinin en önemli parçası. "Şunlar ölçülmüyor, sayı verme" listesi
+**dört ayrı yerde elle yazılıydı** (TR/EN × ölçüldü/ölçülmedi). Huni ölçülmeye
+başlayınca dördünü birden güncellemek gerekiyordu ve biri atlanırsa:
+
+- ölçülen bir metrik "ölçülmüyor" listesinde kalır → AI gerçek veriyi
+  kullanmaz, ürün kendi ölçümünü çöpe atar
+- ölçülmeyen bir metrik listeden düşerse → **AI sayı uydurur** ve müşteri o
+  sayıya göre karar verir
+
+Artık `OLCULEBILIR_METRIKLER` kayıt defteri var: bir metrik ölçülmeye
+başladığı anda yasaktan **kendiliğinden** çıkıyor, ölçüm yoksa yasak
+**kendiliğinden** duruyor. `tools/test-ai-context.js` bunu iki yönlü
+doğruluyor (60 kontrol).
+
+### 3. Panel — Level Intelligence sekmesinde "Dönüşüm Hunileri"
+
+Daralan çubuklar, adım başına oyuncu + dönüşüm yüzdesi, medyan geçiş süresi,
+en büyük kopuş adımı kırmızı işaretli. Tek tıkla hazır huni ekleme, "Şimdi
+Ölç", uyarı blokları.
+
+**Yan bulgu:** aynı sekmedeki "Level Aralık Dağılımı" bölümü **"Funnel"** diye
+etiketlenmişti ama huni değil — bağımsız aralık sayaçları. `retentionD1Proxy`
+ile aynı türde yanıltıcı etiket; düzeltildi.
+
+## 🔴 Bu oturumda YAPILMAYANLAR
+
+| Ne | Neden |
+|---|---|
+| Event akışını ClickHouse'a taşımak | **Altyapı kararı sende:** ClickHouse Cloud mu BigQuery mi, bütçe, KVKK için bölge |
+| `EVENT_CAP` / `FUNNEL_EVENT_CAP` kırpması | ClickHouse'a bağlı. Şimdilik kırpma olursa rapor bunu **açıkça işaretliyor** |
+| Panelden özel (şablon dışı) huni oluşturma formu | `createFunnel` ucu destekliyor, panelde form yok — şablonlar ilk ihtiyacı karşılıyor |
+| Denetim kaydı + veri silme API'si | Faz 3'ün kalan tek kalemi |
+
+## 🐛 Testin yakaladığı hata
+
+EN huni bloğunda adım satırları **Türkçe kalmıştı** (`"önceki adımdan %80"`)
+ve yüzde işareti Türkçe konumundaydı. AI karışık dilde bağlam alıyordu —
+`localizeSystemPrompt`'un tüm amacı bunu önlemek. Ayrıca şablon adım
+etiketleri sadece Türkçeydi, yani EN kullanıcı Türkçe etiketli huni alıyordu.
+İkisi de düzeltildi; test artık EN şablonda Türkçe karakter olmadığını da
+kontrol ediyor.
+
+## Testler
+
+`bash tools/test-all.sh` — ağ, emulator, Unity gerekmez.
+
+| Ne | Kontrol |
+|---|---|
+| Huni analizi (sıralı yol, olgunlaşma, dönüşüm) | 85 |
+| AI bağlam bloğu (uydurma yasağı iki yönlü) | 60 |
+| Panel huni kartı render'ı (bozuk/eksik veri dahil) | 34 |
+| *(önceki oturumlardan)* A/B motoru · parite · JSON · panel deney | 116 · 1919 · 43 · 40 |
+
+## Yayın durumu
+
+```bash
+firebase deploy --only functions
+firebase deploy --only firestore:rules
+```
+
+`firestore:indexes` bu iş için **gerekmiyor** — huni sorgusu yalnızca
+`timestamp` üzerinden, o da otomatik indeksli.
+
+İlk huni sonucu: panelden hazır bir huni ekleyip **"Şimdi Ölç"** e bas, ya da
+6 saatte bir çalışan `computeFunnels` işini bekle. Anlamlı bir oran için
+huninin penceresi (onboarding'de 24 saat) kadar veri birikmiş olması lazım.
+
+---
+
 # Oturum: A/B test altyapısı — Auto-Heal artık ölçülüyor (Faz 3)
 
 **Kapsam:** deney motoru + guardrail nöbetçisi + SDK'nın Firebase'den

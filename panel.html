@@ -438,6 +438,63 @@
         .exp-stop { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
         .exp-abandon { background: rgba(148,163,184,0.12); color: #94a3b8; border: 1px solid rgba(148,163,184,0.25); }
 
+        /* Dönüşüm Hunileri */
+        .funnel-create { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; font-size: 0.82rem; color: var(--text-dim); }
+        .funnel-preset-btn {
+            font-size: 0.78rem; font-weight: 700; padding: 6px 12px; border-radius: 6px;
+            cursor: pointer; background: rgba(236,72,153,0.12); color: #f9a8d4;
+            border: 1px solid rgba(236,72,153,0.3);
+        }
+        .funnel-preset-btn:hover { background: rgba(236,72,153,0.2); }
+        .funnel-preset-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .funnel-list { display: flex; flex-direction: column; gap: 14px; }
+        .funnel-card {
+            padding: 16px; background: rgba(255,255,255,0.02);
+            border: 1px solid var(--border); border-left: 3px solid #ec4899;
+            border-radius: 10px;
+        }
+        .funnel-card .head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 4px; flex-wrap: wrap; }
+        .funnel-card .head .title { font-weight: 700; font-size: 0.95rem; }
+        .funnel-card .head .overall { font-size: 0.8rem; color: #f9a8d4; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+        .funnel-sub { font-size: 0.74rem; color: var(--text-faint); margin-bottom: 12px; }
+        .funnel-steps { display: flex; flex-direction: column; gap: 6px; }
+        .funnel-step { display: flex; align-items: center; gap: 10px; }
+        .funnel-step .idx {
+            width: 20px; height: 20px; flex: 0 0 20px; border-radius: 50%;
+            background: rgba(236,72,153,0.15); color: #f9a8d4;
+            font-size: 0.65rem; font-weight: 700;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .funnel-step .bar-wrap { flex: 1; min-width: 0; }
+        .funnel-step .bar-top { display: flex; justify-content: space-between; gap: 8px; font-size: 0.78rem; margin-bottom: 3px; }
+        .funnel-step .bar-top .lbl { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .funnel-step .bar-top .num { color: var(--text-dim); font-family: 'JetBrains Mono', monospace; white-space: nowrap; }
+        .funnel-step .bar-bg { height: 8px; background: rgba(255,255,255,0.05); border-radius: 4px; overflow: hidden; }
+        .funnel-step .bar-fill { height: 100%; background: linear-gradient(90deg, #ec4899, #f9a8d4); border-radius: 4px; }
+        .funnel-step.worst .bar-fill { background: linear-gradient(90deg, #ef4444, #f87171); }
+        .funnel-step .drop {
+            font-size: 0.7rem; font-family: 'JetBrains Mono', monospace;
+            color: #f87171; white-space: nowrap; flex: 0 0 auto; min-width: 54px; text-align: right;
+        }
+        .funnel-step.worst .drop { font-weight: 700; }
+        .funnel-step .drop.none { color: var(--text-faint); }
+        .funnel-worst-note {
+            margin-top: 10px; padding: 8px 10px; border-radius: 6px; font-size: 0.78rem;
+            background: rgba(239,68,68,0.08); border-left: 2px solid #ef4444; color: #f87171;
+        }
+        .funnel-warn {
+            margin-top: 8px; padding: 8px 10px; border-radius: 6px; font-size: 0.76rem;
+            background: rgba(250,204,21,0.08); border-left: 2px solid #facc15; color: #facc15;
+        }
+        .funnel-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+        .funnel-actions button {
+            font-size: 0.78rem; font-weight: 700; padding: 8px 14px;
+            border-radius: 6px; cursor: pointer; border: none;
+        }
+        .funnel-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .funnel-measure { background: rgba(236,72,153,0.15); color: #f9a8d4; border: 1px solid rgba(236,72,153,0.32); }
+        .funnel-delete { background: rgba(239,68,68,0.12); color: #f87171; border: 1px solid rgba(239,68,68,0.28); }
+
         /* Auto-Heal Modal */
         .autoheal-modal-overlay {
             position: fixed; inset: 0;
@@ -1572,6 +1629,26 @@
                 <section class="tab-view" data-tab="levels">
                     <div class="section-block">
                         <div class="section-head">
+                            <h3 data-i18n="funnel.title">🔻 Dönüşüm Hunileri</h3>
+                            <span class="head-meta" id="funnel-meta">—</span>
+                        </div>
+                        <div class="section-content">
+                            <div class="info-banner" style="background: rgba(236,72,153,0.08); border-left: 3px solid #ec4899; margin-bottom: 12px;" data-i18n-html="funnel.banner">
+                                <strong>Oyuncular tam olarak nerede kopuyor?</strong> Huni, <strong>sıralı bir yoldur</strong> — bağımsız sayaçlardan farklı olarak her adım öncekinden <em>sonra</em> gerçekleşmiş olmak zorundadır. Oranlar yalnızca <strong>penceresi kapanmış</strong> oyunculardan hesaplanır: huniye az önce girenler "koptu" sayılmaz.
+                            </div>
+                            <div class="funnel-create" id="funnel-create">
+                                <span data-i18n="funnel.addPreset">Hazır huni ekle:</span>
+                                <button class="funnel-preset-btn" data-preset="onboarding" data-i18n="funnel.preset.onboarding">Onboarding</button>
+                                <button class="funnel-preset-btn" data-preset="monetization" data-i18n="funnel.preset.monetization">Monetizasyon</button>
+                                <button class="funnel-preset-btn" data-preset="rewarded_ad" data-i18n="funnel.preset.rewarded_ad">Ödüllü Reklam</button>
+                            </div>
+                            <div class="funnel-list" id="funnel-list">
+                                <div class="empty-state" data-i18n="funnel.empty">Henüz huni yok. Yukarıdan hazır bir huni ekleyerek başla — ilk sonuç bir sonraki ölçümde (6 saatte bir) ya da <strong>Şimdi Ölç</strong> ile görünür.</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="section-block">
+                        <div class="section-head">
                             <h3 data-i18n="section.topProblemLevels">En Çok Fail Olan Level'lar · Top 5</h3>
                             <span class="head-meta" id="levels-meta" data-i18n="page.last24h">Son 24 saat</span>
                         </div>
@@ -1584,7 +1661,10 @@
                     <div class="section-block">
                         <div class="section-head">
                             <h3 data-i18n="section.levelDistribution">Level Aralık Dağılımı</h3>
-                            <span class="head-meta">Funnel · <span data-i18n="page.last24h">son 24 saat</span></span>
+                            <!-- Burasi "Funnel" diye etiketliydi ama huni DEGIL: bagimsiz
+                                 aralik sayaclari, sirali bir yol degil. Gercek huni
+                                 yukaridaki "Donusum Hunileri" bolumunde. -->
+                            <span class="head-meta" data-i18n="section.levelDistributionMeta">Aralık bazlı tamamlama · son 24 saat</span>
                         </div>
                         <div class="section-content">
                             <div class="bar-list" id="level-funnel">
@@ -2282,6 +2362,7 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
         let unsubAutoHeal = null;
         let unsubRetention = null;
         let unsubExperiments = null;
+        let unsubFunnels = null;
         let copilotChatId = null;
 
         // ----- Auth gate -----
@@ -2310,6 +2391,7 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
             wireCopilot();
             wirePlayerRollback();
             wireIndustryBenchmark();
+            wireFunnels();
             startClock();
             loadMyGamesIntoSelector();
             initLanguageToggle('lang-toggle');
@@ -2429,6 +2511,7 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
             if (unsubAutoHeal) { unsubAutoHeal(); unsubAutoHeal = null; }
             if (unsubRetention) { unsubRetention(); unsubRetention = null; }
             if (unsubExperiments) { unsubExperiments(); unsubExperiments = null; }
+            if (unsubFunnels) { unsubFunnels(); unsubFunnels = null; }
 
             // Sentinel Alerts (real-time)
             const alertsQ = query(
@@ -2464,6 +2547,19 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
             }, (err) => {
                 console.warn('experiments listener:', err.message);
                 renderExperiments([]);
+            });
+
+            // Dönüşüm hunileri (real-time). computeFunnels 6 saatte bir yazar,
+            // panelden "Şimdi Ölç" ile anında da hesaplanabilir.
+            const funnelQ = query(
+                collection(db, 'games', gameId, 'funnels'),
+                limit(20)
+            );
+            unsubFunnels = onSnapshot(funnelQ, (snap) => {
+                renderFunnels(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+            }, (err) => {
+                console.warn('funnels listener:', err.message);
+                renderFunnels([]);
             });
 
             copilotChatId = null; // reset per-game
@@ -2705,6 +2801,151 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
             root.querySelectorAll('.autoheal-rollback').forEach(btn => {
                 btn.addEventListener('click', () => rollbackAutoHeal(btn.dataset.prescId, btn));
             });
+        }
+
+        // ─────────────────────────────────────────────────────────────────
+        // Dönüşüm Hunileri
+        // ─────────────────────────────────────────────────────────────────
+
+        function wireFunnels() {
+            document.querySelectorAll('.funnel-preset-btn').forEach(btn => {
+                btn.addEventListener('click', () =>
+                    createFunnelFromPreset(btn.dataset.preset, btn));
+            });
+        }
+
+        /** Saniyeyi okunur süreye çevir (medyan geçiş süreleri için). */
+        function formatDuration(sn) {
+            if (sn == null || !isFinite(sn) || sn < 0) return null;
+            if (sn < 60) return Math.round(sn) + 's';
+            if (sn < 3600) return Math.round(sn / 60) + 'dk';
+            if (sn < 86400) return (sn / 3600).toFixed(1) + 'sa';
+            return (sn / 86400).toFixed(1) + 'g';
+        }
+
+        function renderFunnels(items) {
+            const root = $('funnel-list');
+            const meta = $('funnel-meta');
+            if (!root) return;
+            if (!items || items.length === 0) {
+                root.innerHTML = `<div class="empty-state">${t('funnel.empty')}</div>`;
+                if (meta) meta.textContent = '0';
+                return;
+            }
+            const olculen = items.filter(f => f.lastResult && f.lastResult.entered > 0).length;
+            if (meta) meta.textContent = `${items.length} ${t('funnel.metaTotal')} · ${olculen} ${t('funnel.metaMeasured')}`;
+
+            root.innerHTML = items.map(f => {
+                const r = f.lastResult || null;
+                const steps = (f.steps || []);
+                const taban = r && r.entered > 0 ? r.entered : 0;
+
+                const adimHtml = steps.map((s, i) => {
+                    const rs = r && r.steps && r.steps[i] ? r.steps[i] : null;
+                    const ulasan = rs ? rs.reached : null;
+                    // Genişlik ilk adıma göre: huninin daralması görsel olarak okunur.
+                    const genislik = (taban > 0 && ulasan != null)
+                        ? Math.max(1.5, (ulasan / taban) * 100) : 0;
+                    const kopus = rs && rs.dropFromPrev != null && i > 0
+                        ? '−' + (rs.dropFromPrev * 100).toFixed(0) + '%' : '';
+                    const enKotu = r && r.biggestDropStep === i;
+                    const sure = rs ? formatDuration(rs.medianSecondsFromPrev) : null;
+                    const etiket = s.label || s.eventName;
+                    const paramNot = s.paramKey ? ` [${s.paramKey}=${s.paramValue}]` : '';
+                    return `
+                        <div class="funnel-step${enKotu ? ' worst' : ''}">
+                            <div class="idx">${i + 1}</div>
+                            <div class="bar-wrap">
+                                <div class="bar-top">
+                                    <span class="lbl">${escapeHtml(etiket)}${escapeHtml(paramNot)}</span>
+                                    <span class="num">${ulasan == null ? '—' : ulasan}${
+                                        rs && rs.conversionFromFirst != null
+                                            ? ' · ' + (rs.conversionFromFirst * 100).toFixed(1) + '%' : ''}${
+                                        sure ? ' · ' + sure : ''}</span>
+                                </div>
+                                <div class="bar-bg"><div class="bar-fill" style="width:${genislik}%"></div></div>
+                            </div>
+                            <div class="drop${kopus ? '' : ' none'}">${escapeHtml(kopus || '—')}</div>
+                        </div>`;
+                }).join('');
+
+                let kopusNot = '';
+                if (r && r.biggestDropStep != null && steps[r.biggestDropStep]) {
+                    const s = steps[r.biggestDropStep];
+                    kopusNot = `<div class="funnel-worst-note">🔻 ${t('funnel.worstStep')}: <strong>${
+                        escapeHtml(s.label || s.eventName)}</strong> — ${
+                        (r.biggestDropRate * 100).toFixed(0)}% ${t('funnel.lost')}</div>`;
+                }
+
+                const uyari = (r && Array.isArray(r.warnings) && r.warnings.length)
+                    ? `<div class="funnel-warn">⚠ ${r.warnings.map(escapeHtml).join('<br>⚠ ')}</div>` : '';
+
+                const altbilgi = r
+                    ? `${t('funnel.window')}: ${r.windowHours}sa · ${t('funnel.entered')}: ${r.entered}` +
+                      (r.inProgress ? ` · ${t('funnel.inProgress')}: ${r.inProgress}` : '') +
+                      ` · ${t('funnel.lookback')}: ${r.lookbackDays}g`
+                    : t('funnel.notMeasuredYet');
+
+                return `
+                    <div class="funnel-card">
+                        <div class="head">
+                            <div class="title">${escapeHtml(f.name || f.id)}</div>
+                            ${r && r.overallConversion != null
+                                ? `<div class="overall">${t('funnel.overall')}: ${(r.overallConversion * 100).toFixed(1)}%</div>` : ''}
+                        </div>
+                        <div class="funnel-sub">${escapeHtml(altbilgi)}</div>
+                        <div class="funnel-steps">${adimHtml}</div>
+                        ${kopusNot}
+                        ${uyari}
+                        <div class="funnel-actions">
+                            <button class="funnel-measure" data-funnel-measure="${escapeHtml(f.id)}">📊 ${t('funnel.measure')}</button>
+                            <button class="funnel-delete" data-funnel-delete="${escapeHtml(f.id)}">🗑 ${t('funnel.delete')}</button>
+                        </div>
+                    </div>`;
+            }).join('');
+
+            root.querySelectorAll('[data-funnel-measure]').forEach(b =>
+                b.addEventListener('click', () => measureFunnel(b.dataset.funnelMeasure, b)));
+            root.querySelectorAll('[data-funnel-delete]').forEach(b =>
+                b.addEventListener('click', () => removeFunnel(b.dataset.funnelDelete, b)));
+        }
+
+        async function createFunnelFromPreset(preset, btn) {
+            if (!currentGame) { alert(t('funnel.noGame')); return; }
+            if (btn) btn.disabled = true;
+            try {
+                const fn = httpsCallable(functions, 'createFunnel', { timeout: 30000 });
+                await fn({ gameId: currentGame, preset, language: getLanguage() });
+                showToast(t('funnel.createSuccess'));
+            } catch (err) {
+                alert(t('funnel.error') + '\n' + (err.message || ''));
+            }
+            if (btn) btn.disabled = false;
+        }
+
+        async function measureFunnel(funnelId, btn) {
+            if (btn) { btn.disabled = true; btn.textContent = t('funnel.measuring'); }
+            try {
+                const fn = httpsCallable(functions, 'analyzeFunnelNow', { timeout: 240000 });
+                await fn({ gameId: currentGame, funnelId });
+                showToast(t('funnel.measureSuccess'));
+            } catch (err) {
+                alert(t('funnel.error') + '\n' + (err.message || ''));
+            }
+            if (btn) { btn.disabled = false; btn.textContent = '📊 ' + t('funnel.measure'); }
+        }
+
+        async function removeFunnel(funnelId, btn) {
+            if (!confirm(t('funnel.confirmDelete'))) return;
+            if (btn) btn.disabled = true;
+            try {
+                const fn = httpsCallable(functions, 'deleteFunnel', { timeout: 30000 });
+                await fn({ gameId: currentGame, funnelId });
+                showToast(t('funnel.deleteSuccess'));
+            } catch (err) {
+                alert(t('funnel.error') + '\n' + (err.message || ''));
+                if (btn) btn.disabled = false;
+            }
         }
 
         // ─────────────────────────────────────────────────────────────────
