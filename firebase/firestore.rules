@@ -24,6 +24,21 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/games/$(gameId)).data.developerId == request.auth.uid;
     }
 
+    // ---------- Denetim kaydi ----------
+    // DEGISMEZ: okuma da yazma da istemciye TAMAMEN kapali.
+    //
+    // Okuma neden kapali: denetim kaydi listAuditLog Cloud Function'i
+    // uzerinden okunur, cunku orada yetki KADEMELI — admin her seyi gorur,
+    // oyun sahibi yalnizca kendi oyununun kaydini. Bu ayrimi Firestore
+    // kuralinda ifade etmek icin her dokumanda get() yapmak gerekirdi
+    // (hem pahali hem kirilgan).
+    //
+    // Yazma neden kapali: yalnizca Cloud Functions (admin SDK) yazar.
+    // Silme de kapali — silinebilen bir denetim kaydi, denetim kaydi degildir.
+    match /audit_log/{entryId} {
+      allow read, write: if false;
+    }
+
     function eventShapeOk(d) {
       return d.keys().hasAll([
               'gameId','eventName','playerAnonId',

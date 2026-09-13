@@ -34,9 +34,9 @@ tek yapısal borç budur.
 | **Denetimde çıkan canlı hatalar** | ✅ Hepsi kapatıldı ve yayında | **8 / 8** |
 | **Faz 1** — maliyet + veri kaybı | 🟢 Neredeyse tamam | **7 / 8** |
 | **Faz 2** — veri katmanı + retention + huni | 🟡 İlerliyor | **4 / 6** |
-| **Faz 3** — A/B test + kurumsal güven | 🟢 Neredeyse tamam | **3 / 4** |
+| **Faz 3** — A/B test + kurumsal güven | ✅ Tamamlandı | **4 / 4** |
 | **Paralel** — benchmark, çoklu platform, KVKK | 🔴 Başlanmadı | **0 / 4** |
-| **Yol haritası toplamı** | 🟡 İlerliyor | **14 / 22** |
+| **Yol haritası toplamı** | 🟡 İlerliyor | **15 / 22** |
 
 ### Daha güvenli miyiz? — Evet, ama sınırlı biçimde
 
@@ -72,7 +72,8 @@ tek yapısal borç budur.
 | ~~`retentionD1Proxy` yanıltıcı adı~~ | ✅ Düzeltildi | AI'ın retention uydurması da engellendi (§4.4) |
 | ~~A/B testi yok, Auto-Heal ölçülemiyor~~ | ✅ Kapatıldı | §4.2 — deney altyapısı + guardrail nöbetçisi |
 | ~~Huni (funnel) dönüşüm analizi~~ | ✅ Kapatıldı | Sıralı yol + olgunlaşma kuralı; ölçülünce AI'ın yasağı otomatik kalkıyor |
-| Denetim kaydı, veri silme API'si, DPA | 🔴 Yok | Faz 3 / §5. Kurumsal satışın ön koşulu. |
+| ~~Denetim kaydı, veri silme API'si~~ | ✅ Kapatıldı | Değişmez `audit_log` + KVKK/GDPR silme ve dışa aktarma uçları |
+| DPA / KVKK evrakları | 🔴 Yok | Teknik altyapı hazır; kalan kısım **hukuki metin**, kod değil |
 
 ### Testler — neyin doğruluğu kanıtlı
 
@@ -83,11 +84,14 @@ Deploy öncesi tek komut: `bash tools/test-all.sh` (ağ, emulator, Unity gerekme
 | A/B deney motoru — atama, istatistik, karar kuralları | 116 |
 | Huni analizi — sıralı yol, olgunlaşma, dönüşüm | 85 |
 | AI bağlam bloğu — uydurma yasağı iki yönlü | 60 |
+| Denetim kaydı — eksiksizlik + değişmezlik | 49 |
 | İstemci/sunucu hash paritesi (C# modeli ≡ JavaScript) | 1919 |
 | `AltareJson` ayrıştırıcı (≡ `JSON.parse`, 400 fuzz yapısı dahil) | 43 |
 | Panel deney kartı render'ı (bozuk/eksik veri dahil) | 40 |
 | Panel huni kartı render'ı (bozuk/eksik veri dahil) | 34 |
+| Panel denetim kaydı render'ı (XSS + bozuk veri dahil) | 30 |
 | Unity SDK C# yapısal denge | 6 dosya |
+| **HTML içi script blokları — modül seviyesi sözdizimi** | 5 sayfa |
 
 Bunlar süs değil: parite testi, istemci ile sunucunun **tek bit** ayrışması
 hâlinde her deneyin sessizce "fark yok" demesini engelliyor — o hata hiçbir
@@ -507,7 +511,14 @@ değişiklik hissetmez.
 - [x] **Guardrail nöbetçisi** — deneme grubu ölçülebilir biçimde zarar
       veriyorsa (çökme / oturum süresi / gelir) `monitorExperiments` deneyi
       kimse tıklamadan durdurur ve sahibine uyarı yazar.
-- [ ] Denetim kaydı + veri silme API'si
+- [x] **Denetim kaydı + veri silme API'si** — `audit_log` değişmez
+      (istemciye okuma da yazma da kapalı, silme dahil). **Reddedilen
+      girişimler de yazılır** — denetçiyi asıl ilgilendiren onlardır.
+      Otomatik guardrail durdurması `system` aktörüyle kayda geçer.
+      KVKK md. 7 / GDPR md. 15-17 için `deletePlayerData` ve
+      `exportPlayerData` uçları; ikisi de denetime düşer. Yapısal test
+      (`tools/test-audit.js`) yeni bir mutasyon fonksiyonu eklenip denetim
+      çağrısı unutulursa **kırılır**.
 
 **Çıktı:** kimsede olmayan bir özellik seti.
 

@@ -81,6 +81,124 @@ function assertSignedIn(request) {
 
 // Game ownership check: admin can access any game, developer can access only
 // games where developerId matches their uid.
+// ═══════════════════════════════════════════════════════════════════════════
+// DENETIM KAYDI (audit log)
+//
+// NEDEN VAR: kurumsal satisin ON KOSULU. Bir stüdyo "canli oyunuma config
+// yazan bir sistem" satin alirken tek bir soruyu sorar: KIM, NE ZAMAN, NE
+// YAPTI? Cevabi yoksa sozlesme imzalanmaz. KVKK/GDPR denetiminde de ayni
+// kayit isteniyor.
+//
+// TASARIM KARARLARI:
+//
+// 1) REDDEDILEN GIRISIMLER DE YAZILIR.
+//    Denetciyi asil ilgilendiren basarili islemler degil, BASARISIZ
+//    olanlardir: yetkisiz biri yuksek riskli bir receteyi uygulamaya
+//    calisti mi? Yalnizca basariyi loglayan bir sistem, denetim degil
+//    ozet raporudur.
+//
+// 2) DEGISMEZ.
+//    Firestore kurallarinda yazma TAMAMEN kapali; yalnizca Cloud Functions
+//    (admin SDK) yazar. Silme de kapali — denetim kaydinin silinebilmesi
+//    onu denetim kaydi olmaktan cikarir.
+//
+// 3) ISLEMI ASLA BLOKLAMAZ, AMA SESSIZCE DE KAYBOLMAZ.
+//    Denetim yazimi basarisiz olursa asil islem geri alinmaz (kullanicinin
+//    isi yarida kalmasin). Ama sessizce yutulmaz: logger.error ile Cloud
+//    Logging'e dusurulur — orasi kendisi de bir denetim izidir.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** Denetim kaydina girilebilecek eylemler — tek kaynak. */
+const DENETIM_EYLEMLERI = {
+  AUTOHEAL_APPLY: "auto_heal.apply",
+  AUTOHEAL_ROLLBACK: "auto_heal.rollback",
+  EXPERIMENT_CREATE: "experiment.create",
+  EXPERIMENT_PROMOTE: "experiment.promote_from_prescription",
+  EXPERIMENT_STOP: "experiment.stop",
+  EXPERIMENT_CONCLUDE: "experiment.conclude",
+  EXPERIMENT_AUTOSTOP: "experiment.auto_stop_guardrail",
+  FUNNEL_CREATE: "funnel.create",
+  FUNNEL_DELETE: "funnel.delete",
+  GAME_CREATE: "game.create",
+  GAME_DELETE: "game.delete",
+  CUSTOMER_CREATE: "customer.create",
+  ADMIN_ROLE_SET: "admin.role_set",
+  PLAYER_RESTORE: "player.state_restore",
+  PLAYER_DATA_DELETE: "player.data_delete",
+  PLAYER_DATA_EXPORT: "player.data_export",
+};
+
+/** Denetim kaydinda saklanacak ayrintiyi kucuk ve zararsiz tut. */
+function denetimAyrinti(obj) {
+  // Array.isArray sarti onemli: dizi de typeof "object"tir ve bu guard
+  // olmadan Object.keys([1,2,3]) -> {0:1,1:2,2:3} gibi anlamsiz bir kayit
+  // uretilir. sanitizeParams'ta da ayni koruma var.
+  if (!obj || typeof obj !== "object" || Array.isArray(obj)) return {};
+  const out = {};
+  let n = 0;
+  for (const k of Object.keys(obj)) {
+    if (n >= 20) break;
+    const v = obj[k];
+    if (v === null || v === undefined) continue;
+    if (typeof v === "number" && Number.isFinite(v)) out[k] = v;
+    else if (typeof v === "boolean") out[k] = v;
+    else if (typeof v === "string") out[k] = v.slice(0, 300);
+    else if (Array.isArray(v)) out[k] = v.slice(0, 20).map((x) => String(x).slice(0, 100));
+    else continue;
+    n++;
+  }
+  return out;
+}
+
+/**
+ * Denetim kaydi yazar.
+ * @param {object} request  onCall request (auth bilgisi icin)
+ * @param {string} action   DENETIM_EYLEMLERI'nden biri
+ * @param {object} opts     { gameId, targetId, details, result, reason }
+ */
+async function denetimYaz(request, action, opts) {
+  const o = opts || {};
+  try {
+    await db.collection("audit_log").add({
+      action,
+      result: o.result || "success",
+      reason: o.reason ? String(o.reason).slice(0, 500) : null,
+      actorUid: (request && request.auth && request.auth.uid) || "system",
+      actorEmail: (request && request.auth && request.auth.token &&
+                   request.auth.token.email) || null,
+      actorIsAdmin: !!(request && request.auth && request.auth.token &&
+                       request.auth.token.admin === true),
+      gameId: o.gameId || null,
+      targetId: o.targetId || null,
+      details: denetimAyrinti(o.details),
+      at: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  } catch (err) {
+    // Asil islemi bloklamiyoruz — ama sessizce de kaybetmiyoruz.
+    // Cloud Logging kendisi de bir denetim izidir.
+    logger.error("DENETIM KAYDI YAZILAMADI", {
+      action, gameId: o.gameId, targetId: o.targetId, message: err?.message,
+    });
+  }
+}
+
+/**
+ * Yetki kontrolu + REDDEDILME durumunda denetim kaydi.
+ * assertOwnsGameOrAdmin'in denetim yazan sarmalayicisi — yetkisiz girisimler
+ * denetim kaydinda gorunmezse kayit eksik kalir (bkz. tasarim karari #1).
+ */
+async function yetkiKontroluDenetimli(request, gameId, action, targetId) {
+  try {
+    await assertOwnsGameOrAdmin(request, gameId);
+  } catch (err) {
+    await denetimYaz(request, action, {
+      gameId, targetId, result: "denied",
+      reason: err && err.message,
+    });
+    throw err;
+  }
+}
+
 async function assertOwnsGameOrAdmin(request, gameId) {
   assertSignedIn(request);
   if (request.auth.token.admin === true) return;
@@ -1167,6 +1285,11 @@ exports.applyAutoHeal = onCall(async (request) => {
   const riskli = presc.prescription.risk_level === "high";
   const abIsteniyor = presc.prescription.ab_test_required === true;
   if ((riskli || abIsteniyor) && force !== true) {
+    await denetimYaz(request, DENETIM_EYLEMLERI.AUTOHEAL_APPLY, {
+      gameId, targetId: prescriptionId, result: "denied",
+      reason: riskli ? "yuksek_risk_deneye_yonlendirildi" : "ab_test_required",
+      details: { riskLevel: presc.prescription.risk_level || null },
+    });
     throw new HttpsError(
       "failed-precondition",
       (riskli ? "Bu recete YUKSEK RISKLI" : "AI bu recete icin A/B test sart kostu") +
@@ -1176,6 +1299,10 @@ exports.applyAutoHeal = onCall(async (request) => {
     );
   }
   if (riskli && force === true && request.auth.token.admin !== true) {
+    await denetimYaz(request, DENETIM_EYLEMLERI.AUTOHEAL_APPLY, {
+      gameId, targetId: prescriptionId, result: "denied",
+      reason: "yuksek_risk_force_admin_gerekiyor",
+    });
     throw new HttpsError(
       "permission-denied",
       "Yuksek riskli receteyi deney yapmadan uygulamak sadece admin yetkisiyle mumkun."
@@ -1234,6 +1361,15 @@ exports.applyAutoHeal = onCall(async (request) => {
     } catch {}
   }
 
+  await denetimYaz(request, DENETIM_EYLEMLERI.AUTOHEAL_APPLY, {
+    gameId, targetId: prescriptionId,
+    details: {
+      changeCount: changes.length,
+      keys: changes.map((c) => c && c.key).filter(Boolean),
+      riskLevel: presc.prescription.risk_level || null,
+      forced: force === true,
+    },
+  });
   logger.info("auto-heal applied", { gameId, prescriptionId, changeCount: changes.length });
   return { success: true, applied: changes.length };
 });
@@ -1270,6 +1406,9 @@ exports.rollbackAutoHeal = onCall(async (request) => {
       rolledBackBy: request.auth.uid,
     });
 
+  await denetimYaz(request, DENETIM_EYLEMLERI.AUTOHEAL_ROLLBACK, {
+    gameId, targetId: prescriptionId,
+  });
   logger.info("auto-heal rolled back", { gameId, prescriptionId });
   return { success: true };
 });
@@ -1520,6 +1659,10 @@ exports.createExperiment = onCall(async (request) => {
     minSamplePerVariant: Math.max(1, Number(minSamplePerVariant) || 200),
     fromPrescription: null,
   });
+  await denetimYaz(request, DENETIM_EYLEMLERI.EXPERIMENT_CREATE, {
+    gameId, targetId: id,
+    details: { name, exposurePct: Number(exposurePct), primaryMetric },
+  });
   return { success: true, experimentId: id };
 });
 
@@ -1589,6 +1732,15 @@ exports.promoteToExperiment = onCall(async (request) => {
     experimentStartedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
 
+  await denetimYaz(request, DENETIM_EYLEMLERI.EXPERIMENT_PROMOTE, {
+    gameId, targetId: id,
+    details: {
+      fromPrescription: prescriptionId,
+      exposurePct: Number(exposurePct),
+      primaryMetric: metrik,
+      keys: Object.keys(denemeDegerleri),
+    },
+  });
   return { success: true, experimentId: id, primaryMetric: metrik };
 });
 
@@ -1626,6 +1778,9 @@ exports.stopExperiment = onCall(async (request) => {
     stoppedReason: String(reason).slice(0, 200),
   });
   await deneyleriConfigeYansit(gameId);
+  await denetimYaz(request, DENETIM_EYLEMLERI.EXPERIMENT_STOP, {
+    gameId, targetId: experimentId, details: { reason: String(reason) },
+  });
   return { success: true };
 });
 
@@ -1713,6 +1868,10 @@ exports.concludeExperiment = onCall(async (request) => {
   // cikarildiginda oyuncular deger KAYBETMEZ.
   await deneyleriConfigeYansit(gameId);
 
+  await denetimYaz(request, DENETIM_EYLEMLERI.EXPERIMENT_CONCLUDE, {
+    gameId, targetId: experimentId,
+    details: { decision, shippedVariant: yayginlastirilan, forced: force === true },
+  });
   logger.info("experiment concluded", {
     gameId, experimentId, decision, shipped: yayginlastirilan,
   });
@@ -1770,6 +1929,15 @@ exports.monitorExperiments = onSchedule(
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
           });
 
+          await denetimYaz(null, DENETIM_EYLEMLERI.EXPERIMENT_AUTOSTOP, {
+            gameId: g.id, targetId: doc.id,
+            reason: "guardrail_breach",
+            details: {
+              name: doc.get("name") || doc.id,
+              breaches: rapor.guardrailBreaches.map((b) => b.metric),
+              exposurePct: doc.get("exposurePct"),
+            },
+          });
           logger.warn("experiment auto-stopped", {
             gameId: g.id, experimentId: doc.id,
             breaches: rapor.guardrailBreaches.map((b) => b.metric),
@@ -1944,6 +2112,10 @@ exports.createFunnel = onCall(async (request) => {
     createdBy: request.auth.uid,
   });
 
+  await denetimYaz(request, DENETIM_EYLEMLERI.FUNNEL_CREATE, {
+    gameId, targetId: ref.id,
+    details: { name: taslak.name, preset: taslak.preset, stepCount: taslak.steps.length },
+  });
   logger.info("funnel created", { gameId, funnelId: ref.id, preset: taslak.preset });
   return { success: true, funnelId: ref.id };
 });
@@ -1968,6 +2140,9 @@ exports.deleteFunnel = onCall(async (request) => {
   await assertOwnsGameOrAdmin(request, gameId);
   if (!funnelId) throw new HttpsError("invalid-argument", "funnelId required");
   await db.collection("games").doc(gameId).collection("funnels").doc(funnelId).delete();
+  await denetimYaz(request, DENETIM_EYLEMLERI.FUNNEL_DELETE, {
+    gameId, targetId: funnelId,
+  });
   return { success: true };
 });
 
@@ -2049,6 +2224,189 @@ async function getMeasuredFunnels(gameId) {
     return null;
   }
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// OYUNCU VERISI — SILME VE DISA AKTARMA (KVKK md. 7 / GDPR md. 15 ve 17)
+//
+// NEDEN VAR: bir oyuncu "verimi silin" dediginde, stüdyonun bunu yapabilecegi
+// bir mekanizma OLMAK ZORUNDA. Yoksa stüdyo kendi yasal yukumlulugunu
+// yerine getiremez ve Altare'yi kullanamaz. Bu, ozellik degil giris biletidir.
+//
+// KAPSAM NOTU: retention/huni gibi TOPLU sayilar geri hesaplanmaz.
+// Sebep hem teknik hem hukuki: o sayilar kimseyi tanimlamaz (anonim toplam),
+// dolayisiyla silme hakkinin kapsaminda degildir. Silinen sey, oyuncuya
+// baglanabilen HER KAYITTIR.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** Tek bir oyuncunun olaylarini toplu siler. */
+async function oyuncuOlaylariniSil(gameId, playerAnonId) {
+  const col = db.collection("games").doc(gameId).collection("events");
+  let silinen = 0;
+  // Yuz binlerce olay olabilir; parca parca ilerle.
+  for (let tur = 0; tur < 500; tur++) {
+    const snap = await col.where("playerAnonId", "==", playerAnonId).limit(300).get();
+    if (snap.empty) break;
+    const batch = db.batch();
+    snap.docs.forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+    silinen += snap.size;
+    if (snap.size < 300) break;
+  }
+  return silinen;
+}
+
+// ── deletePlayerData — silme hakki ───────────────────────────────────────────
+exports.deletePlayerData = onCall(
+  { timeoutSeconds: 540, memory: "512MiB" },
+  async (request) => {
+    assertSignedIn(request);
+    const { gameId, playerAnonId } = request.data || {};
+    if (!playerAnonId || typeof playerAnonId !== "string") {
+      throw new HttpsError("invalid-argument", "playerAnonId gerekli.");
+    }
+    await yetkiKontroluDenetimli(
+      request, gameId, DENETIM_EYLEMLERI.PLAYER_DATA_DELETE, playerAnonId
+    );
+
+    const gameRef = db.collection("games").doc(gameId);
+    const olay = await oyuncuOlaylariniSil(gameId, playerAnonId);
+
+    // Oyuncu rollup'i (retention'in temeli) — kohort/aktif gun bilgisi.
+    let rollup = 0;
+    try {
+      await gameRef.collection("players").doc(playerAnonId).delete();
+      rollup = 1;
+    } catch (e) { logger.warn("rollup silinemedi", { message: e.message }); }
+
+    // State snapshot'lari + gecmisleri (recursiveDelete alt koleksiyonu da alir).
+    let snapshot = 0;
+    try {
+      await db.recursiveDelete(gameRef.collection("player_snapshots").doc(playerAnonId));
+      snapshot = 1;
+    } catch (e) { logger.warn("snapshot silinemedi", { message: e.message }); }
+
+    await denetimYaz(request, DENETIM_EYLEMLERI.PLAYER_DATA_DELETE, {
+      gameId, targetId: playerAnonId,
+      details: { eventsDeleted: olay, rollupDeleted: rollup, snapshotsDeleted: snapshot },
+    });
+
+    logger.info("player data deleted", { gameId, playerAnonId, events: olay });
+    return {
+      success: true,
+      deleted: { events: olay, rollup, snapshots: snapshot },
+      // Durust ol: neyin SILINMEDIGINI de soyle.
+      note: "Toplu istatistikler (retention, huni, gunluk stats) geri " +
+            "hesaplanmaz — bunlar anonim toplamlardir ve tek bir oyuncuyu " +
+            "tanimlamaz.",
+    };
+  }
+);
+
+// ── exportPlayerData — erisim hakki ──────────────────────────────────────────
+exports.exportPlayerData = onCall(
+  { timeoutSeconds: 300, memory: "512MiB" },
+  async (request) => {
+    assertSignedIn(request);
+    const { gameId, playerAnonId, maxEvents = 5000 } = request.data || {};
+    if (!playerAnonId || typeof playerAnonId !== "string") {
+      throw new HttpsError("invalid-argument", "playerAnonId gerekli.");
+    }
+    await yetkiKontroluDenetimli(
+      request, gameId, DENETIM_EYLEMLERI.PLAYER_DATA_EXPORT, playerAnonId
+    );
+
+    const gameRef = db.collection("games").doc(gameId);
+    const tavan = Math.min(20000, Math.max(1, Number(maxEvents) || 5000));
+
+    const olaySnap = await gameRef.collection("events")
+      .where("playerAnonId", "==", playerAnonId)
+      .orderBy("timestamp", "desc")
+      .limit(tavan)
+      .get();
+
+    const rollupSnap = await gameRef.collection("players").doc(playerAnonId).get();
+    const snapSnap = await gameRef.collection("player_snapshots")
+      .doc(playerAnonId).collection("history").limit(50).get();
+
+    const zaman = (t) => (t && typeof t.toDate === "function" ? t.toDate().toISOString() : null);
+
+    // Kisisel veriyi DISA AKTARMAK, silmekten daha az degil DAHA COK
+    // denetlenmesi gereken bir islemdir: veri sistemden cikiyor.
+    await denetimYaz(request, DENETIM_EYLEMLERI.PLAYER_DATA_EXPORT, {
+      gameId, targetId: playerAnonId,
+      details: {
+        eventCount: olaySnap.size,
+        truncated: olaySnap.size >= tavan,
+        hasRollup: rollupSnap.exists,
+        snapshotCount: snapSnap.size,
+      },
+    });
+
+    return {
+      success: true,
+      playerAnonId,
+      gameId,
+      exportedAt: new Date().toISOString(),
+      truncated: olaySnap.size >= tavan,
+      playerRollup: rollupSnap.exists ? rollupSnap.data() : null,
+      events: olaySnap.docs.map((d) => {
+        const e = d.data();
+        return {
+          eventName: e.eventName,
+          eventParams: e.eventParams || {},
+          timestamp: zaman(e.timestamp),
+          sessionId: e.sessionId || null,
+          platform: e.platform || null,
+          appVersion: e.appVersion || null,
+          deviceModel: e.deviceModel || null,
+        };
+      }),
+      stateSnapshots: snapSnap.docs.map((d) => ({
+        id: d.id, state: d.get("state"), at: zaman(d.get("createdAt")),
+      })),
+    };
+  }
+);
+
+// ── listAuditLog — denetim kaydini oku (admin) ───────────────────────────────
+exports.listAuditLog = onCall(async (request) => {
+  assertSignedIn(request);
+  const { gameId, limit: istenenLimit = 100 } = request.data || {};
+  const n = Math.min(500, Math.max(1, Number(istenenLimit) || 100));
+
+  // Admin her seyi gorur; oyun sahibi YALNIZCA kendi oyununun kaydini gorur.
+  let q = db.collection("audit_log");
+  if (request.auth.token.admin !== true) {
+    if (!gameId) {
+      throw new HttpsError("invalid-argument",
+        "Admin degilsen gameId vermelisin (yalnizca kendi oyununun kaydini gorebilirsin).");
+    }
+    await assertOwnsGameOrAdmin(request, gameId);
+    q = q.where("gameId", "==", gameId);
+  } else if (gameId) {
+    q = q.where("gameId", "==", gameId);
+  }
+
+  const snap = await q.orderBy("at", "desc").limit(n).get();
+  return {
+    entries: snap.docs.map((d) => {
+      const e = d.data();
+      return {
+        id: d.id,
+        action: e.action,
+        result: e.result || "success",
+        reason: e.reason || null,
+        actorUid: e.actorUid,
+        actorEmail: e.actorEmail || null,
+        actorIsAdmin: !!e.actorIsAdmin,
+        gameId: e.gameId || null,
+        targetId: e.targetId || null,
+        details: e.details || {},
+        at: e.at && typeof e.at.toDate === "function" ? e.at.toDate().toISOString() : null,
+      };
+    }),
+  };
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PLAYER STATE SNAPSHOT & ROLLBACK — Yigit Ozturk'un onerisi
@@ -2135,6 +2493,9 @@ exports.restorePlayerSnapshot = onCall(async (request) => {
         requestedBy: request.auth.uid,
       },
     }, { merge: true });
+  await denetimYaz(request, DENETIM_EYLEMLERI.PLAYER_RESTORE, {
+    gameId, targetId: playerAnonId, details: { snapshotId },
+  });
   logger.info("player state restore queued", { gameId, playerAnonId, snapshotId });
   return { success: true };
 });
@@ -2582,6 +2943,10 @@ exports.createGame = onCall(async (request) => {
     { merge: true }
   );
 
+  await denetimYaz(request, DENETIM_EYLEMLERI.GAME_CREATE, {
+    gameId, targetId: gameId,
+    details: { gameName, gameType: gameType || null },
+  });
   logger.info("game created", { gameId, uid });
   return { success: true, gameId, apiKey };
 });
@@ -2685,6 +3050,10 @@ exports.deleteGame = onCall(
       );
     }
 
+    await denetimYaz(request, DENETIM_EYLEMLERI.GAME_DELETE, {
+      gameId, targetId: gameId,
+      details: { gameName: data.gameName || null, developerId: data.developerId || null },
+    });
     logger.info("game deleted", { gameId, by: request.auth.uid });
     return { success: true, gameId };
   }
@@ -2754,6 +3123,10 @@ exports.createCustomer = onCall(async (request) => {
     { merge: true }
   );
 
+  await denetimYaz(request, DENETIM_EYLEMLERI.CUSTOMER_CREATE, {
+    targetId: user.uid,
+    details: { email, tier: tier || "indie", isNewUser: false },
+  });
   return { success: true, uid: user.uid, email, isNewUser: false };
 });
 
@@ -3139,6 +3512,9 @@ exports.setAdminRole = onCall(async (request) => {
     { merge: true }
   );
 
+  await denetimYaz(request, DENETIM_EYLEMLERI.ADMIN_ROLE_SET, {
+    targetId: uid, details: { admin: makeAdmin === true },
+  });
   return { success: true, uid, admin: makeAdmin === true };
 });
 

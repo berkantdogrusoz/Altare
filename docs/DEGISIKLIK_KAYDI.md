@@ -7,6 +7,118 @@
 
 ---
 
+# Oturum: Denetim kaydı + veri silme API'si · Node 22 · canlı panel hatası
+
+**Kapsam:** Faz 3'ün son kalemi + iki altyapı düzeltmesi + **canlıya çıkmış
+bir hatanın yakalanması** ·
+⚠️ **`firebase deploy --only functions` + `firestore:rules,firestore:indexes` GEREKİR**
+
+## 🔴 Önce kötü haber: canlı panel kırıktı
+
+Bir önceki oturumda (`3d78140`) panel.html'e ikinci bir `formatDuration`
+fonksiyonu eklendi. Zaten bir tane vardı.
+
+ES modülünde aynı isimde iki fonksiyon tanımı **SyntaxError**'dır: tarayıcı
+bloğun **tamamını** ayrıştıramaz, yani panelin bir fonksiyonu değil **bütün
+JavaScript'i** ölür. Site `main`'den yayınlandığı için hata o commit'ten beri
+canlıdaydı.
+
+**Neden hiçbir şey yakalamadı — asıl düzeltme bu:**
+
+| Neden kaçtı | Düzeltme |
+|---|---|
+| Render testleri fonksiyonları panel.html'den **tek tek** çıkarıp çalıştırıyor → modül seviyesi çakışmayı göremez | `tools/check-html-js.py`: HTML'deki her modül bloğu **tek parça** ayrıştırılıyor |
+| `test-all.sh` yalnızca `.js` dosyalarını `node --check`'ten geçiriyordu; panel.html'in **içindeki** kod hiç denetlenmiyordu | Denetleyici `test-all.sh`'a eklendi |
+
+Denetleyici hatalı commit'e karşı çalıştırılıp hatayı **gerçekten yakaladığı
+doğrulandı**. Huni sürümü `formatStepDuration` olarak ayrıldı; ikisi de
+gerekli (biri "5m 30s", diğeri saniyeden güne değişen adım süreleri).
+
+## 🟢 Denetim kaydı (audit log) — Faz 3'ün son kalemi
+
+**Neden var:** kurumsal satışın ön koşulu. Bir stüdyo "canlı oyunuma config
+yazan bir sistem" satın alırken tek bir soruyu sorar: **kim, ne zaman, ne
+yaptı?** Cevabı yoksa sözleşme imzalanmaz.
+
+| Karar | Neden böyle |
+|---|---|
+| **Reddedilen girişimler de yazılır** | Denetçiyi asıl ilgilendiren başarılı işlemler değil, başarısız olanlardır: yetkisiz biri yüksek riskli bir reçeteyi uygulamaya çalıştı mı? Yalnızca başarıyı loglayan bir sistem, denetim değil özet raporudur. |
+| **Değişmez** | Firestore'da okuma da yazma da istemciye kapalı — **silme dahil**. Silinebilen bir denetim kaydı, denetim kaydı değildir. |
+| İşlemi asla bloklamaz, ama **sessizce de kaybolmaz** | Denetim yazımı başarısız olursa kullanıcının işi yarıda kalmaz; ama `logger.error` ile Cloud Logging'e düşer — orası da bir denetim izidir. |
+| Okuma kademeli | Admin her şeyi, oyun sahibi **yalnızca kendi oyununu** görür. Bu ayrımı Firestore kuralında ifade etmek her dokümanda `get()` gerektirirdi (pahalı + kırılgan), o yüzden `listAuditLog` Cloud Function'ı üzerinden. |
+| Sistem aktörü | Guardrail'in kendi başına bir deneyi durdurması **insan aktörsüz** ama kayda geçmesi şart — denetçinin en çok ilgilendiği satırlardan biri. |
+
+**19 bağlama noktası:** reçete uygula/geri al, deney oluştur/yaygınlaştır/
+durdur/sonuçlandır/otomatik durdur, huni oluştur/sil, oyun oluştur/sil,
+müşteri oluştur, admin rolü, oyuncu state geri yükleme, veri silme, veri
+dışa aktarma.
+
+## 🟢 KVKK md. 7 / GDPR md. 15-17 — veri silme ve dışa aktarma
+
+`deletePlayerData` ve `exportPlayerData`. Bir oyuncu "verimi silin" dediğinde
+stüdyonun bunu yapabileceği bir mekanizma **olmak zorunda** — yoksa stüdyo
+kendi yasal yükümlülüğünü yerine getiremez ve Altare'yi kullanamaz. Bu,
+özellik değil **giriş biletidir**.
+
+Kapsam konusunda dürüst: toplu istatistikler (retention oranı, huni, günlük
+stats) geri hesaplanmaz ve uç bunu **açıkça söyler**. Sebep hem teknik hem
+hukuki: o sayılar kimseyi tanımlamaz, dolayısıyla silme hakkının kapsamında
+değildir. Panelde silme, kimliği **elle yazdırarak** onaylatılıyor.
+
+## 🟢 Node 22 + `deleteGame` sessiz veri sızıntısı
+
+**Node 20** 2026-10-30'da kullanımdan kalkıyor — o tarihten sonra deploy
+edilemez. `nodejs22`'ye çekildi.
+
+**`deleteGame`** yalnızca dört alt koleksiyonu siliyordu (`events`,
+`feedback`, `ai_reports`, `stats`). Oyunun altında bugün on koleksiyon var.
+Sonuç: oyun dokümanı siliniyor ama alt koleksiyonlar **yetim kalıyordu** —
+hem fatura üretiyorlardı, hem de aynı `gameId` ile yeni bir oyun açılırsa
+eski retention/deney verisini **miras alıyordu**.
+
+Daha kötüsü, bu liste her yeni koleksiyonda elle güncellenmek zorundaydı ve
+**iki kez kaydı** (retention ve A/B eklenirken). Elle yazılmış yardımcı
+kaldırıldı; `db.recursiveDelete()` alt koleksiyonları kendisi keşfediyor,
+yani bu kayma artık **yapısal olarak imkânsız**.
+
+## 🔴 Bu oturumda YAPILMAYANLAR
+
+| Ne | Neden |
+|---|---|
+| Event akışını ClickHouse'a taşımak | **Altyapı kararı sende:** ClickHouse Cloud mu BigQuery mi, bütçe, KVKK için bölge |
+| DPA / KVKK sözleşme metinleri | Teknik altyapı hazır; kalan kısım **hukuki metin**, kod değil |
+| Denetim kaydı dışa aktarma (CSV) | Panelden okunuyor; toplu dışa aktarma henüz yok |
+
+## Testler
+
+| Ne | Kontrol |
+|---|---|
+| Denetim kaydı — eksiksizlik + değişmezlik | 49 |
+| Panel denetim kaydı render'ı (XSS + bozuk veri) | 30 |
+| **HTML içi script blokları — modül seviyesi sözdizimi** | 5 sayfa |
+
+En değerlisi `test-audit.js`'in **yapısal** kontrolü: her `exports.X = onCall`
+ya "denetim yazmalı" ya "salt okunur" listesinde olmak zorunda. Yeni bir
+fonksiyon eklendiğinde test **kırılıyor** ve geliştiriciyi karar vermeye
+zorluyor — denetim kaydını değersizleştiren tam olarak bu kaymadır.
+
+Testin kendisi iki gerçek hata yakaladı: `exportPlayerData` başarılı dışa
+aktarmayı kayda geçirmiyordu (GDPR açısından silmekten **daha çok**
+denetlenmesi gereken işlem) ve `denetimAyrinti` dizileri nesne sanıyordu.
+
+## Yayın durumu
+
+```bash
+firebase deploy --only functions
+firebase deploy --only firestore:rules,firestore:indexes
+```
+
+`firestore:indexes` **şart**: `listAuditLog` (gameId + at) ve
+`deletePlayerData`/`exportPlayerData` (playerAnonId + timestamp) bileşik
+index istiyor.
+
+---
+
 # Oturum: Huni (funnel) dönüşüm analizi — "oyuncular nerede kopuyor"
 
 **Kapsam:** huni motoru + AI beslemesi + panel ·
