@@ -1,9 +1,11 @@
 {
   "artboards": [
-    { "file": "Main.dc.html",          "x": 0,    "y": 0,    "w": 1440, "h": 900,  "title": "A — Editoryal (hero)" },
-    { "file": "HeroSinematik.dc.html", "x": 1560, "y": 0,    "w": 1440, "h": 900,  "title": "B — Sinematik (hero)" },
-    { "file": "Oyunlar.dc.html",       "x": 0,    "y": 1020, "w": 1440, "h": 940,  "title": "Oyunlar" },
-    { "file": "Hakkimizda.dc.html",    "x": 1560, "y": 1020, "w": 1440, "h": 820,  "title": "Hakkımızda" },
+    { "file": "Main.dc.html",          "x": 0,    "y": 0,    "w": 1440, "h": 900,  "title": "A — Editoryal · KOYU" },
+    { "file": "MainAcik.dc.html",      "x": 1560, "y": 0,    "w": 1440, "h": 900,  "title": "A — Editoryal · AÇIK" },
+    { "file": "HeroSinematik.dc.html", "x": 3120, "y": 0,    "w": 1440, "h": 900,  "title": "B — Sinematik (yalnız koyu)" },
+    { "file": "Oyunlar.dc.html",       "x": 0,    "y": 1020, "w": 1440, "h": 940,  "title": "Oyunlar · KOYU" },
+    { "file": "OyunlarAcik.dc.html",   "x": 1560, "y": 1020, "w": 1440, "h": 940,  "title": "Oyunlar · AÇIK" },
+    { "file": "Hakkimizda.dc.html",    "x": 3120, "y": 1020, "w": 1440, "h": 820,  "title": "Hakkımızda" },
     { "file": "Iletisim.dc.html",      "x": 0,    "y": 2080, "w": 1440, "h": 600,  "title": "İletişim + Footer" },
     { "file": "Mobil.dc.html",         "x": 1560, "y": 2080, "w": 390,  "h": 1000, "title": "Mobil (kaydırılmış)" }
   ],
@@ -11,30 +13,44 @@
     {
       "id": "yon-a",
       "x": 0,
-      "y": -210,
+      "y": -230,
       "w": 620,
-      "text": "YÖN A — EDİTORYAL\n\nMevcut devasa tipografiyi koruyor ama merkezden çıkarıyor: görünmez 12 sütunluk ızgara, künye rayı (İstanbul / 2025 / 6 oyun), ince çizgiler, bölüm indeksi (01 —). Amber tek bir işe ayrılmış: \"şu an oynanıyor\".\n\nGüçlü yanı: ciddi bir stüdyo gibi okunuyor — jüri, yayıncı, iş ortağı için ideal.\nZayıf yanı: oyuncuyu duygusal olarak yakalamıyor; oyunun kendisi küçük kalıyor."
+      "text": "YÖN A — EDİTORYAL  ·  koyu + açık modu var\n\nDevasa tipografi duruyor ama merkezden çıktı: görünmez 12 sütunluk ızgara, künye rayı (İstanbul / 2025 / 6 oyun), bölüm indeksi (01 —). Amber tek bir işe ayrılmış.\n\nGüçlü yanı: ciddi bir stüdyo gibi okunuyor, hem koyu hem açık modda çalışıyor.\nZayıf yanı: oyuncuyu duygusal olarak yakalamıyor; oyunun kendisi küçük kalıyor."
+    },
+    {
+      "id": "acik-mod",
+      "x": 1560,
+      "y": -230,
+      "w": 620,
+      "text": "AÇIK MOD — tek fark renk katmanı\n\nYerleşim, tipografi ve boşluklar koyu modla BİREBİR aynı; yalnız renkler değişiyor. Site ikisini de destekleyebilir (sistem tercihi ya da manuel geçiş).\n\n  zemin  #0a0a0a → #faf8f5 (sıcak kırık beyaz, saf beyaz değil — göz yormuyor)\n  metin  #ffffff → #0a0a0a (aynı yakın-siyah, kimlik korunuyor)\n\nAMBER'DE GERÇEK BİR KARAR VAR:\n#fbbf24 DOLGU olarak iki modda da kalıyor (üstündeki metin koyu, kontrast yüksek). Ama YAZI olarak beyaz üstünde okunmuyor — açık modda #9a6700'e koyulaşıyor. Bu yüzden \"Discover\", \"Amiral Gemisi\" gibi amber yazılar açık modda daha koyu."
     },
     {
       "id": "yon-b",
-      "x": 1560,
-      "y": -210,
+      "x": 3120,
+      "y": -230,
       "w": 620,
-      "text": "YÖN B — SİNEMATİK\n\nChopHero key art'ı tam kanama, katmanlı karartmayla. Stüdyo kimliği önce geliyor (amber çizgi + \"Altare · Mobil Oyun Stüdyosu\"), sonra söz, sonra oyun. Alt şeritte künye.\n\nGüçlü yanı: oyuncuyu ilk saniyede yakalıyor, oyunun kalitesini gösteriyor.\nZayıf yanı: ChopHero'nun sitesi gibi görünme riski — stüdyo kimliği arka plana düşebilir. Oyun değişince hero yeniden çekilmeli."
+      "text": "YÖN B — SİNEMATİK  ·  yalnızca koyu\n\nChopHero key art'ı tam kanama, katmanlı karartmayla. Oyuncuyu ilk saniyede yakalıyor.\n\n⚠ AÇIK MODU YOK, olamaz da: bu tasarım key art'ın üstüne koyu bir karartma sermeye dayanıyor. Açık zeminde ya görsel okunmaz olur ya da metin. Yani \"hem koyu hem açık mod\" istiyorsan yön A'yı seçmen gerekir — bu, A ile B arasındaki kararı doğrudan etkiliyor.\n\nDiğer zayıf yanı: ChopHero'nun sitesi gibi görünme riski; oyun değişince hero yeniden kurulmalı."
+    },
+    {
+      "id": "logo",
+      "x": 0,
+      "y": 3200,
+      "w": 660,
+      "text": "LOGO — şu an YER TUTUCU\n\nNavigasyonda ve footer'da gördüğün ince kıvrımlı işaret senin logon DEĞİL. Gerçek dosyana erişemedim (masaüstün bana kapalı), o yüzden sadece YERİNİ, ÖLÇEĞİNİ ve AĞIRLIĞINI gösteren basit bir vektör koydum. Markanın fırça dokusunu taklit etmeye çalışmadım — o senin kimliğin.\n\nDosyayı şuraya koyup push edersen gerçeğiyle değiştiririm:\n    assets/logo.svg   (tercihen — ölçeklenir, renk verilebilir)\n    assets/logo.png   (şeffaf zeminli de olur)\n\nSVG olursa tek dosya yeter: koyu modda beyaz, açık modda siyah olarak boyanır. PNG olursa siyah versiyonu yolla, beyazını CSS ile çeviririm."
+    },
+    {
+      "id": "filigran",
+      "x": 720,
+      "y": 3200,
+      "w": 600,
+      "text": "ARKADAKİ KIVRILAN YAZILAR — KALDIRILDI\n\nHero'da iç içe geçip kıvrılan kontur ALTARE / CHOPHERO filigranları ve Hakkımızda'daki kayan kontur şerit tamamen çıkarıldı. Yerine Hakkımızda'nın altına düz, okunur bir künye şeridi kondu.\n\nBaşlangıç (hero) dahil hiçbir artboard'da kalmadı."
     },
     {
       "id": "ortak",
-      "x": 0,
-      "y": 2810,
-      "w": 700,
-      "text": "İKİ YÖNDE DE ORTAK OLAN DÜZELTME\n\nMevcut sitede oyun kartlarının başlıkları yalnızca hover'da görünüyor (opacity 0 → 1). Telefonda hover yok — yani mobilde oyunlarının ADI HİÇ GÖRÜNMÜYOR, kartlara dokununca doğrudan Google Play'e gidiyor.\n\nBurada başlıklar görselin ALTINDA, her zaman okunur. Hover sadece vurgu ekler."
-    },
-    {
-      "id": "kontrol",
-      "x": 760,
-      "y": 2810,
-      "w": 560,
-      "text": "SENİN KONTROL ETMEN GEREKENLER\n\n• İstatistik \"5 Yayınlanan Oyun\" diyor ama portfolyoda 6 oyun var. Tuvalde 6 yazdım — hangisi doğru?\n\n• İletişim bölümünde e-posta adresi [E-POSTA ADRESİ] olarak boş bırakıldı, uydurmadım.\n\n• Oyun türleri (Puzzle / Action / Hyper-Casual / Endless Runner) görsellerden tahmin edildi — yanlışları düzelt."
+      "x": 1380,
+      "y": 3200,
+      "w": 620,
+      "text": "İKİ YÖNDE DE ORTAK DÜZELTME\n\nMevcut sitede oyun kartlarının başlıkları yalnızca hover'da görünüyor (opacity 0 → 1). Telefonda hover yok — yani mobilde oyunlarının ADI HİÇ GÖRÜNMÜYOR.\n\nBurada başlıklar görselin ALTINDA, her zaman okunur.\n\nSENİN KONTROL ETMEN GEREKENLER:\n• İstatistik \"5 oyun\" diyor ama portfolyoda 6 oyun var — hangisi doğru?\n• İletişim e-postası [E-POSTA ADRESİ] olarak boş, uydurmadım.\n• Oyun türleri görsellerden tahmin edildi, yanlışları düzelt."
     }
   ],
   "launch": { "view": "canvas" }
