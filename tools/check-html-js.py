@@ -28,7 +28,8 @@ import tempfile
 KOK = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Denetlenecek HTML dosyaları. Yeni bir sayfa modül scripti kazanırsa buraya ekle.
-HEDEFLER = ["panel.html", "index.html", "login.html", "signup.html", "discover.html"]
+HEDEFLER = ["panel.html", "index.html", "login.html", "signup.html", "discover.html",
+            "privacy-policy.html", "terms-of-service.html"]
 
 BLOK = re.compile(r'<script\b([^>]*)>(.*?)</script>', re.S | re.I)
 TIP = re.compile(r'type\s*=\s*["\']([^"\']+)["\']', re.I)

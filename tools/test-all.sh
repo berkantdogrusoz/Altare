@@ -46,6 +46,11 @@ calistir "HTML ici script bloklari (modul seviyesi sozdizimi)" \
 # oldugu gibi kaliyor.
 calistir "Ceviri sozlukleri (EN/TR butunlugu)" \
   python3 tools/check-i18n.py
+# Hukuki sayfalarda iki dil de HTML'in icinde duruyor. Biri guncellenip
+# oburu unutulursa Turkce okuyana EKSIK aydinlatma metni gosterilir —
+# cirkin degil, KVKK md. 10 karsisinda hatali. Hicbir belirtisi yok.
+calistir "Hukuki sayfalar (EN/TR bolum + icindekiler paritesi)" \
+  python3 tools/check-legal.py
 
 printf '\n\033[1m▶ Sozdizimi\033[0m\n'
 for f in firebase/functions/index.js firebase/functions/experiments.js \

@@ -5,394 +5,741 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description"
-        content="Altare Privacy Policy covering DreamRoyals, Altare games, the Altare website, and related services.">
-    <title>Altare Privacy Policy</title>
+        content="Altare Privacy Policy — what the Altare website, Altare games and the Altare Panel live-ops service collect, why, and how to exercise your data rights.">
+    <meta name="theme-color" content="#0a0a0a" id="meta-theme-color">
+    <title>Altare — Privacy Policy</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
         rel="stylesheet">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            background: #0a0a0a;
-            color: #ffffff;
-            font-family: 'Inter', sans-serif;
-            line-height: 1.7;
-        }
-
-        a {
-            color: #9cd5ff;
-            text-decoration: none;
-        }
-
-        a:hover {
-            color: #ffffff;
-        }
-
-        .shell {
-            min-height: 100vh;
-            padding: 40px 24px 80px;
-        }
-
-        .topbar {
-            max-width: 1100px;
-            margin: 0 auto 48px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 16px;
-            flex-wrap: wrap;
-        }
-
-        .brand {
-            font-size: 1.2rem;
-            font-weight: 900;
-            letter-spacing: 0.18em;
-            text-transform: uppercase;
-            color: #ffffff;
-        }
-
-        .top-links {
-            display: flex;
-            gap: 14px;
-            flex-wrap: wrap;
-        }
-
-        .top-link {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 44px;
-            padding: 0 18px;
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            border-radius: 8px;
-            color: rgba(255, 255, 255, 0.78);
-            background: rgba(255, 255, 255, 0.03);
-            transition: border-color 0.3s ease, color 0.3s ease, background 0.3s ease;
-        }
-
-        .top-link:hover {
-            color: #ffffff;
-            border-color: rgba(255, 255, 255, 0.3);
-            background: rgba(255, 255, 255, 0.06);
-        }
-
-        .hero {
-            max-width: 1100px;
-            margin: 0 auto;
-            padding: 48px 0 32px;
-        }
-
-        .eyebrow {
-            color: #a855f7;
-            font-size: 0.82rem;
-            font-weight: 700;
-            letter-spacing: 0.26em;
-            text-transform: uppercase;
-            margin-bottom: 18px;
-        }
-
-        h1 {
-            font-size: clamp(44px, 8vw, 86px);
-            line-height: 0.95;
-            letter-spacing: -0.04em;
-            text-transform: uppercase;
-            font-weight: 900;
-            background: linear-gradient(135deg, #a855f7, #6366f1, #06b6d4);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .hero-text {
-            max-width: 760px;
-            margin-top: 24px;
-            color: rgba(255, 255, 255, 0.72);
-            font-size: 1.04rem;
-        }
-
-        .meta {
-            margin-top: 18px;
-            color: rgba(255, 255, 255, 0.48);
-            text-transform: uppercase;
-            letter-spacing: 0.16em;
-            font-size: 0.76rem;
-        }
-
-        main {
-            max-width: 1100px;
-            margin: 0 auto;
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) 280px;
-            gap: 48px;
-            align-items: start;
-        }
-
-        .content {
-            min-width: 0;
-        }
-
-        .content section + section {
-            margin-top: 40px;
-            padding-top: 40px;
-            border-top: 1px solid rgba(255, 255, 255, 0.08);
-        }
-
-        h2 {
-            font-size: 1.55rem;
-            font-weight: 800;
-            letter-spacing: -0.02em;
-            margin-bottom: 14px;
-            color: #ffffff;
-        }
-
-        p + p,
-        ul + p,
-        p + ul {
-            margin-top: 16px;
-        }
-
-        ul {
-            padding-left: 22px;
-            color: rgba(255, 255, 255, 0.8);
-        }
-
-        li + li {
-            margin-top: 10px;
-        }
-
-        p,
-        li {
-            color: rgba(255, 255, 255, 0.8);
-        }
-
-        .sidebar {
-            position: sticky;
-            top: 32px;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 8px;
-            padding: 22px;
-            background: rgba(255, 255, 255, 0.03);
-        }
-
-        .sidebar h3 {
-            font-size: 0.86rem;
-            text-transform: uppercase;
-            letter-spacing: 0.18em;
-            color: rgba(255, 255, 255, 0.48);
-            margin-bottom: 14px;
-        }
-
-        .sidebar ul {
-            list-style: none;
-            padding: 0;
-        }
-
-        .sidebar li + li {
-            margin-top: 10px;
-        }
-
-        .sidebar a {
-            color: rgba(255, 255, 255, 0.72);
-        }
-
-        footer {
-            max-width: 1100px;
-            margin: 64px auto 0;
-            padding-top: 28px;
-            border-top: 1px solid rgba(255, 255, 255, 0.08);
-            display: flex;
-            justify-content: space-between;
-            gap: 16px;
-            flex-wrap: wrap;
-            color: rgba(255, 255, 255, 0.42);
-            font-size: 0.84rem;
-        }
-
-        @media (max-width: 900px) {
-            main {
-                grid-template-columns: 1fr;
+    <script>
+        // Temayi BOYAMADAN ONCE uygula — aksi halde koyu tema bekleyen
+        // kullaniciya bir kare beyaz "flash" gorunur.
+        (function () {
+            try {
+                var kayitli = localStorage.getItem('altare-theme');
+                if (!kayitli) {
+                    kayitli = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+                }
+                document.documentElement.setAttribute('data-theme', kayitli);
+            } catch (e) {
+                document.documentElement.setAttribute('data-theme', 'dark');
             }
-
-            .sidebar {
-                position: static;
-            }
-        }
-    </style>
+        })();
+    </script>
+    <link rel="stylesheet" href="/css/legal.css">
 </head>
 
 <body>
-    <div class="shell">
-        <div class="topbar">
-            <a href="/" class="brand">Altare</a>
-            <div class="top-links">
-                <a class="top-link" href="/">Back to Home</a>
-                <a class="top-link" href="/terms-of-service.html">Terms of Service</a>
+    <!-- ═══ Navigasyon ═══ -->
+    <nav>
+        <div class="nav-inner">
+            <a href="/" class="nav-logo">
+                <!-- LOGO YER TUTUCUSU — gercek marka dosyasi gelince bu <svg>
+                     <img src="assets/logo.svg" class="logo-mark" alt="Altare">
+                     ile degistirilecek. -->
+                <svg class="logo-mark" viewBox="0 0 26 42" fill="none" aria-hidden="true">
+                    <path d="M13 3C5 12 5 18 13 22c8 4 8 10 0 19" stroke="currentColor" stroke-width="3.2"
+                        stroke-linecap="round" />
+                </svg>
+                <span class="nav-logo-text">Altare</span>
+            </a>
+
+            <div class="nav-right">
+                <ul class="nav-links">
+                    <li><a href="/" data-t-en="Home" data-t-tr="Ana Sayfa">Home</a></li>
+                    <li><a href="/privacy-policy.html" aria-current="page" data-t-en="Privacy" data-t-tr="Gizlilik">Privacy</a></li>
+                    <li><a href="/terms-of-service.html" data-t-en="Terms" data-t-tr="Şartlar">Terms</a></li>
+                </ul>
+
+                <div class="nav-tools">
+                    <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Switch theme" data-t-en="Switch theme" data-t-tr="Tema değiştir">
+                        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <circle cx="12" cy="12" r="4" />
+                            <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+                        </svg>
+                        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
+                        </svg>
+                    </button>
+
+                    <div class="lang-toggle">
+                        <span class="active-lang" id="lang-en">EN</span>
+                        <div class="lang-rule"></div>
+                        <span id="lang-tr">TR</span>
+                    </div>
+                </div>
             </div>
         </div>
+    </nav>
 
-        <header class="hero">
-            <p class="eyebrow">Legal</p>
-            <h1>Privacy Policy</h1>
-            <p class="hero-text">
-                This Privacy Policy explains how Altare collects, uses, stores, shares, and protects personal data when
-                you visit the Altare website, play DreamRoyals, use Altare games, or interact with related services.
-            </p>
-            <p class="meta">Last updated: April 20, 2026</p>
+    <!-- ═══════════════════════════════════════════════════════════════════
+         INGILIZCE
+         ═══════════════════════════════════════════════════════════════════ -->
+    <div data-doc-lang="en">
+        <header class="doc-head">
+            <div class="wrap">
+                <div class="section-index">
+                    <span class="num">01</span>
+                    <span class="rule"></span>
+                    <span>Legal</span>
+                </div>
+                <h1 class="doc-title" data-doc-title="Altare — Privacy Policy">Privacy<br>Policy</h1>
+                <p class="doc-lead">
+                    Altare is a mobile game studio. This policy explains what our games, our website and
+                    <strong>Altare Panel</strong> — the live-ops service we run for our own titles and offer to other
+                    studios — collect about you, why we collect it, who we share it with, and how you can have it
+                    exported or erased.
+                </p>
+                <div class="doc-meta">
+                    <span>Last updated <span class="v">13 September 2026</span></span>
+                    <span>Controller <span class="v">Altare, İstanbul</span></span>
+                    <span>Applies to <span class="v">KVKK &middot; GDPR</span></span>
+                </div>
+            </div>
         </header>
 
-        <main>
+        <main class="doc-body">
             <article class="content">
-                <section id="scope">
-                    <h2>1. Scope</h2>
+                <section>
+                    <h2 id="scope"><span class="n">01</span>Scope</h2>
+                    <p>This policy covers three different things we operate:</p>
+                    <ul>
+                        <li><strong>Our games</strong> — the mobile titles Altare publishes on Google Play, including
+                            <em>ChopHero: Relic Quest</em>.</li>
+                        <li><strong>This website</strong> — altarestudio.com.tr and its pages.</li>
+                        <li><strong>Altare Panel</strong> — our live-ops and analytics service. We use it on our own
+                            games, and we also offer it to other studios. When another studio uses the Panel on their
+                            game, that studio is the controller of their players' data and we act as their processor;
+                            this policy then describes what we do on their instruction.</li>
+                    </ul>
                     <p>
-                        This Privacy Policy applies to Altare Studio, the Altare website, DreamRoyals, and other Altare
-                        digital products and related support, marketing, and publishing activities, unless a product or
-                        service provides a separate privacy notice.
+                        Where a specific game or storefront listing publishes its own privacy notice, that notice
+                        applies to that product in addition to this one.
                     </p>
                 </section>
 
-                <section id="collect">
-                    <h2>2. Information We Collect</h2>
-                    <p>Depending on how you interact with our games or website, we may collect:</p>
+                <section>
+                    <h2 id="controller"><span class="n">02</span>Who is responsible</h2>
+                    <p>
+                        The controller is <strong>Altare</strong>, a mobile game studio based in İstanbul, Türkiye.
+                        For any privacy request, write to
+                        <a href="mailto:berkantdogrusoz@gmail.com">berkantdogrusoz@gmail.com</a>. We answer within
+                        30 days, which is the deadline set by Turkish data protection law (KVKK).
+                    </p>
+                </section>
+
+                <section>
+                    <h2 id="collect"><span class="n">03</span>What we collect</h2>
+
+                    <h3>In our games</h3>
                     <ul>
-                        <li>Account-free gameplay data such as levels started or completed, move usage, booster usage, win or loss states, session length, and progression events.</li>
-                        <li>Device and technical information such as device model, operating system version, app version, language, country or region, IP address, crash reports, and performance diagnostics.</li>
-                        <li>Advertising and monetization data such as rewarded ad engagement, ad impression events, purchase status, refund state, and store transaction metadata supplied by platform partners.</li>
-                        <li>Consent and privacy preference data such as whether analytics or personalized advertising has been accepted, refused, or updated.</li>
-                        <li>Support or business communication data if you contact us by email, social channels, app store messages, or business collaboration requests.</li>
+                        <li><strong>Gameplay and progression</strong> — levels started and completed, in-game actions,
+                            item and booster usage, win and loss states, session length, progression milestones.</li>
+                        <li><strong>Device and technical data</strong> — device model, GPU model, memory class,
+                            operating system, app version, language, country or region, crash and performance
+                            diagnostics.</li>
+                        <li><strong>Advertising and purchase data</strong> — ad impressions and rewarded-ad
+                            engagement, purchase and refund state, and the transaction metadata the storefront returns
+                            to us.</li>
+                        <li><strong>Consent state</strong> — whether you accepted, refused or later changed your
+                            choice about analytics and personalised advertising.</li>
+                    </ul>
+
+                    <h3>Through Altare Panel</h3>
+                    <p>
+                        Our own SDK sends the following fields, and nothing else. This list is the complete payload as
+                        it exists in the SDK source:
+                    </p>
+                    <div class="table-scroll">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Field</th>
+                                    <th>What it is</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>playerAnonId</code></td>
+                                    <td>A random identifier the app generates on the device on first launch and stores
+                                        locally. It is not your advertising ID and is not derived from anything about
+                                        you. Clearing the app's data produces a new one.</td>
+                                </tr>
+                                <tr>
+                                    <td><code>sessionId</code></td>
+                                    <td>Groups events belonging to one play session.</td>
+                                </tr>
+                                <tr>
+                                    <td><code>platform</code>, <code>appVersion</code></td>
+                                    <td>Which platform and build the event came from.</td>
+                                </tr>
+                                <tr>
+                                    <td><code>deviceModel</code>, <code>gpuModel</code>, <code>totalMemoryMb</code></td>
+                                    <td>Coarse hardware class, used to separate performance problems from design
+                                        problems.</td>
+                                </tr>
+                                <tr>
+                                    <td><code>eventName</code>, <code>clientTimestamp</code>,
+                                        <code>eventParams</code></td>
+                                    <td>What happened in the game, when, and its parameters (for example a level
+                                        number).</td>
+                                </tr>
+                                <tr>
+                                    <td>Player state snapshot</td>
+                                    <td>A copy of progression state, kept so progress can be restored after a bug or a
+                                        bad update.</td>
+                                </tr>
+                                <tr>
+                                    <td>Experiment assignment</td>
+                                    <td>Which A/B variant the device was assigned. It is computed from
+                                        <code>playerAnonId</code> by a hash, so it is stable without storing anything
+                                        extra about you.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="note">
+                        <p>
+                            <strong>What the Altare Panel SDK does not collect:</strong> no name, no e-mail address, no
+                            phone number, no precise location, no advertising identifier (GAID / IDFA), no contacts, no
+                            photos, no microphone or camera access.
+                        </p>
+                    </div>
+
+                    <h3>On this website</h3>
+                    <p>
+                        You do not need an account to browse this site and we do not run advertising trackers on it.
+                        Our hosting and content-delivery providers process the technical request data any web server
+                        receives — IP address, user agent, requested page, timestamp — in order to serve the page and
+                        to protect against abuse.
+                    </p>
+
+                    <h3>Altare Panel accounts (studios, not players)</h3>
+                    <p>
+                        If you sign in to the Panel as a studio, we process your e-mail address and authentication
+                        credentials, your studio and game names, and an <strong>audit record of administrative
+                        actions</strong> — who changed which setting, exported or deleted player data, started or
+                        stopped an experiment, and when. Those audit records are append-only: they exist so that
+                        privileged actions can be reviewed later, and they are not editable from the Panel.
+                    </p>
+                </section>
+
+                <section>
+                    <h2 id="ads"><span class="n">04</span>Advertising</h2>
+                    <p>
+                        Our games are free and funded by advertising and optional in-app purchases. Where a game shows
+                        ads, an advertising SDK operates inside that game and processes device and ad-interaction data
+                        under its own provider's terms in order to select, deliver, cap and measure ads, and to detect
+                        invalid traffic.
+                    </p>
+                    <p>
+                        In Türkiye, the EEA, the UK and other regions where the law requires it, a consent screen is
+                        shown before personalised advertising is enabled. <strong>If you refuse, ads still appear but
+                        are non-personalised</strong> — they are selected without an advertising profile. You can
+                        change this choice later from the game's privacy settings, and you can reset or delete your
+                        advertising identifier from your device settings at any time.
+                    </p>
+                    <p>
+                        Advertising data is handled separately from Altare Panel data: as described above, the Panel
+                        SDK never receives your advertising identifier.
+                    </p>
+                </section>
+
+                <section>
+                    <h2 id="use"><span class="n">05</span>Why we process it</h2>
+                    <ul>
+                        <li>To run, maintain and secure the games, the website and the Panel.</li>
+                        <li>To understand retention, level difficulty, drop-off points and monetisation, so that we can
+                            fix what is not working.</li>
+                        <li>To run A/B experiments and to measure whether an automatic change actually improved the
+                            game rather than assuming it did.</li>
+                        <li>To detect crashes, anomalies, cheating, invalid traffic and payment fraud.</li>
+                        <li>To deliver and measure advertising, and to handle purchases and refunds.</li>
+                        <li>To answer support and business messages.</li>
+                        <li>To comply with legal, tax and accounting obligations.</li>
                     </ul>
                 </section>
 
-                <section id="use">
-                    <h2>3. How We Use Information</h2>
-                    <p>We may use information to:</p>
+                <section>
+                    <h2 id="legal-basis"><span class="n">06</span>Legal basis</h2>
+                    <p>Under KVKK art. 5 and GDPR art. 6 we rely on:</p>
                     <ul>
-                        <li>operate, maintain, secure, and improve our games and website;</li>
-                        <li>understand retention, monetization, level difficulty, ad performance, purchase funnels, and technical stability;</li>
-                        <li>personalize ad delivery or ad measurement where consent and applicable law allow;</li>
-                        <li>detect fraud, abuse, cheating, technical misuse, or payment-related issues;</li>
-                        <li>respond to support requests, legal requests, and business communication;</li>
-                        <li>comply with legal, tax, accounting, and regulatory obligations.</li>
+                        <li><strong>Consent</strong> — personalised advertising, and optional analytics where local law
+                            requires consent for it.</li>
+                        <li><strong>Performance of a contract</strong> — providing the game or the Panel service you
+                            asked for, including purchases and progress restoration.</li>
+                        <li><strong>Legitimate interest</strong> — security, fraud and cheat prevention, crash
+                            diagnostics, and product improvement using pseudonymous data.</li>
+                        <li><strong>Legal obligation</strong> — tax, accounting and lawful requests from authorities.</li>
                     </ul>
                 </section>
 
-                <section id="legal-basis">
-                    <h2>4. Legal Bases</h2>
-                    <p>
-                        Where required by applicable law, we process personal data based on one or more of the following:
-                        your consent, the performance of a contract or service request, our legitimate interests in
-                        operating and improving our products, or compliance with legal obligations.
-                    </p>
-                </section>
-
-                <section id="sharing">
-                    <h2>5. Service Providers and Sharing</h2>
-                    <p>
-                        We may share relevant data with service providers that help us operate our games and website.
-                        Depending on the product and configuration, these providers may include:
-                    </p>
+                <section>
+                    <h2 id="sharing"><span class="n">07</span>Who else processes it</h2>
+                    <p>We do not sell personal data. We use these providers to operate the service:</p>
                     <ul>
-                        <li>Google AdMob and Google User Messaging Platform for ad delivery, consent handling, ad measurement, and privacy choices.</li>
-                        <li>Firebase Analytics and related Google services for product analytics, diagnostics, and event measurement.</li>
-                        <li>Google Play and other payment or platform operators for in-app purchases, billing validation, store operations, and refunds.</li>
-                        <li>Hosting or infrastructure providers such as Vercel or other web delivery partners for website availability and performance.</li>
+                        <li><strong>Google Firebase</strong> (Authentication, Firestore, Cloud Functions) — the backend
+                            that stores and processes Altare Panel data.</li>
+                        <li><strong>Google Play</strong> — app distribution, billing, purchase validation and refunds.</li>
+                        <li><strong>Advertising providers</strong> integrated in ad-supported games, for ad delivery,
+                            consent handling and ad measurement.</li>
+                        <li><strong>GitHub Pages and Cloudflare</strong> — static hosting, DNS and content delivery for
+                            this website.</li>
+                        <li><strong>AI model providers</strong> — the Panel's assistant features send aggregate,
+                            pseudonymous metrics (for example a funnel's conversion rates) to generate a written
+                            analysis. Raw event records and Panel account credentials are not sent.</li>
                     </ul>
                     <p>
-                        We may also disclose information if required by law, to protect users or our rights, to enforce
-                        our Terms, or in connection with a merger, acquisition, financing, or asset transfer.
+                        We may also disclose data where the law requires it, to protect our rights or our users, or in
+                        connection with a merger, acquisition, financing or transfer of assets.
                     </p>
                 </section>
 
-                <section id="choices">
-                    <h2>6. Your Privacy Choices</h2>
+                <section>
+                    <h2 id="retention"><span class="n">08</span>How long we keep it</h2>
                     <p>
-                        In supported regions or products, we may present in-app consent and privacy controls. You may use
-                        those controls to update analytics or advertising preferences where available.
+                        Event and progression data is kept for as long as the game is operated, because retention and
+                        funnel analysis are inherently historical. Player state snapshots are kept until the player's
+                        data is erased or the game is shut down. Audit records are kept for the lifetime of the Panel
+                        account, since their purpose is accountability. Purchase and invoicing records are kept for the
+                        period tax law requires.
                     </p>
                     <p>
-                        You can also manage certain permissions and ad settings through your device, operating system, or
-                        platform account. Some product features, ad-supported rewards, or personalization features may be
-                        limited if you refuse optional processing.
-                    </p>
-                </section>
-
-                <section id="retention">
-                    <h2>7. Data Retention</h2>
-                    <p>
-                        We keep personal data only for as long as reasonably necessary for the purposes described in this
-                        Policy, including gameplay operations, analytics, fraud prevention, accounting, dispute handling,
-                        and legal compliance. Retention periods may vary by data category and service provider.
+                        When a game is deleted from the Panel, its entire data tree — events, player records,
+                        snapshots, experiments and funnels — is deleted with it.
                     </p>
                 </section>
 
-                <section id="transfers">
-                    <h2>8. International Transfers</h2>
+                <section>
+                    <h2 id="transfers"><span class="n">09</span>International transfers</h2>
                     <p>
-                        Our service providers may process data in countries other than your own. Where required, we take
-                        reasonable steps to use appropriate safeguards for international data transfers.
+                        Our providers — principally Google — process data on servers outside Türkiye. Those transfers
+                        rely on the safeguards available under KVKK art. 9 and Chapter V of the GDPR, including the
+                        providers' standard contractual clauses.
                     </p>
                 </section>
 
-                <section id="children">
-                    <h2>9. Children</h2>
+                <section>
+                    <h2 id="children"><span class="n">10</span>Children</h2>
                     <p>
-                        Our services are not intended to knowingly collect personal data from children in violation of
-                        applicable law. If you believe a child has provided personal data to us improperly, contact us so
-                        we can review and take appropriate action.
+                        Our games are not directed at children under 13, and we do not knowingly collect personal data
+                        from them. If you believe a child has provided personal data to us, contact us and we will
+                        review and erase it.
                     </p>
                 </section>
 
-                <section id="rights">
-                    <h2>10. Your Rights</h2>
+                <section>
+                    <h2 id="rights"><span class="n">11</span>Your rights</h2>
                     <p>
-                        Depending on your location, you may have the right to request access, correction, deletion,
-                        restriction, objection, portability, or withdrawal of consent regarding certain personal data.
-                        To make a request, contact us using the details below.
+                        Under KVKK art. 11 and GDPR art. 15–22 you may ask whether we process data about you, request a
+                        copy of it, have it corrected or erased, object to processing, ask for it to be restricted or
+                        ported, and withdraw a consent you previously gave.
+                    </p>
+                    <p>
+                        These are not only written commitments. The Panel has a built-in erasure and export path, so a
+                        request can be executed rather than filed:
+                    </p>
+                    <ul>
+                        <li><strong>Export</strong> returns your event history, your player record and your saved
+                            progression snapshots.</li>
+                        <li><strong>Erasure</strong> deletes your events, your player record and your snapshots from
+                            the game's data.</li>
+                    </ul>
+                    <div class="note">
+                        <p>
+                            <strong>One honest limit.</strong> Erasure does not recompute aggregate statistics that
+                            were already calculated — daily totals, retention curves and funnel conversion rates. Those
+                            are counts, they contain no identifier, and a single player cannot be recovered from them.
+                            We would rather state this plainly than claim an erasure is more complete than it is.
+                        </p>
+                    </div>
+                    <p>
+                        To exercise a right, write to
+                        <a href="mailto:berkantdogrusoz@gmail.com">berkantdogrusoz@gmail.com</a>. Because we do not
+                        collect your name or e-mail inside the games, we may need you to provide the in-game player
+                        identifier so we can find the right records. You also have the right to complain to your local
+                        supervisory authority — in Türkiye, the Personal Data Protection Authority (KVKK).
                     </p>
                 </section>
 
-                <section id="changes">
-                    <h2>11. Changes to This Policy</h2>
+                <section>
+                    <h2 id="changes"><span class="n">12</span>Changes and contact</h2>
                     <p>
-                        We may update this Privacy Policy from time to time. When we do, we will revise the “Last
-                        updated” date above and may provide additional notice where required.
+                        We may update this policy. When we do, we change the “last updated” date above, and where the
+                        change is significant we give notice in the product as well.
                     </p>
-                </section>
-
-                <section id="contact">
-                    <h2>12. Contact</h2>
                     <p>
-                        If you have a privacy request, complaint, or question, contact Altare at
+                        Questions, complaints and data requests:
                         <a href="mailto:berkantdogrusoz@gmail.com">berkantdogrusoz@gmail.com</a>.
                     </p>
                 </section>
             </article>
 
-            <aside class="sidebar">
-                <h3>On this page</h3>
+            <aside class="toc">
+                <div class="toc-label">Contents</div>
                 <ul>
-                    <li><a href="#scope">Scope</a></li>
-                    <li><a href="#collect">Information We Collect</a></li>
-                    <li><a href="#use">How We Use Information</a></li>
-                    <li><a href="#sharing">Service Providers</a></li>
-                    <li><a href="#choices">Privacy Choices</a></li>
-                    <li><a href="#rights">Your Rights</a></li>
-                    <li><a href="#contact">Contact</a></li>
+                    <li><a href="#scope">01 &nbsp; Scope</a></li>
+                    <li><a href="#controller">02 &nbsp; Who is responsible</a></li>
+                    <li><a href="#collect">03 &nbsp; What we collect</a></li>
+                    <li><a href="#ads">04 &nbsp; Advertising</a></li>
+                    <li><a href="#use">05 &nbsp; Why we process it</a></li>
+                    <li><a href="#legal-basis">06 &nbsp; Legal basis</a></li>
+                    <li><a href="#sharing">07 &nbsp; Who else processes it</a></li>
+                    <li><a href="#retention">08 &nbsp; How long we keep it</a></li>
+                    <li><a href="#transfers">09 &nbsp; International transfers</a></li>
+                    <li><a href="#children">10 &nbsp; Children</a></li>
+                    <li><a href="#rights">11 &nbsp; Your rights</a></li>
+                    <li><a href="#changes">12 &nbsp; Changes and contact</a></li>
                 </ul>
             </aside>
         </main>
-
-        <footer>
-            <span>&copy; 2026 Altare Studio</span>
-            <span><a href="/terms-of-service.html">Terms of Service</a></span>
-        </footer>
     </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════
+         TURKCE
+         ═══════════════════════════════════════════════════════════════════ -->
+    <div data-doc-lang="tr" hidden>
+        <header class="doc-head">
+            <div class="wrap">
+                <div class="section-index">
+                    <span class="num">01</span>
+                    <span class="rule"></span>
+                    <span>Hukuki</span>
+                </div>
+                <h1 class="doc-title" data-doc-title="Altare — Gizlilik Politikası">Gizlilik<br>Politikası</h1>
+                <p class="doc-lead">
+                    Altare bir mobil oyun stüdyosudur. Bu metin; oyunlarımızın, bu web sitesinin ve
+                    <strong>Altare Panel</strong>’in — kendi oyunlarımızda kullandığımız ve diğer stüdyolara da
+                    sunduğumuz canlı operasyon hizmetinin — hakkınızda hangi verileri topladığını, neden topladığını,
+                    kimlerle paylaştığını ve bu verileri nasıl dışa aktarabileceğinizi ya da sildirebileceğinizi
+                    anlatır.
+                </p>
+                <div class="doc-meta">
+                    <span>Son güncelleme <span class="v">13 Eylül 2026</span></span>
+                    <span>Veri sorumlusu <span class="v">Altare, İstanbul</span></span>
+                    <span>Tabi olduğu <span class="v">KVKK &middot; GDPR</span></span>
+                </div>
+            </div>
+        </header>
+
+        <main class="doc-body">
+            <article class="content">
+                <section>
+                    <h2 id="tr-kapsam"><span class="n">01</span>Kapsam</h2>
+                    <p>Bu politika, işlettiğimiz üç ayrı şeyi kapsar:</p>
+                    <ul>
+                        <li><strong>Oyunlarımız</strong> — Altare’nin Google Play’de yayınladığı mobil oyunlar;
+                            <em>ChopHero: Relic Quest</em> dâhil.</li>
+                        <li><strong>Bu web sitesi</strong> — altarestudio.com.tr ve sayfaları.</li>
+                        <li><strong>Altare Panel</strong> — canlı operasyon ve analiz hizmetimiz. Hem kendi
+                            oyunlarımızda kullanıyoruz hem de başka stüdyolara sunuyoruz. Başka bir stüdyo Panel’i
+                            kendi oyununda kullandığında o oyunun oyuncu verisinin <em>veri sorumlusu</em> ilgili
+                            stüdyodur; biz onun talimatıyla hareket eden <em>veri işleyeniz</em>. Bu politika o durumda
+                            bizim ne yaptığımızı anlatır.</li>
+                    </ul>
+                    <p>
+                        Bir oyunun ya da mağaza sayfasının kendi gizlilik bildirimi varsa, o ürün için bu metne ek
+                        olarak o bildirim de geçerlidir.
+                    </p>
+                </section>
+
+                <section>
+                    <h2 id="tr-sorumlu"><span class="n">02</span>Veri sorumlusu</h2>
+                    <p>
+                        Veri sorumlusu, İstanbul merkezli mobil oyun stüdyosu <strong>Altare</strong>’dir. Her türlü
+                        gizlilik talebi için
+                        <a href="mailto:berkantdogrusoz@gmail.com">berkantdogrusoz@gmail.com</a> adresine
+                        yazabilirsiniz. Taleplere, KVKK’nın öngördüğü süre olan <strong>30 gün</strong> içinde yanıt
+                        veriyoruz.
+                    </p>
+                </section>
+
+                <section>
+                    <h2 id="tr-toplanan"><span class="n">03</span>Topladığımız veriler</h2>
+
+                    <h3>Oyunlarımızda</h3>
+                    <ul>
+                        <li><strong>Oynanış ve ilerleme</strong> — başlanan ve tamamlanan bölümler, oyun içi
+                            aksiyonlar, eşya ve güçlendirici kullanımı, kazanma/kaybetme durumları, oturum süresi,
+                            ilerleme kilometre taşları.</li>
+                        <li><strong>Cihaz ve teknik veri</strong> — cihaz modeli, GPU modeli, bellek sınıfı, işletim
+                            sistemi, uygulama sürümü, dil, ülke ya da bölge, çökme ve performans kayıtları.</li>
+                        <li><strong>Reklam ve satın alma verisi</strong> — reklam gösterimleri ve ödüllü reklam
+                            etkileşimi, satın alma ve iade durumu, mağazanın bize döndüğü işlem bilgileri.</li>
+                        <li><strong>Rıza durumu</strong> — analitik ve kişiselleştirilmiş reklam tercihinizi kabul
+                            edip etmediğiniz ya da sonradan değiştirip değiştirmediğiniz.</li>
+                    </ul>
+
+                    <h3>Altare Panel üzerinden</h3>
+                    <p>
+                        Kendi SDK’mız aşağıdaki alanları gönderir, başka bir şey göndermez. Bu liste, SDK kaynak
+                        kodundaki gönderimin tamamıdır:
+                    </p>
+                    <div class="table-scroll">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Alan</th>
+                                    <th>Ne olduğu</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>playerAnonId</code></td>
+                                    <td>Uygulamanın ilk açılışta cihazda ürettiği ve yerel olarak sakladığı rastgele
+                                        kimlik. Reklam kimliğiniz değildir ve hakkınızdaki hiçbir bilgiden
+                                        türetilmez. Uygulama verisi temizlenirse yenisi üretilir.</td>
+                                </tr>
+                                <tr>
+                                    <td><code>sessionId</code></td>
+                                    <td>Tek bir oyun oturumuna ait olayları gruplar.</td>
+                                </tr>
+                                <tr>
+                                    <td><code>platform</code>, <code>appVersion</code></td>
+                                    <td>Olayın hangi platformdan ve hangi sürümden geldiği.</td>
+                                </tr>
+                                <tr>
+                                    <td><code>deviceModel</code>, <code>gpuModel</code>, <code>totalMemoryMb</code></td>
+                                    <td>Kaba donanım sınıfı. Performans sorunlarını tasarım sorunlarından ayırmak
+                                        için kullanılır.</td>
+                                </tr>
+                                <tr>
+                                    <td><code>eventName</code>, <code>clientTimestamp</code>,
+                                        <code>eventParams</code></td>
+                                    <td>Oyunda ne olduğu, ne zaman olduğu ve parametreleri (örneğin bölüm
+                                        numarası).</td>
+                                </tr>
+                                <tr>
+                                    <td>İlerleme anlık görüntüsü</td>
+                                    <td>İlerleme durumunun kopyası. Bir hata ya da bozuk güncellemeden sonra
+                                        ilerlemeyi geri yükleyebilmek için tutulur.</td>
+                                </tr>
+                                <tr>
+                                    <td>Deney ataması</td>
+                                    <td>Cihazın hangi A/B varyantına atandığı. <code>playerAnonId</code>’den bir hash
+                                        ile hesaplanır; yani hakkınızda fazladan hiçbir şey saklanmadan sabit
+                                        kalır.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="note">
+                        <p>
+                            <strong>Altare Panel SDK’sının TOPLAMADIĞI veriler:</strong> ad soyad yok, e-posta yok,
+                            telefon yok, kesin konum yok, reklam kimliği (GAID / IDFA) yok, rehber yok, fotoğraf yok,
+                            mikrofon ya da kamera erişimi yok.
+                        </p>
+                    </div>
+
+                    <h3>Bu web sitesinde</h3>
+                    <p>
+                        Siteyi gezmek için hesap açmanız gerekmez ve sitede reklam takipçisi çalıştırmıyoruz. Barındırma
+                        ve içerik dağıtım sağlayıcılarımız, her web sunucusunun aldığı teknik istek verisini — IP
+                        adresi, tarayıcı bilgisi, istenen sayfa, zaman damgası — sayfayı sunmak ve kötüye kullanımı
+                        engellemek için işler.
+                    </p>
+
+                    <h3>Altare Panel hesapları (stüdyolar, oyuncular değil)</h3>
+                    <p>
+                        Panel’e bir stüdyo olarak giriş yaparsanız e-posta adresinizi ve kimlik doğrulama bilgilerinizi,
+                        stüdyo ve oyun adlarınızı, ayrıca <strong>yönetimsel işlemlerin denetim kaydını</strong>
+                        işleriz: kim hangi ayarı değiştirdi, kim oyuncu verisi dışa aktardı ya da sildi, kim deney
+                        başlattı ya da durdurdu ve ne zaman. Bu denetim kayıtları yalnızca eklenebilir niteliktedir:
+                        yetkili işlemlerin sonradan denetlenebilmesi için vardır ve Panel üzerinden düzenlenemez.
+                    </p>
+                </section>
+
+                <section>
+                    <h2 id="tr-reklam"><span class="n">04</span>Reklamlar</h2>
+                    <p>
+                        Oyunlarımız ücretsizdir; reklam ve isteğe bağlı uygulama içi satın alımlarla finanse edilir.
+                        Reklam gösteren bir oyunda, o oyunun içinde bir reklam SDK’sı çalışır ve reklamı seçmek,
+                        göstermek, sıklığını sınırlamak, ölçümlemek ve geçersiz trafiği tespit etmek amacıyla cihaz ve
+                        reklam etkileşimi verisini kendi sağlayıcısının koşulları altında işler.
+                    </p>
+                    <p>
+                        Türkiye’de, AEA’da, Birleşik Krallık’ta ve kanunun gerektirdiği diğer bölgelerde,
+                        kişiselleştirilmiş reklam açılmadan önce bir rıza ekranı gösterilir. <strong>Reddederseniz
+                        reklamlar yine çıkar ama kişiselleştirilmez</strong> — reklam profili kullanılmadan seçilir. Bu
+                        tercihi daha sonra oyunun gizlilik ayarlarından değiştirebilir, reklam kimliğinizi de istediğiniz
+                        zaman cihaz ayarlarınızdan sıfırlayabilir veya silebilirsiniz.
+                    </p>
+                    <p>
+                        Reklam verisi, Altare Panel verisinden ayrı işlenir: yukarıda belirtildiği gibi Panel SDK’sı
+                        reklam kimliğinizi hiçbir zaman almaz.
+                    </p>
+                </section>
+
+                <section>
+                    <h2 id="tr-amac"><span class="n">05</span>İşleme amaçlarımız</h2>
+                    <ul>
+                        <li>Oyunları, web sitesini ve Panel’i çalıştırmak, sürdürmek ve güvenliğini sağlamak.</li>
+                        <li>Kalıcılığı (retention), bölüm zorluğunu, oyuncunun nerede bıraktığını ve gelir modelini
+                            anlamak; böylece çalışmayanı düzeltmek.</li>
+                        <li>A/B deneyleri yürütmek ve otomatik bir değişikliğin oyunu gerçekten iyileştirip
+                            iyileştirmediğini varsaymak yerine ölçmek.</li>
+                        <li>Çökmeleri, anomalileri, hile, geçersiz trafik ve ödeme dolandırıcılığını tespit etmek.</li>
+                        <li>Reklam sunmak ve ölçümlemek, satın alma ve iadeleri yürütmek.</li>
+                        <li>Destek ve iş birliği mesajlarını yanıtlamak.</li>
+                        <li>Hukuki, vergisel ve muhasebesel yükümlülüklere uymak.</li>
+                    </ul>
+                </section>
+
+                <section>
+                    <h2 id="tr-sebep"><span class="n">06</span>Hukuki sebepler</h2>
+                    <p>KVKK md. 5 ve GDPR md. 6 kapsamında dayandığımız sebepler:</p>
+                    <ul>
+                        <li><strong>Açık rıza</strong> — kişiselleştirilmiş reklam ve yerel mevzuatın rıza aradığı
+                            hâllerde isteğe bağlı analitik.</li>
+                        <li><strong>Sözleşmenin ifası</strong> — talep ettiğiniz oyunun veya Panel hizmetinin
+                            sunulması; satın alma ve ilerleme geri yükleme dâhil.</li>
+                        <li><strong>Meşru menfaat</strong> — güvenlik, dolandırıcılık ve hile önleme, çökme teşhisi ve
+                            takma adlı veriyle ürün iyileştirme.</li>
+                        <li><strong>Hukuki yükümlülük</strong> — vergi, muhasebe ve yetkili mercilerin hukuka uygun
+                            talepleri.</li>
+                    </ul>
+                </section>
+
+                <section>
+                    <h2 id="tr-aktarim"><span class="n">07</span>Kimlerle paylaşılıyor</h2>
+                    <p>Kişisel veri satmıyoruz. Hizmeti işletmek için şu sağlayıcıları kullanıyoruz:</p>
+                    <ul>
+                        <li><strong>Google Firebase</strong> (Authentication, Firestore, Cloud Functions) — Altare
+                            Panel verisinin saklandığı ve işlendiği altyapı.</li>
+                        <li><strong>Google Play</strong> — uygulama dağıtımı, faturalandırma, satın alma doğrulama ve
+                            iadeler.</li>
+                        <li><strong>Reklam sağlayıcıları</strong> — reklam destekli oyunlarda reklam sunumu, rıza
+                            yönetimi ve reklam ölçümü için.</li>
+                        <li><strong>GitHub Pages ve Cloudflare</strong> — bu web sitesinin statik barındırması, DNS’i
+                            ve içerik dağıtımı.</li>
+                        <li><strong>Yapay zekâ model sağlayıcıları</strong> — Panel’in asistan özellikleri, yazılı
+                            analiz üretmek için toplulaştırılmış ve takma adlı metrikleri (örneğin bir huninin dönüşüm
+                            oranlarını) gönderir. Ham olay kayıtları ve Panel hesap bilgileri gönderilmez.</li>
+                    </ul>
+                    <p>
+                        Ayrıca kanunun gerektirdiği hâllerde, haklarımızı ya da kullanıcılarımızı korumak için veya
+                        birleşme, devralma, finansman ya da varlık devri kapsamında veri paylaşabiliriz.
+                    </p>
+                </section>
+
+                <section>
+                    <h2 id="tr-saklama"><span class="n">08</span>Saklama süresi</h2>
+                    <p>
+                        Olay ve ilerleme verisi, oyun işletildiği sürece saklanır; çünkü kalıcılık ve huni analizi
+                        doğası gereği geçmişe dayanır. İlerleme anlık görüntüleri, oyuncunun verisi silinene ya da oyun
+                        kapanana kadar tutulur. Denetim kayıtları, amacı hesap verebilirlik olduğu için Panel hesabının
+                        ömrü boyunca saklanır. Satın alma ve fatura kayıtları, vergi mevzuatının öngördüğü süre kadar
+                        tutulur.
+                    </p>
+                    <p>
+                        Bir oyun Panel’den silindiğinde, o oyuna ait veri ağacının tamamı — olaylar, oyuncu kayıtları,
+                        anlık görüntüler, deneyler ve huniler — onunla birlikte silinir.
+                    </p>
+                </section>
+
+                <section>
+                    <h2 id="tr-yurtdisi"><span class="n">09</span>Yurt dışına aktarım</h2>
+                    <p>
+                        Sağlayıcılarımız — başta Google olmak üzere — veriyi Türkiye dışındaki sunucularda işler. Bu
+                        aktarımlar, KVKK md. 9 ve GDPR’ın V. Bölümü kapsamındaki güvencelere, bu kapsamda
+                        sağlayıcıların standart sözleşme hükümlerine dayanır.
+                    </p>
+                </section>
+
+                <section>
+                    <h2 id="tr-cocuk"><span class="n">10</span>Çocuklar</h2>
+                    <p>
+                        Oyunlarımız 13 yaş altındaki çocuklara yönelik değildir ve onlardan bilerek kişisel veri
+                        toplamayız. Bir çocuğun bize kişisel veri verdiğini düşünüyorsanız bizimle iletişime geçin;
+                        inceleyip sileriz.
+                    </p>
+                </section>
+
+                <section>
+                    <h2 id="tr-haklar"><span class="n">11</span>Haklarınız</h2>
+                    <p>
+                        KVKK md. 11 ve GDPR md. 15–22 uyarınca; hakkınızda veri işlenip işlenmediğini öğrenme, işlenen
+                        verinin bir kopyasını isteme, düzeltilmesini veya silinmesini talep etme, işlemeye itiraz etme,
+                        işlemenin kısıtlanmasını ya da verinin taşınmasını isteme ve daha önce verdiğiniz açık rızayı
+                        geri alma haklarına sahipsiniz.
+                    </p>
+                    <p>
+                        Bunlar yalnızca yazılı taahhüt değil. Panel’in içinde hazır bir silme ve dışa aktarma yolu var;
+                        yani talep dosyalanmakla kalmıyor, uygulanıyor:
+                    </p>
+                    <ul>
+                        <li><strong>Dışa aktarma</strong>, olay geçmişinizi, oyuncu kaydınızı ve kayıtlı ilerleme
+                            anlık görüntülerinizi döner.</li>
+                        <li><strong>Silme</strong>, olaylarınızı, oyuncu kaydınızı ve anlık görüntülerinizi oyunun
+                            verisinden siler.</li>
+                    </ul>
+                    <div class="note">
+                        <p>
+                            <strong>Dürüst bir sınır.</strong> Silme, daha önce hesaplanmış toplu istatistikleri —
+                            günlük toplamlar, kalıcılık eğrileri ve huni dönüşüm oranları — yeniden hesaplamaz. Bunlar
+                            sayıdır, içlerinde hiçbir kimlik bilgisi yoktur ve tek bir oyuncu bunlardan geri
+                            çıkarılamaz. Silmenin olduğundan daha eksiksiz olduğunu iddia etmektense bunu açıkça
+                            söylemeyi tercih ediyoruz.
+                        </p>
+                    </div>
+                    <p>
+                        Haklarınızı kullanmak için
+                        <a href="mailto:berkantdogrusoz@gmail.com">berkantdogrusoz@gmail.com</a> adresine yazın.
+                        Oyunların içinde adınızı ya da e-postanızı toplamadığımız için, doğru kayıtları bulabilmek
+                        adına oyun içi oyuncu kimliğinizi sizden istememiz gerekebilir. Ayrıca veri koruma otoritesine
+                        şikâyette bulunma hakkınız vardır — Türkiye’de Kişisel Verileri Koruma Kurumu (KVKK).
+                    </p>
+                </section>
+
+                <section>
+                    <h2 id="tr-degisiklik"><span class="n">12</span>Değişiklikler ve iletişim</h2>
+                    <p>
+                        Bu politikayı güncelleyebiliriz. Güncellediğimizde yukarıdaki “son güncelleme” tarihini
+                        değiştiririz; değişiklik önemliyse ürün içinde de bildiririz.
+                    </p>
+                    <p>
+                        Soru, şikâyet ve veri talepleri:
+                        <a href="mailto:berkantdogrusoz@gmail.com">berkantdogrusoz@gmail.com</a>.
+                    </p>
+                </section>
+            </article>
+
+            <aside class="toc">
+                <div class="toc-label">İçindekiler</div>
+                <ul>
+                    <li><a href="#tr-kapsam">01 &nbsp; Kapsam</a></li>
+                    <li><a href="#tr-sorumlu">02 &nbsp; Veri sorumlusu</a></li>
+                    <li><a href="#tr-toplanan">03 &nbsp; Topladığımız veriler</a></li>
+                    <li><a href="#tr-reklam">04 &nbsp; Reklamlar</a></li>
+                    <li><a href="#tr-amac">05 &nbsp; İşleme amaçlarımız</a></li>
+                    <li><a href="#tr-sebep">06 &nbsp; Hukuki sebepler</a></li>
+                    <li><a href="#tr-aktarim">07 &nbsp; Kimlerle paylaşılıyor</a></li>
+                    <li><a href="#tr-saklama">08 &nbsp; Saklama süresi</a></li>
+                    <li><a href="#tr-yurtdisi">09 &nbsp; Yurt dışına aktarım</a></li>
+                    <li><a href="#tr-cocuk">10 &nbsp; Çocuklar</a></li>
+                    <li><a href="#tr-haklar">11 &nbsp; Haklarınız</a></li>
+                    <li><a href="#tr-degisiklik">12 &nbsp; Değişiklikler ve iletişim</a></li>
+                </ul>
+            </aside>
+        </main>
+    </div>
+
+    <!-- ═══ Altbilgi ═══ -->
+    <footer>
+        <div class="footer-inner">
+            <p class="footer-copy" data-t-en="© 2025 Altare Mobile Game Studio" data-t-tr="© 2025 Altare Mobil Oyun Stüdyosu">&copy; 2025 Altare Mobile Game Studio</p>
+            <div class="footer-links">
+                <a href="/" data-t-en="Home" data-t-tr="Ana Sayfa">Home</a>
+                <a href="/privacy-policy.html" data-t-en="Privacy Policy" data-t-tr="Gizlilik Politikası">Privacy Policy</a>
+                <a href="/terms-of-service.html" data-t-en="Terms of Service" data-t-tr="Kullanım Şartları">Terms of Service</a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="/js/legal.js"></script>
 </body>
 
 </html>

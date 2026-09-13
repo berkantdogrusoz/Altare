@@ -5,374 +5,518 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description"
-        content="Altare Terms of Service covering DreamRoyals, Altare games, the Altare website, and related services.">
-    <title>Altare Terms of Service</title>
+        content="Altare Terms of Service covering Altare games, the Altare website and the Altare Panel live-ops service.">
+    <meta name="theme-color" content="#0a0a0a" id="meta-theme-color">
+    <title>Altare — Terms of Service</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
         rel="stylesheet">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            background: #0a0a0a;
-            color: #ffffff;
-            font-family: 'Inter', sans-serif;
-            line-height: 1.7;
-        }
-
-        a {
-            color: #9cd5ff;
-            text-decoration: none;
-        }
-
-        a:hover {
-            color: #ffffff;
-        }
-
-        .shell {
-            min-height: 100vh;
-            padding: 40px 24px 80px;
-        }
-
-        .topbar {
-            max-width: 1100px;
-            margin: 0 auto 48px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 16px;
-            flex-wrap: wrap;
-        }
-
-        .brand {
-            font-size: 1.2rem;
-            font-weight: 900;
-            letter-spacing: 0.18em;
-            text-transform: uppercase;
-            color: #ffffff;
-        }
-
-        .top-links {
-            display: flex;
-            gap: 14px;
-            flex-wrap: wrap;
-        }
-
-        .top-link {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 44px;
-            padding: 0 18px;
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            border-radius: 8px;
-            color: rgba(255, 255, 255, 0.78);
-            background: rgba(255, 255, 255, 0.03);
-            transition: border-color 0.3s ease, color 0.3s ease, background 0.3s ease;
-        }
-
-        .top-link:hover {
-            color: #ffffff;
-            border-color: rgba(255, 255, 255, 0.3);
-            background: rgba(255, 255, 255, 0.06);
-        }
-
-        .hero {
-            max-width: 1100px;
-            margin: 0 auto;
-            padding: 48px 0 32px;
-        }
-
-        .eyebrow {
-            color: #06b6d4;
-            font-size: 0.82rem;
-            font-weight: 700;
-            letter-spacing: 0.26em;
-            text-transform: uppercase;
-            margin-bottom: 18px;
-        }
-
-        h1 {
-            font-size: clamp(44px, 8vw, 86px);
-            line-height: 0.95;
-            letter-spacing: -0.04em;
-            text-transform: uppercase;
-            font-weight: 900;
-            background: linear-gradient(135deg, #06b6d4, #6366f1, #a855f7);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .hero-text {
-            max-width: 760px;
-            margin-top: 24px;
-            color: rgba(255, 255, 255, 0.72);
-            font-size: 1.04rem;
-        }
-
-        .meta {
-            margin-top: 18px;
-            color: rgba(255, 255, 255, 0.48);
-            text-transform: uppercase;
-            letter-spacing: 0.16em;
-            font-size: 0.76rem;
-        }
-
-        main {
-            max-width: 1100px;
-            margin: 0 auto;
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) 280px;
-            gap: 48px;
-            align-items: start;
-        }
-
-        .content section + section {
-            margin-top: 40px;
-            padding-top: 40px;
-            border-top: 1px solid rgba(255, 255, 255, 0.08);
-        }
-
-        h2 {
-            font-size: 1.55rem;
-            font-weight: 800;
-            letter-spacing: -0.02em;
-            margin-bottom: 14px;
-        }
-
-        p + p,
-        ul + p,
-        p + ul {
-            margin-top: 16px;
-        }
-
-        ul {
-            padding-left: 22px;
-            color: rgba(255, 255, 255, 0.8);
-        }
-
-        li + li {
-            margin-top: 10px;
-        }
-
-        p,
-        li {
-            color: rgba(255, 255, 255, 0.8);
-        }
-
-        .sidebar {
-            position: sticky;
-            top: 32px;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 8px;
-            padding: 22px;
-            background: rgba(255, 255, 255, 0.03);
-        }
-
-        .sidebar h3 {
-            font-size: 0.86rem;
-            text-transform: uppercase;
-            letter-spacing: 0.18em;
-            color: rgba(255, 255, 255, 0.48);
-            margin-bottom: 14px;
-        }
-
-        .sidebar ul {
-            list-style: none;
-            padding: 0;
-        }
-
-        .sidebar li + li {
-            margin-top: 10px;
-        }
-
-        .sidebar a {
-            color: rgba(255, 255, 255, 0.72);
-        }
-
-        footer {
-            max-width: 1100px;
-            margin: 64px auto 0;
-            padding-top: 28px;
-            border-top: 1px solid rgba(255, 255, 255, 0.08);
-            display: flex;
-            justify-content: space-between;
-            gap: 16px;
-            flex-wrap: wrap;
-            color: rgba(255, 255, 255, 0.42);
-            font-size: 0.84rem;
-        }
-
-        @media (max-width: 900px) {
-            main {
-                grid-template-columns: 1fr;
+    <script>
+        // Temayi BOYAMADAN ONCE uygula — aksi halde koyu tema bekleyen
+        // kullaniciya bir kare beyaz "flash" gorunur.
+        (function () {
+            try {
+                var kayitli = localStorage.getItem('altare-theme');
+                if (!kayitli) {
+                    kayitli = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+                }
+                document.documentElement.setAttribute('data-theme', kayitli);
+            } catch (e) {
+                document.documentElement.setAttribute('data-theme', 'dark');
             }
-
-            .sidebar {
-                position: static;
-            }
-        }
-    </style>
+        })();
+    </script>
+    <link rel="stylesheet" href="/css/legal.css">
 </head>
 
 <body>
-    <div class="shell">
-        <div class="topbar">
-            <a href="/" class="brand">Altare</a>
-            <div class="top-links">
-                <a class="top-link" href="/">Back to Home</a>
-                <a class="top-link" href="/privacy-policy.html">Privacy Policy</a>
+    <!-- ═══ Navigasyon ═══ -->
+    <nav>
+        <div class="nav-inner">
+            <a href="/" class="nav-logo">
+                <!-- LOGO YER TUTUCUSU — gercek marka dosyasi gelince bu <svg>
+                     <img src="assets/logo.svg" class="logo-mark" alt="Altare">
+                     ile degistirilecek. -->
+                <svg class="logo-mark" viewBox="0 0 26 42" fill="none" aria-hidden="true">
+                    <path d="M13 3C5 12 5 18 13 22c8 4 8 10 0 19" stroke="currentColor" stroke-width="3.2"
+                        stroke-linecap="round" />
+                </svg>
+                <span class="nav-logo-text">Altare</span>
+            </a>
+
+            <div class="nav-right">
+                <ul class="nav-links">
+                    <li><a href="/" data-t-en="Home" data-t-tr="Ana Sayfa">Home</a></li>
+                    <li><a href="/privacy-policy.html" data-t-en="Privacy" data-t-tr="Gizlilik">Privacy</a></li>
+                    <li><a href="/terms-of-service.html" aria-current="page" data-t-en="Terms" data-t-tr="Şartlar">Terms</a></li>
+                </ul>
+
+                <div class="nav-tools">
+                    <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Switch theme" data-t-en="Switch theme" data-t-tr="Tema değiştir">
+                        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <circle cx="12" cy="12" r="4" />
+                            <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+                        </svg>
+                        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
+                        </svg>
+                    </button>
+
+                    <div class="lang-toggle">
+                        <span class="active-lang" id="lang-en">EN</span>
+                        <div class="lang-rule"></div>
+                        <span id="lang-tr">TR</span>
+                    </div>
+                </div>
             </div>
         </div>
+    </nav>
 
-        <header class="hero">
-            <p class="eyebrow">Legal</p>
-            <h1>Terms of Service</h1>
-            <p class="hero-text">
-                These Terms of Service govern your use of DreamRoyals, Altare games, the Altare website, and related
-                content, features, and services offered by Altare Studio.
-            </p>
-            <p class="meta">Last updated: April 20, 2026</p>
+    <!-- ═══════════════════════════════════════════════════════════════════
+         INGILIZCE
+         ═══════════════════════════════════════════════════════════════════ -->
+    <div data-doc-lang="en">
+        <header class="doc-head">
+            <div class="wrap">
+                <div class="section-index">
+                    <span class="num">02</span>
+                    <span class="rule"></span>
+                    <span>Legal</span>
+                </div>
+                <h1 class="doc-title" data-doc-title="Altare — Terms of Service">Terms of<br>Service</h1>
+                <p class="doc-lead">
+                    These terms govern your use of Altare's mobile games, this website, and
+                    <strong>Altare Panel</strong> — the live-ops service we offer to other studios. Sections 01–10
+                    apply to everyone. Section 11 applies only if you use the Panel as a studio.
+                </p>
+                <div class="doc-meta">
+                    <span>Last updated <span class="v">13 September 2026</span></span>
+                    <span>Provider <span class="v">Altare, İstanbul</span></span>
+                    <span>Governing law <span class="v">Türkiye</span></span>
+                </div>
+            </div>
         </header>
 
-        <main>
+        <main class="doc-body">
             <article class="content">
-                <section id="acceptance">
-                    <h2>1. Acceptance</h2>
+                <section>
+                    <h2 id="acceptance"><span class="n">01</span>Acceptance</h2>
                     <p>
-                        By downloading, accessing, browsing, or using our games, website, or related services, you agree
-                        to these Terms. If you do not agree, do not use the services.
+                        By downloading, opening, browsing or using our games, this website or Altare Panel, you agree to
+                        these terms. If you do not agree, do not use them.
                     </p>
                 </section>
 
-                <section id="eligibility">
-                    <h2>2. Eligibility and Accounts</h2>
+                <section>
+                    <h2 id="eligibility"><span class="n">02</span>Eligibility</h2>
                     <p>
-                        You are responsible for ensuring that your use of the services is permitted under the laws that
-                        apply to you. If you are under the age required to form a binding agreement in your location, you
-                        must use the services only with permission from a parent or legal guardian.
+                        You are responsible for making sure your use is permitted by the law that applies to you. If you
+                        are below the age at which you can enter into a binding agreement where you live, you may use
+                        our services only with the permission of a parent or legal guardian.
                     </p>
                 </section>
 
-                <section id="license">
-                    <h2>3. Limited License</h2>
+                <section>
+                    <h2 id="license"><span class="n">03</span>Your licence</h2>
                     <p>
-                        Altare grants you a limited, non-exclusive, non-transferable, revocable license to use the
-                        services for personal, non-commercial entertainment, subject to these Terms and any platform rules
-                        that apply to your device or storefront.
+                        Altare grants you a limited, non-exclusive, non-transferable and revocable licence to use our
+                        games and this website for personal, non-commercial entertainment, subject to these terms and to
+                        the rules of the platform or storefront you obtained the game from.
                     </p>
                 </section>
 
-                <section id="conduct">
-                    <h2>4. Acceptable Use</h2>
+                <section>
+                    <h2 id="conduct"><span class="n">04</span>Acceptable use</h2>
                     <p>You agree not to:</p>
                     <ul>
-                        <li>copy, resell, rent, reverse engineer, decompile, modify, or create derivative works from the services, except where law clearly allows it;</li>
-                        <li>use cheats, automation, exploits, bots, unauthorized scripts, or technical abuse to gain unfair advantages;</li>
-                        <li>interfere with servers, ads, in-app purchases, analytics, consent systems, or other product infrastructure;</li>
-                        <li>use the services in a way that violates applicable law, platform policy, or the rights of others.</li>
+                        <li>copy, resell, rent, reverse engineer, decompile, modify or create derivative works from the
+                            services, except where the law expressly permits it;</li>
+                        <li>use cheats, bots, automation, exploits or unauthorised scripts to gain an unfair
+                            advantage;</li>
+                        <li>interfere with our servers, advertising, purchases, analytics, consent systems or other
+                            infrastructure, or generate invalid traffic;</li>
+                        <li>use the services in a way that breaks the law, breaches platform policy, or infringes
+                            someone else's rights.</li>
                     </ul>
                 </section>
 
-                <section id="content">
-                    <h2>5. Intellectual Property</h2>
+                <section>
+                    <h2 id="ip"><span class="n">05</span>Intellectual property</h2>
                     <p>
-                        All titles, artwork, code, gameplay systems, branding, audio, visual assets, text, and related
-                        materials in the services are owned by Altare or its licensors and are protected by intellectual
-                        property laws.
+                        All titles, artwork, code, gameplay systems, branding, audio, text and related materials in the
+                        services belong to Altare or its licensors and are protected by intellectual property law.
+                        Nothing in these terms transfers ownership to you.
                     </p>
                 </section>
 
-                <section id="purchases">
-                    <h2>6. Purchases, Virtual Items, and Ads</h2>
+                <section>
+                    <h2 id="purchases"><span class="n">06</span>Purchases, virtual items and ads</h2>
                     <p>
-                        Some services may include optional in-app purchases, rewarded ads, store offers, or virtual items.
-                        Purchases are processed by third-party storefronts such as Google Play and are subject to the
-                        terms, billing rules, and refund policies of those storefronts.
+                        Our games are free to download and are funded by advertising and optional in-app purchases.
+                        Purchases are processed by the storefront — for example Google Play — and are subject to that
+                        storefront's billing rules and refund policy, not ours. Refund requests normally go to the
+                        storefront.
                     </p>
                     <p>
-                        Unless applicable law requires otherwise, virtual items, currencies, boosts, and rewards have no
-                        cash value, are licensed and not sold to you, and may be modified, removed, or discontinued by
-                        Altare at any time.
+                        Unless the law says otherwise, virtual items, currencies, boosters and rewards are licensed to
+                        you rather than sold, have no cash value, cannot be exchanged for money, and may be changed,
+                        rebalanced or discontinued.
                     </p>
-                </section>
-
-                <section id="updates">
-                    <h2>7. Updates and Availability</h2>
                     <p>
-                        We may update, rebalance, limit, suspend, or discontinue features, events, content, rewards,
-                        pricing, and technical support at any time. We do not guarantee uninterrupted availability.
-                    </p>
-                </section>
-
-                <section id="termination">
-                    <h2>8. Suspension and Termination</h2>
-                    <p>
-                        We may suspend or terminate access to the services if we believe you violated these Terms,
-                        misused the services, created legal or technical risk, or engaged in fraud or abuse.
+                        Ad-supported games show advertising. Where the law requires it, you are asked for consent
+                        before advertising is personalised; refusing does not remove the ads, it makes them
+                        non-personalised. How advertising data is handled is described in our
+                        <a href="/privacy-policy.html">Privacy Policy</a>.
                     </p>
                 </section>
 
-                <section id="disclaimer">
-                    <h2>9. Disclaimer</h2>
+                <section>
+                    <h2 id="updates"><span class="n">07</span>Changes to the games</h2>
                     <p>
-                        To the maximum extent permitted by law, the services are provided on an “as is” and “as
-                        available” basis, without warranties of any kind, whether express or implied.
+                        We may update, rebalance, limit, suspend or discontinue features, events, content, rewards,
+                        pricing and support at any time. We run A/B experiments, which means different players may see
+                        different versions of a feature at the same time. We do not guarantee uninterrupted
+                        availability.
                     </p>
                 </section>
 
-                <section id="liability">
-                    <h2>10. Limitation of Liability</h2>
+                <section>
+                    <h2 id="termination"><span class="n">08</span>Suspension and termination</h2>
                     <p>
-                        To the maximum extent permitted by law, Altare and its affiliates, partners, and licensors will
-                        not be liable for indirect, incidental, special, consequential, or punitive damages, or for any
-                        loss of data, revenue, goodwill, or business opportunities arising from or related to the
-                        services.
+                        We may suspend or end your access if we reasonably believe you have breached these terms,
+                        misused the services, committed fraud or abuse, or created legal or technical risk. You may stop
+                        using the services at any time by uninstalling the game or closing your Panel account.
                     </p>
                 </section>
 
-                <section id="changes">
-                    <h2>11. Changes to These Terms</h2>
+                <section>
+                    <h2 id="disclaimer"><span class="n">09</span>Disclaimer</h2>
                     <p>
-                        We may update these Terms from time to time. Continued use of the services after changes take
-                        effect means you accept the revised Terms.
+                        To the fullest extent permitted by law, the services are provided “as is” and “as available”,
+                        without warranties of any kind, whether express or implied.
                     </p>
                 </section>
 
-                <section id="contact">
-                    <h2>12. Contact</h2>
+                <section>
+                    <h2 id="liability"><span class="n">10</span>Limitation of liability</h2>
                     <p>
-                        For legal, business, or support questions, contact Altare at
+                        To the fullest extent permitted by law, Altare and its partners and licensors are not liable
+                        for indirect, incidental, special, consequential or punitive damages, or for loss of data,
+                        revenue, goodwill or business opportunity arising out of the services.
+                    </p>
+                    <div class="note">
+                        <p>
+                            Nothing in these terms removes rights you have that cannot be waived by contract —
+                            including mandatory consumer rights under Turkish consumer protection law and liability we
+                            cannot exclude, such as for death, personal injury, fraud or gross negligence.
+                        </p>
+                    </div>
+                </section>
+
+                <section>
+                    <h2 id="panel"><span class="n">11</span>Altare Panel (for studios)</h2>
+                    <p>This section applies only where you use Altare Panel as a studio customer.</p>
+                    <ul>
+                        <li><strong>Your account.</strong> You are responsible for keeping your credentials and API
+                            keys confidential and for what is done through your account. Administrative actions are
+                            recorded in an append-only audit log.</li>
+                        <li><strong>Your data stays yours.</strong> You own the game data you send to the Panel. We
+                            process it to provide the service to you, and we do not sell it or use it to train
+                            third-party models.</li>
+                        <li><strong>Data protection roles.</strong> For your players' data you are the controller and
+                            we are your processor. You are responsible for giving your players the required privacy
+                            notice and for collecting any consent the law requires, before you integrate the SDK.</li>
+                        <li><strong>Automated features.</strong> The Panel includes automatic and AI-assisted features
+                            — anomaly detection, configuration changes and written analysis. These are decision
+                            <em>support</em>, not guarantees. You remain responsible for what goes live in your game,
+                            and you should validate a change before relying on it.</li>
+                        <li><strong>Fair use and availability.</strong> We may apply rate limits and quotas to protect
+                            the service. Unless we have agreed a separate service level with you in writing, the Panel
+                            is provided without an uptime commitment.</li>
+                        <li><strong>Ending the service.</strong> Either side may end the Panel relationship. On
+                            termination you may export your data; afterwards it is deleted along with the game record,
+                            subject to the retention periods in our
+                            <a href="/privacy-policy.html">Privacy Policy</a>.</li>
+                    </ul>
+                </section>
+
+                <section>
+                    <h2 id="law"><span class="n">12</span>Governing law</h2>
+                    <p>
+                        These terms are governed by the laws of the Republic of Türkiye, and the courts and enforcement
+                        offices of İstanbul have jurisdiction. If you use our services as a consumer, this does not
+                        deprive you of the protection of mandatory rules — including the right to apply to the consumer
+                        arbitration committee or consumer court where you live.
+                    </p>
+                </section>
+
+                <section>
+                    <h2 id="changes"><span class="n">13</span>Changes and contact</h2>
+                    <p>
+                        We may update these terms. Continuing to use the services after a change takes effect means you
+                        accept the revised terms; if a change materially affects Panel customers we give notice in
+                        advance.
+                    </p>
+                    <p>
+                        Legal, business and support questions:
                         <a href="mailto:berkantdogrusoz@gmail.com">berkantdogrusoz@gmail.com</a>.
                     </p>
                 </section>
             </article>
 
-            <aside class="sidebar">
-                <h3>On this page</h3>
+            <aside class="toc">
+                <div class="toc-label">Contents</div>
                 <ul>
-                    <li><a href="#acceptance">Acceptance</a></li>
-                    <li><a href="#license">License</a></li>
-                    <li><a href="#conduct">Acceptable Use</a></li>
-                    <li><a href="#purchases">Purchases and Ads</a></li>
-                    <li><a href="#termination">Termination</a></li>
-                    <li><a href="#liability">Liability</a></li>
-                    <li><a href="#contact">Contact</a></li>
+                    <li><a href="#acceptance">01 &nbsp; Acceptance</a></li>
+                    <li><a href="#eligibility">02 &nbsp; Eligibility</a></li>
+                    <li><a href="#license">03 &nbsp; Your licence</a></li>
+                    <li><a href="#conduct">04 &nbsp; Acceptable use</a></li>
+                    <li><a href="#ip">05 &nbsp; Intellectual property</a></li>
+                    <li><a href="#purchases">06 &nbsp; Purchases and ads</a></li>
+                    <li><a href="#updates">07 &nbsp; Changes to the games</a></li>
+                    <li><a href="#termination">08 &nbsp; Suspension</a></li>
+                    <li><a href="#disclaimer">09 &nbsp; Disclaimer</a></li>
+                    <li><a href="#liability">10 &nbsp; Liability</a></li>
+                    <li><a href="#panel">11 &nbsp; Altare Panel</a></li>
+                    <li><a href="#law">12 &nbsp; Governing law</a></li>
+                    <li><a href="#changes">13 &nbsp; Changes and contact</a></li>
                 </ul>
             </aside>
         </main>
-
-        <footer>
-            <span>&copy; 2026 Altare Studio</span>
-            <span><a href="/privacy-policy.html">Privacy Policy</a></span>
-        </footer>
     </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════
+         TURKCE
+         ═══════════════════════════════════════════════════════════════════ -->
+    <div data-doc-lang="tr" hidden>
+        <header class="doc-head">
+            <div class="wrap">
+                <div class="section-index">
+                    <span class="num">02</span>
+                    <span class="rule"></span>
+                    <span>Hukuki</span>
+                </div>
+                <h1 class="doc-title" data-doc-title="Altare — Kullanım Şartları">Kullanım<br>Şartları</h1>
+                <p class="doc-lead">
+                    Bu şartlar; Altare’nin mobil oyunlarını, bu web sitesini ve diğer stüdyolara sunduğumuz canlı
+                    operasyon hizmeti <strong>Altare Panel</strong>’i kullanımınızı düzenler. 01–10 arası maddeler
+                    herkes için geçerlidir. 11. madde yalnızca Panel’i bir stüdyo olarak kullanıyorsanız geçerlidir.
+                </p>
+                <div class="doc-meta">
+                    <span>Son güncelleme <span class="v">13 Eylül 2026</span></span>
+                    <span>Hizmet veren <span class="v">Altare, İstanbul</span></span>
+                    <span>Uygulanacak hukuk <span class="v">Türkiye</span></span>
+                </div>
+            </div>
+        </header>
+
+        <main class="doc-body">
+            <article class="content">
+                <section>
+                    <h2 id="tr-kabul"><span class="n">01</span>Kabul</h2>
+                    <p>
+                        Oyunlarımızı, bu web sitesini ya da Altare Panel’i indirerek, açarak, gezerek veya kullanarak bu
+                        şartları kabul etmiş olursunuz. Kabul etmiyorsanız kullanmayın.
+                    </p>
+                </section>
+
+                <section>
+                    <h2 id="tr-ehliyet"><span class="n">02</span>Kullanım ehliyeti</h2>
+                    <p>
+                        Kullanımınızın size uygulanan hukuka uygun olduğundan emin olmak sizin sorumluluğunuzdadır.
+                        Bulunduğunuz yerde bağlayıcı sözleşme kurma yaşının altındaysanız, hizmetlerimizi ancak anne,
+                        baba ya da yasal vasinizin izniyle kullanabilirsiniz.
+                    </p>
+                </section>
+
+                <section>
+                    <h2 id="tr-lisans"><span class="n">03</span>Size verilen lisans</h2>
+                    <p>
+                        Altare; oyunlarımızı ve bu web sitesini kişisel, ticari olmayan eğlence amacıyla kullanmanız
+                        için size sınırlı, münhasır olmayan, devredilemez ve geri alınabilir bir lisans verir. Bu
+                        lisans, işbu şartlara ve oyunu edindiğiniz platformun ya da mağazanın kurallarına tabidir.
+                    </p>
+                </section>
+
+                <section>
+                    <h2 id="tr-kullanim"><span class="n">04</span>Kabul edilebilir kullanım</h2>
+                    <p>Şunları yapmamayı kabul edersiniz:</p>
+                    <ul>
+                        <li>hukukun açıkça izin verdiği hâller dışında hizmetleri kopyalamak, yeniden satmak,
+                            kiralamak, tersine mühendislik uygulamak, kaynak koda dönüştürmek, değiştirmek ya da
+                            türev eser üretmek;</li>
+                        <li>haksız avantaj sağlamak için hile, bot, otomasyon, açık ya da yetkisiz betik
+                            kullanmak;</li>
+                        <li>sunucularımıza, reklamlara, satın alımlara, analitiğe, rıza sistemlerine veya diğer
+                            altyapıya müdahale etmek ya da geçersiz trafik üretmek;</li>
+                        <li>hizmetleri hukuka, platform politikasına ya da başkalarının haklarına aykırı biçimde
+                            kullanmak.</li>
+                    </ul>
+                </section>
+
+                <section>
+                    <h2 id="tr-fikri"><span class="n">05</span>Fikrî mülkiyet</h2>
+                    <p>
+                        Hizmetlerdeki tüm oyunlar, görseller, kod, oynanış sistemleri, marka unsurları, ses, metin ve
+                        ilgili materyaller Altare’ye veya lisans verenlerine aittir ve fikrî mülkiyet hukukuyla
+                        korunur. Bu şartlardaki hiçbir hüküm size mülkiyet devri sağlamaz.
+                    </p>
+                </section>
+
+                <section>
+                    <h2 id="tr-satin"><span class="n">06</span>Satın alımlar, sanal öğeler ve reklamlar</h2>
+                    <p>
+                        Oyunlarımız ücretsiz indirilir; reklam ve isteğe bağlı uygulama içi satın alımlarla finanse
+                        edilir. Satın alımlar mağaza tarafından — örneğin Google Play — işlenir ve bizim değil, o
+                        mağazanın faturalandırma kurallarına ve iade politikasına tabidir. İade talepleri kural olarak
+                        mağazaya iletilir.
+                    </p>
+                    <p>
+                        Hukuk aksini öngörmedikçe; sanal öğeler, para birimleri, güçlendiriciler ve ödüller size
+                        satılmaz, lisanslanır. Nakit değerleri yoktur, paraya çevrilemez ve değiştirilebilir, yeniden
+                        dengelenebilir ya da kaldırılabilir.
+                    </p>
+                    <p>
+                        Reklam destekli oyunlarda reklam gösterilir. Hukukun gerektirdiği yerlerde, reklam
+                        kişiselleştirilmeden önce rızanız istenir; reddetmeniz reklamları kaldırmaz, yalnızca
+                        kişiselleştirilmemiş hâle getirir. Reklam verisinin nasıl işlendiği
+                        <a href="/privacy-policy.html">Gizlilik Politikası</a>’nda anlatılmıştır.
+                    </p>
+                </section>
+
+                <section>
+                    <h2 id="tr-guncelleme"><span class="n">07</span>Oyunlardaki değişiklikler</h2>
+                    <p>
+                        Özellikleri, etkinlikleri, içerikleri, ödülleri, fiyatlandırmayı ve desteği istediğimiz zaman
+                        güncelleyebilir, yeniden dengeleyebilir, sınırlayabilir, askıya alabilir ya da sonlandırabiliriz.
+                        A/B deneyleri yürütüyoruz; bu, aynı anda farklı oyuncuların bir özelliğin farklı sürümlerini
+                        görebileceği anlamına gelir. Kesintisiz erişilebilirlik garanti etmiyoruz.
+                    </p>
+                </section>
+
+                <section>
+                    <h2 id="tr-fesih"><span class="n">08</span>Askıya alma ve sonlandırma</h2>
+                    <p>
+                        Bu şartları ihlal ettiğinize, hizmetleri kötüye kullandığınıza, dolandırıcılık ya da suistimal
+                        yaptığınıza veya hukuki ya da teknik risk yarattığınıza makul şekilde kanaat getirirsek
+                        erişiminizi askıya alabilir ya da sonlandırabiliriz. Siz de oyunu kaldırarak ya da Panel
+                        hesabınızı kapatarak dilediğiniz zaman kullanmayı bırakabilirsiniz.
+                    </p>
+                </section>
+
+                <section>
+                    <h2 id="tr-feragat"><span class="n">09</span>Garanti reddi</h2>
+                    <p>
+                        Hukukun izin verdiği azami ölçüde hizmetler “olduğu gibi” ve “mevcut hâliyle” sunulur; açık ya
+                        da zımni hiçbir garanti verilmez.
+                    </p>
+                </section>
+
+                <section>
+                    <h2 id="tr-sorumluluk"><span class="n">10</span>Sorumluluğun sınırlandırılması</h2>
+                    <p>
+                        Hukukun izin verdiği azami ölçüde Altare ile iş ortakları ve lisans verenleri; dolaylı, arızi,
+                        özel veya cezai zararlardan ya da hizmetlerden doğan veri, gelir, itibar veya iş fırsatı
+                        kaybından sorumlu değildir.
+                    </p>
+                    <div class="note">
+                        <p>
+                            Bu şartlardaki hiçbir hüküm, sözleşmeyle feragat edilemeyecek haklarınızı ortadan
+                            kaldırmaz — Tüketicinin Korunması Hakkında Kanun’dan doğan emredici tüketici hakları ile
+                            ölüm, bedensel zarar, hile veya ağır ihmal gibi hariç tutulamayan sorumluluk hâlleri dâhil.
+                        </p>
+                    </div>
+                </section>
+
+                <section>
+                    <h2 id="tr-panel"><span class="n">11</span>Altare Panel (stüdyolar için)</h2>
+                    <p>Bu madde yalnızca Altare Panel’i bir stüdyo müşterisi olarak kullandığınızda geçerlidir.</p>
+                    <ul>
+                        <li><strong>Hesabınız.</strong> Kimlik bilgilerinizin ve API anahtarlarınızın gizliliğinden ve
+                            hesabınız üzerinden yapılan işlemlerden siz sorumlusunuz. Yönetimsel işlemler, yalnızca
+                            eklenebilir bir denetim kaydına yazılır.</li>
+                        <li><strong>Verileriniz sizindir.</strong> Panel’e gönderdiğiniz oyun verisi size aittir.
+                            Bunu yalnızca size hizmeti sunmak için işleriz; satmayız ve üçüncü taraf modelleri
+                            eğitmekte kullanmayız.</li>
+                        <li><strong>Veri koruma rolleri.</strong> Oyuncularınızın verisi bakımından veri sorumlusu
+                            sizsiniz, biz veri işleyeniz. SDK’yı entegre etmeden önce oyuncularınıza gerekli aydınlatma
+                            metnini sunmak ve hukukun aradığı açık rızayı almak sizin sorumluluğunuzdadır.</li>
+                        <li><strong>Otomatik özellikler.</strong> Panel; anomali tespiti, yapılandırma değişikliği ve
+                            yazılı analiz gibi otomatik ve yapay zekâ destekli özellikler içerir. Bunlar karar
+                            <em>desteğidir</em>, garanti değildir. Oyununuzda neyin canlıya çıktığından siz
+                            sorumlusunuz ve bir değişikliğe güvenmeden önce doğrulamanız gerekir.</li>
+                        <li><strong>Adil kullanım ve erişilebilirlik.</strong> Hizmeti korumak için hız sınırı ve kota
+                            uygulayabiliriz. Sizinle yazılı ayrı bir hizmet seviyesi anlaşması yapılmadıkça Panel,
+                            çalışma süresi taahhüdü olmaksızın sunulur.</li>
+                        <li><strong>Hizmetin sona ermesi.</strong> Taraflardan her biri Panel ilişkisini
+                            sonlandırabilir. Sonlandırmada verilerinizi dışa aktarabilirsiniz; sonrasında veri, oyun
+                            kaydıyla birlikte silinir —
+                            <a href="/privacy-policy.html">Gizlilik Politikası</a>’ndaki saklama süreleri saklı
+                            kalmak kaydıyla.</li>
+                    </ul>
+                </section>
+
+                <section>
+                    <h2 id="tr-hukuk"><span class="n">12</span>Uygulanacak hukuk</h2>
+                    <p>
+                        Bu şartlara Türkiye Cumhuriyeti hukuku uygulanır; İstanbul mahkemeleri ve icra daireleri
+                        yetkilidir. Hizmetlerimizi tüketici sıfatıyla kullanıyorsanız bu hüküm, emredici hükümlerin
+                        sağladığı korumadan sizi yoksun bırakmaz — yerleşim yerinizdeki tüketici hakem heyetine ya da
+                        tüketici mahkemesine başvurma hakkınız dâhil.
+                    </p>
+                </section>
+
+                <section>
+                    <h2 id="tr-degisiklik"><span class="n">13</span>Değişiklikler ve iletişim</h2>
+                    <p>
+                        Bu şartları güncelleyebiliriz. Değişiklik yürürlüğe girdikten sonra hizmetleri kullanmaya devam
+                        etmeniz, güncellenmiş şartları kabul ettiğiniz anlamına gelir; değişiklik Panel müşterilerini
+                        esaslı biçimde etkiliyorsa önceden bildirimde bulunuruz.
+                    </p>
+                    <p>
+                        Hukuki, ticari ve destek soruları:
+                        <a href="mailto:berkantdogrusoz@gmail.com">berkantdogrusoz@gmail.com</a>.
+                    </p>
+                </section>
+            </article>
+
+            <aside class="toc">
+                <div class="toc-label">İçindekiler</div>
+                <ul>
+                    <li><a href="#tr-kabul">01 &nbsp; Kabul</a></li>
+                    <li><a href="#tr-ehliyet">02 &nbsp; Kullanım ehliyeti</a></li>
+                    <li><a href="#tr-lisans">03 &nbsp; Size verilen lisans</a></li>
+                    <li><a href="#tr-kullanim">04 &nbsp; Kabul edilebilir kullanım</a></li>
+                    <li><a href="#tr-fikri">05 &nbsp; Fikrî mülkiyet</a></li>
+                    <li><a href="#tr-satin">06 &nbsp; Satın alımlar ve reklamlar</a></li>
+                    <li><a href="#tr-guncelleme">07 &nbsp; Oyunlardaki değişiklikler</a></li>
+                    <li><a href="#tr-fesih">08 &nbsp; Askıya alma</a></li>
+                    <li><a href="#tr-feragat">09 &nbsp; Garanti reddi</a></li>
+                    <li><a href="#tr-sorumluluk">10 &nbsp; Sorumluluk</a></li>
+                    <li><a href="#tr-panel">11 &nbsp; Altare Panel</a></li>
+                    <li><a href="#tr-hukuk">12 &nbsp; Uygulanacak hukuk</a></li>
+                    <li><a href="#tr-degisiklik">13 &nbsp; Değişiklikler ve iletişim</a></li>
+                </ul>
+            </aside>
+        </main>
+    </div>
+
+    <!-- ═══ Altbilgi ═══ -->
+    <footer>
+        <div class="footer-inner">
+            <p class="footer-copy" data-t-en="© 2025 Altare Mobile Game Studio" data-t-tr="© 2025 Altare Mobil Oyun Stüdyosu">&copy; 2025 Altare Mobile Game Studio</p>
+            <div class="footer-links">
+                <a href="/" data-t-en="Home" data-t-tr="Ana Sayfa">Home</a>
+                <a href="/privacy-policy.html" data-t-en="Privacy Policy" data-t-tr="Gizlilik Politikası">Privacy Policy</a>
+                <a href="/terms-of-service.html" data-t-en="Terms of Service" data-t-tr="Kullanım Şartları">Terms of Service</a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="/js/legal.js"></script>
 </body>
 
 </html>

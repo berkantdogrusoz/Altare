@@ -1,0 +1,547 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   ALTARE — HUKUKI SAYFALAR (gizlilik + kullanim sartlari)
+
+   index.html'deki "Yon A" tasarim dilinin ayni jetonlarini kullanir.
+   Iki sayfa da bu dosyayi paylasir; index.html'den KOPYALAMA, jetonlari
+   degistirirsen iki yeri birden guncelle.
+
+   Amber'de ayni bilincli ayrim gecerli:
+     --amber       DOLGU (rozet zemini), ustundeki metin --on-amber
+     --amber-text  YAZI — #fbbf24 kirik beyaz uzerinde okunmaz, acik
+                   modda koyulasir
+   ═══════════════════════════════════════════════════════════════════════ */
+
+:root,
+:root[data-theme="dark"] {
+    --bg: #0a0a0a;
+    --surface: rgba(255, 255, 255, 0.02);
+    --fg: #ffffff;
+    --muted: rgba(255, 255, 255, 0.55);
+    --muted-2: rgba(255, 255, 255, 0.42);
+    --faint: rgba(255, 255, 255, 0.34);
+    --line: rgba(255, 255, 255, 0.10);
+    --line-soft: rgba(255, 255, 255, 0.07);
+    --amber: #fbbf24;
+    --amber-text: #fbbf24;
+    --amber-hover: #fcd34d;
+    --on-amber: #0a0a0a;
+    --nav-bg: rgba(10, 10, 10, 0.86);
+}
+
+:root[data-theme="light"] {
+    --bg: #faf8f5;
+    --surface: #ffffff;
+    --fg: #0a0a0a;
+    --muted: rgba(10, 10, 10, 0.58);
+    --muted-2: rgba(10, 10, 10, 0.45);
+    --faint: rgba(10, 10, 10, 0.38);
+    --line: rgba(10, 10, 10, 0.12);
+    --line-soft: rgba(10, 10, 10, 0.09);
+    --amber: #fbbf24;
+    --amber-text: #9a6700;
+    --amber-hover: #7c5200;
+    --on-amber: #0a0a0a;
+    --nav-bg: rgba(250, 248, 245, 0.88);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    line-height: 1.7;
+    overflow-x: hidden;
+    transition: background 0.25s ease, color 0.25s ease;
+}
+
+::selection {
+    background: var(--amber);
+    color: var(--on-amber);
+}
+
+.wrap {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 0 48px;
+}
+
+/* ─── Navigasyon ─── */
+nav {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    background: var(--nav-bg);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--line-soft);
+}
+
+.nav-inner {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 18px 48px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 24px;
+}
+
+.nav-logo {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    color: var(--fg);
+    text-decoration: none;
+    flex-shrink: 0;
+}
+
+/* LOGO: gercek marka dosyasi geldiginde asagidaki <svg> yerine
+   <img src="assets/logo.svg" class="logo-mark" alt="Altare"> konur. */
+.logo-mark {
+    width: 19px;
+    height: 30px;
+    display: block;
+    flex-shrink: 0;
+}
+
+.nav-logo-text {
+    font-size: 18px;
+    font-weight: 900;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+}
+
+.nav-right {
+    display: flex;
+    align-items: center;
+    gap: 26px;
+}
+
+.nav-links {
+    list-style: none;
+    display: flex;
+    gap: 26px;
+}
+
+.nav-links a {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--muted);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.nav-links a:hover,
+.nav-links a[aria-current="page"] {
+    color: var(--fg);
+}
+
+.nav-tools {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+/* Tema dugmesi — 44px dokunma hedefi */
+.theme-toggle {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--muted);
+    transition: color 0.2s ease;
+}
+
+.theme-toggle:hover {
+    color: var(--fg);
+}
+
+.theme-toggle svg {
+    width: 18px;
+    height: 18px;
+    display: block;
+}
+
+:root[data-theme="dark"] .icon-sun { display: block; }
+:root[data-theme="dark"] .icon-moon { display: none; }
+:root[data-theme="light"] .icon-sun { display: none; }
+:root[data-theme="light"] .icon-moon { display: block; }
+
+.lang-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+}
+
+.lang-toggle span {
+    color: var(--faint);
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.lang-toggle span.active-lang {
+    color: var(--fg);
+}
+
+.lang-rule {
+    width: 1px;
+    height: 12px;
+    background: var(--line);
+}
+
+/* ─── Baslik ─── */
+.doc-head {
+    padding: 76px 0 48px;
+    border-bottom: 1px solid var(--line);
+}
+
+.section-index {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--faint);
+    margin-bottom: 26px;
+}
+
+.section-index .num {
+    color: var(--amber-text);
+}
+
+.section-index .rule {
+    width: 46px;
+    height: 1px;
+    background: var(--line);
+}
+
+.doc-title {
+    font-size: clamp(40px, 7vw, 84px);
+    font-weight: 900;
+    line-height: 0.94;
+    letter-spacing: -0.04em;
+}
+
+.doc-lead {
+    max-width: 720px;
+    margin-top: 26px;
+    color: var(--muted);
+    font-size: 16px;
+    text-wrap: pretty;
+}
+
+.doc-meta {
+    margin-top: 28px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 34px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--faint);
+}
+
+.doc-meta .v {
+    color: var(--muted-2);
+    margin-left: 10px;
+}
+
+/* ─── Govde ─── */
+.doc-body {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 0 48px 84px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 260px;
+    gap: 64px;
+    align-items: start;
+}
+
+.content {
+    min-width: 0;
+    padding-top: 54px;
+}
+
+.content section + section {
+    margin-top: 46px;
+    padding-top: 46px;
+    border-top: 1px solid var(--line-soft);
+}
+
+.content h2 {
+    font-size: clamp(21px, 2.2vw, 27px);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+    margin-bottom: 16px;
+    scroll-margin-top: 92px;
+}
+
+.content h2 .n {
+    color: var(--amber-text);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    display: block;
+    margin-bottom: 10px;
+}
+
+.content h3 {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--muted-2);
+    margin: 30px 0 12px;
+}
+
+.content p,
+.content li {
+    color: var(--muted);
+    font-size: 15.5px;
+    text-wrap: pretty;
+}
+
+.content p + p,
+.content ul + p,
+.content p + ul,
+.content table + p {
+    margin-top: 16px;
+}
+
+.content ul {
+    padding-left: 20px;
+}
+
+.content li + li {
+    margin-top: 10px;
+}
+
+.content li::marker {
+    color: var(--faint);
+}
+
+.content strong {
+    color: var(--fg);
+    font-weight: 600;
+}
+
+.content a {
+    color: var(--amber-text);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.2s ease, color 0.2s ease;
+}
+
+.content a:hover {
+    color: var(--amber-hover);
+    border-bottom-color: currentColor;
+}
+
+code {
+    font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+    font-size: 0.88em;
+    color: var(--fg);
+    background: var(--surface);
+    border: 1px solid var(--line-soft);
+    border-radius: 4px;
+    padding: 1px 6px;
+}
+
+/* Toplanan alanlarin dokumu — mobilde yatay kaydirilir */
+.table-scroll {
+    overflow-x: auto;
+    margin-top: 18px;
+    border: 1px solid var(--line-soft);
+    border-radius: 10px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    min-width: 460px;
+}
+
+th,
+td {
+    text-align: left;
+    padding: 13px 16px;
+    border-bottom: 1px solid var(--line-soft);
+    vertical-align: top;
+    color: var(--muted);
+}
+
+th {
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--faint);
+    white-space: nowrap;
+}
+
+tr:last-child td {
+    border-bottom: none;
+}
+
+td:first-child {
+    color: var(--fg);
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+/* Dikkat kutusu — "sunu bilerek yapiyoruz" notlari */
+.note {
+    margin-top: 20px;
+    border-left: 2px solid var(--amber);
+    background: var(--surface);
+    padding: 16px 20px;
+    border-radius: 0 8px 8px 0;
+}
+
+.note p {
+    font-size: 14.5px;
+}
+
+/* ─── Icindekiler ─── */
+.toc {
+    position: sticky;
+    top: 92px;
+    padding-top: 54px;
+}
+
+.toc-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.26em;
+    text-transform: uppercase;
+    color: var(--faint);
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--line);
+}
+
+.toc ul {
+    list-style: none;
+    margin-top: 14px;
+}
+
+.toc li + li {
+    margin-top: 2px;
+}
+
+.toc a {
+    display: block;
+    padding: 6px 0;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--muted-2);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.toc a:hover {
+    color: var(--fg);
+}
+
+/* ─── Altbilgi ─── */
+footer {
+    border-top: 1px solid var(--line);
+}
+
+.footer-inner {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 34px 48px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 22px;
+    flex-wrap: wrap;
+}
+
+.footer-copy {
+    font-size: 12.5px;
+    color: var(--faint);
+}
+
+.footer-links {
+    display: flex;
+    gap: 26px;
+}
+
+.footer-links a {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted-2);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.footer-links a:hover {
+    color: var(--fg);
+}
+
+/* ─── Dar ekran ─── */
+@media (max-width: 1040px) {
+    .doc-body {
+        grid-template-columns: 1fr;
+        gap: 0;
+    }
+
+    .toc {
+        position: static;
+        padding-top: 44px;
+        order: -1;
+    }
+
+    .content {
+        padding-top: 40px;
+    }
+}
+
+@media (max-width: 760px) {
+    .wrap,
+    .nav-inner,
+    .doc-body,
+    .footer-inner {
+        padding-left: 24px;
+        padding-right: 24px;
+    }
+
+    .nav-links {
+        display: none;
+    }
+
+    .doc-head {
+        padding: 48px 0 36px;
+    }
+
+    .content section + section {
+        margin-top: 36px;
+        padding-top: 36px;
+    }
+}
