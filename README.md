@@ -40,6 +40,14 @@ paritesi (C# ≡ JavaScript — tek bit ayrışma her deneyi sessizce
 anlamsızlaştırır), JSON ayrıştırıcı, panel render'ı ve Unity SDK'nın
 yapısal dengesi.
 
+## ⚠️ Önce bunu oku
+
+[`docs/ALTARE_KONUMLANDIRMA.md`](docs/ALTARE_KONUMLANDIRMA.md) — **Altare bir
+oyun stüdyosudur.** Panel, stüdyonun hem kendi içinde kullandığı hem de
+dışarıya sunduğu bir hizmettir. Ana site oyunları ve şirketi anlatır; panel
+sonradan anlatılır. Bu bir tercih değil, sınırdır — site veya anlatı üzerinde
+çalışmadan önce o dosyayı oku.
+
 ## Nerede durduğumuzu görmek için
 
 [`docs/ALTARE_SCALE_ROADMAP.md` §0.1](docs/ALTARE_SCALE_ROADMAP.md) —
