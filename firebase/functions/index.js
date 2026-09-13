@@ -2631,47 +2631,64 @@ exports.listMyGames = onCall(async (request) => {
 // deleteGame — callable, sahibi VEYA admin silebilir
 // ─────────────────────────────────────────────────────────────────────────────
 
-exports.deleteGame = onCall(async (request) => {
-  if (!request.auth) {
-    throw new HttpsError("unauthenticated", "Sign-in required.");
-  }
-  const { gameId } = request.data || {};
-  if (!gameId || typeof gameId !== "string") {
-    throw new HttpsError("invalid-argument", "gameId is required.");
-  }
+exports.deleteGame = onCall(
+  // Silme, oyunun TUM alt koleksiyonlarini dolasir; buyuk bir oyunda
+  // yuz binlerce olay olabilir. Varsayilan 60 sn yetmez.
+  { timeoutSeconds: 540, memory: "512MiB" },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Sign-in required.");
+    }
+    const { gameId } = request.data || {};
+    if (!gameId || typeof gameId !== "string") {
+      throw new HttpsError("invalid-argument", "gameId is required.");
+    }
 
-  const gameRef = db.collection("games").doc(gameId);
-  const gameSnap = await gameRef.get();
-  if (!gameSnap.exists) {
-    throw new HttpsError("not-found", "Oyun bulunamadi.");
+    const gameRef = db.collection("games").doc(gameId);
+    const gameSnap = await gameRef.get();
+    if (!gameSnap.exists) {
+      throw new HttpsError("not-found", "Oyun bulunamadi.");
+    }
+
+    const data = gameSnap.data();
+    const isOwner = data.developerId === request.auth.uid;
+    const isAdminClaim = request.auth.token.admin === true;
+    if (!isOwner && !isAdminClaim) {
+      throw new HttpsError("permission-denied", "Bu oyunu silme yetkin yok.");
+    }
+
+    // ⚠ ONCEDEN BURADA SESSIZ BIR VERI SIZINTISI VARDI.
+    // Yalnizca DORT alt koleksiyon elle siliniyordu: events, feedback,
+    // ai_reports, stats. Oysa oyunun altinda bugun sunlar da var:
+    // players, retention, experiments, funnels, auto_heal, config, alerts,
+    // player_snapshots, copilot_chats, benchmarks.
+    // Sonuc: oyun dokumani siliniyor ama alt koleksiyonlar YETIM KALIYORDU.
+    // Iki gercek zarar veriyordu:
+    //   1) Silinen oyunun verisi Firestore'da kalip fatura uretiyordu
+    //   2) Ayni gameId ile yeni oyun acilirsa eski retention/deney verisini
+    //      MIRAS aliyordu — yani yeni oyun yanlis sayilarla basliyordu
+    // Ayrica bu liste her yeni koleksiyonda elle guncellenmek zorundaydi;
+    // kayma kaciniimazdi (nitekim iki kez kaydi).
+    //
+    // recursiveDelete dokumani ve ALTINDAKI HER SEYI dolasir — hangi
+    // koleksiyonlarin var oldugunu bilmesi gerekmez. Yeni bir alt koleksiyon
+    // eklendiginde burasi kendiliginden kapsar.
+    await db.recursiveDelete(gameRef);
+
+    if (data.developerId) {
+      await db.collection("developers").doc(data.developerId).set(
+        {
+          gameIds: admin.firestore.FieldValue.arrayRemove(gameId),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+    }
+
+    logger.info("game deleted", { gameId, by: request.auth.uid });
+    return { success: true, gameId };
   }
-
-  const data = gameSnap.data();
-  const isOwner = data.developerId === request.auth.uid;
-  const isAdminClaim = request.auth.token.admin === true;
-  if (!isOwner && !isAdminClaim) {
-    throw new HttpsError("permission-denied", "Bu oyunu silme yetkin yok.");
-  }
-
-  await deleteCollectionRecursive(gameRef.collection("events"), 200);
-  await deleteCollectionRecursive(gameRef.collection("feedback"), 200);
-  await deleteCollectionRecursive(gameRef.collection("ai_reports"), 100);
-  await deleteCollectionRecursive(gameRef.collection("stats"), 100);
-  await gameRef.delete();
-
-  if (data.developerId) {
-    await db.collection("developers").doc(data.developerId).set(
-      {
-        gameIds: admin.firestore.FieldValue.arrayRemove(gameId),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      },
-      { merge: true }
-    );
-  }
-
-  logger.info("game deleted", { gameId, by: request.auth.uid });
-  return { success: true, gameId };
-});
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // createCustomer — admin-only, B2B sozlesme sonrasi musteri olusturur
@@ -3901,16 +3918,10 @@ async function reserveUniqueGameId(baseId) {
   return `${base}-${Date.now().toString(36)}`;
 }
 
-async function deleteCollectionRecursive(collectionRef, batchSize) {
-  while (true) {
-    const snap = await collectionRef.limit(batchSize).get();
-    if (snap.empty) return;
-    const batch = db.batch();
-    snap.docs.forEach((d) => batch.delete(d.ref));
-    await batch.commit();
-    if (snap.size < batchSize) return;
-  }
-}
+// NOT: elle yazilmis deleteCollectionRecursive kaldirildi. Yerine Admin
+// SDK'nin db.recursiveDelete()'i kullaniliyor: alt koleksiyonlari kendisi
+// kesfediyor, paralel calisiyor ve "yeni koleksiyon eklendi ama silme
+// listesine yazilmadi" kaymasini yapisal olarak imkansiz kiliyor.
 
 // ═══════════════════════════════════════════════════════════════════════════
 // PUBLIC ENDPOINTS — Altare Discover (login gerektirmez)
