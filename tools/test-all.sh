@@ -41,6 +41,11 @@ calistir "Unity SDK C# yapisal denge" \
 # oyle bir hata sayfanin TUM JS'ini oldurur ve bir kez canliya cikti.
 calistir "HTML ici script bloklari (modul seviyesi sozdizimi)" \
   python3 tools/check-html-js.py
+# Ceviri kaymasi bu depoda tekrar tekrar cikti: bir yere eklenen anahtar
+# obur yere eklenmiyor ve HICBIR BELIRTI olmuyor — dil degisince metin
+# oldugu gibi kaliyor.
+calistir "Ceviri sozlukleri (EN/TR butunlugu)" \
+  python3 tools/check-i18n.py
 
 printf '\n\033[1m▶ Sozdizimi\033[0m\n'
 for f in firebase/functions/index.js firebase/functions/experiments.js \
