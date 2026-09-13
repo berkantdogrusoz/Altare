@@ -33,16 +33,16 @@ function fonksiyonuAl(ad) {
   return panel.slice(b, e + "\n        }".length);
 }
 
-const kaynak = ["formatDuration", "renderFunnels"].map(fonksiyonuAl).join("\n\n") + `
+const kaynak = ["formatStepDuration", "renderFunnels"].map(fonksiyonuAl).join("\n\n") + `
 const _kok = { innerHTML: "", textContent: "", querySelectorAll: () => [] };
 const _bos = { innerHTML: "", textContent: "", querySelectorAll: () => [] };
 function $(id) { return id === "funnel-list" ? _kok : _bos; }
 function escapeHtml(x) { return String(x == null ? "" : x).replace(/[&<>"']/g, c =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
 function t(k) { return "[" + k + "]"; }
-export { renderFunnels, formatDuration, _kok };
+export { renderFunnels, formatStepDuration, _kok };
 `;
-const { renderFunnels, formatDuration, _kok } = await import(
+const { renderFunnels, formatStepDuration, _kok } = await import(
   "data:text/javascript;base64," + Buffer.from(kaynak, "utf8").toString("base64"));
 
 let g = 0, k = 0; const h = [];
@@ -122,12 +122,12 @@ for (const [ad, f] of [
   catch (e) { ok("cokmedi: " + ad, false, e.message); }
 }
 
-ok("sure: 30sn", formatDuration(30) === "30s");
-ok("sure: 90sn -> 2dk", formatDuration(90) === "2dk");
-ok("sure: 5400 -> 1.5sa", formatDuration(5400) === "1.5sa");
-ok("sure: 172800 -> 2.0g", formatDuration(172800) === "2.0g");
-ok("sure: null", formatDuration(null) === null);
-ok("sure: negatif", formatDuration(-5) === null);
+ok("sure: 30sn", formatStepDuration(30) === "30s");
+ok("sure: 90sn -> 2dk", formatStepDuration(90) === "2dk");
+ok("sure: 5400 -> 1.5sa", formatStepDuration(5400) === "1.5sa");
+ok("sure: 172800 -> 2.0g", formatStepDuration(172800) === "2.0g");
+ok("sure: null", formatStepDuration(null) === null);
+ok("sure: negatif", formatStepDuration(-5) === null);
 
 console.log("\n" + "=".repeat(60));
 if (k === 0) console.log(`✅  HUNI RENDER TESTLERI GECTI — ${g} kontrol`);

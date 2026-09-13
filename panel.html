@@ -495,6 +495,45 @@
         .funnel-measure { background: rgba(236,72,153,0.15); color: #f9a8d4; border: 1px solid rgba(236,72,153,0.32); }
         .funnel-delete { background: rgba(239,68,68,0.12); color: #f87171; border: 1px solid rgba(239,68,68,0.28); }
 
+        /* Denetim Kaydı */
+        .audit-list { display: flex; flex-direction: column; }
+        .audit-row {
+            display: flex; gap: 14px; padding: 10px 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            border-left: 2px solid transparent;
+        }
+        .audit-row:hover { background: rgba(255,255,255,0.02); }
+        .audit-row.denied { border-left-color: #ef4444; background: rgba(239,68,68,0.04); }
+        .audit-row.system { border-left-color: #6366f1; }
+        .audit-time {
+            flex: 0 0 140px; font-family: 'JetBrains Mono', monospace;
+            font-size: 0.72rem; color: var(--text-faint); padding-top: 2px;
+        }
+        .audit-main { flex: 1; min-width: 0; }
+        .audit-action {
+            font-family: 'JetBrains Mono', monospace; font-size: 0.82rem;
+            font-weight: 700; color: var(--text);
+        }
+        .audit-badge {
+            font-size: 0.62rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.06em; padding: 2px 6px; border-radius: 4px; margin-left: 6px;
+        }
+        .audit-badge.denied { background: rgba(239,68,68,0.18); color: #f87171; }
+        .audit-badge.admin { background: rgba(250,204,21,0.15); color: #facc15; }
+        .audit-meta { font-size: 0.76rem; color: var(--text-dim); margin-top: 2px; word-break: break-all; }
+        .audit-reason { font-size: 0.74rem; color: #f87171; margin-top: 3px; }
+        .audit-details {
+            font-family: 'JetBrains Mono', monospace; font-size: 0.7rem;
+            color: var(--text-faint); margin-top: 3px; word-break: break-all;
+        }
+        .gdpr-ok { font-size: 0.84rem; color: #4ade80; padding: 8px 10px; background: rgba(74,222,128,0.08); border-radius: 6px; }
+        .gdpr-err { font-size: 0.84rem; color: #f87171; padding: 8px 10px; background: rgba(239,68,68,0.08); border-radius: 6px; }
+        .gdpr-note { font-size: 0.74rem; color: var(--text-faint); margin-top: 6px; line-height: 1.5; }
+        @media (max-width: 640px) {
+            .audit-row { flex-direction: column; gap: 4px; }
+            .audit-time { flex: none; }
+        }
+
         /* Auto-Heal Modal */
         .autoheal-modal-overlay {
             position: fixed; inset: 0;
@@ -1472,6 +1511,7 @@
                     <button class="nav-tab" data-tab="performance"><span class="dot"></span> <span data-i18n="tab.performance">Crash & Performance</span></button>
                     <button class="nav-tab" data-tab="device-intel"><span class="dot"></span> <span data-i18n="tab.device-intel">Device Intelligence</span></button>
                     <button class="nav-tab" data-tab="player-rollback"><span class="dot"></span> <span data-i18n="tab.player-rollback">Oyuncu State Rollback</span></button>
+                    <button class="nav-tab" data-tab="audit"><span class="dot"></span> <span data-i18n="tab.audit">Denetim Kaydı</span></button>
                 </div>
                 <div class="sidebar-section">
                     <div class="sidebar-label" data-i18n="sidebar.marketIntel">Market Intelligence</div>
@@ -2228,6 +2268,43 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
                             </div>
                         </div>
                     </div>
+
+                    <div class="section-block">
+                        <div class="section-head">
+                            <h3 data-i18n="gdpr.title">🔒 Oyuncu Verisi — Silme & Dışa Aktarma</h3>
+                            <span class="head-meta" data-i18n="gdpr.legal">KVKK md. 7 · GDPR md. 15/17</span>
+                        </div>
+                        <div class="section-content">
+                            <div class="info-banner" style="background: rgba(148,163,184,0.08); border-left: 3px solid #94a3b8; margin-bottom: 12px;" data-i18n-html="gdpr.banner">
+                                Bir oyuncu <strong>"verimi silin"</strong> dediğinde bu butonu kullan. Oyuncunun tüm event'leri, retention kaydı ve state snapshot'ları silinir. <strong>Toplu istatistikler</strong> (retention oranı, huni, günlük stats) geri hesaplanmaz — onlar anonim toplamlardır, tek bir oyuncuyu tanımlamaz. Her iki işlem de <strong>denetim kaydına</strong> geçer.
+                            </div>
+                            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                <button class="btn-link" id="gdpr-export-btn" style="padding: 8px 14px; border: 1px solid rgba(148,163,184,0.3); border-radius: 6px;" data-i18n="gdpr.export">⬇ Verisini Dışa Aktar (JSON)</button>
+                                <button class="btn-link danger" id="gdpr-delete-btn" style="padding: 8px 14px; border: 1px solid rgba(239,68,68,0.3); border-radius: 6px;" data-i18n="gdpr.delete">🗑 Verisini Kalıcı Sil</button>
+                            </div>
+                            <div id="gdpr-result" style="margin-top: 12px;"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Denetim Kaydı — kurumsal satışın ön koşulu -->
+                <section class="tab-view" data-tab="audit">
+                    <div class="info-banner" data-i18n-html="audit.banner">
+                        <strong>📋 Denetim Kaydı</strong> — Kim, ne zaman, ne yaptı? Canlı oyuna config yazan her işlem buraya düşer. <strong>Reddedilen girişimler de</strong> kayda geçer — denetçiyi asıl ilgilendiren onlardır. Kayıt <strong>değişmezdir</strong>: silinemez, düzenlenemez.
+                    </div>
+                    <div class="section-block">
+                        <div class="section-head">
+                            <h3 data-i18n="audit.title">Son İşlemler</h3>
+                            <span class="head-meta">
+                                <button class="primary-btn" id="audit-refresh-btn" style="padding: 5px 12px; font-size: 0.8rem;" data-i18n="audit.refresh">↻ Yenile</button>
+                            </span>
+                        </div>
+                        <div class="section-content">
+                            <div id="audit-list">
+                                <div class="empty-state" data-i18n="audit.empty">Yenile'ye basarak bu oyunun denetim kaydını getir.</div>
+                            </div>
+                        </div>
+                    </div>
                 </section>
 
                 <!-- Industry Benchmark (Cross-Tenant Network Effect) -->
@@ -2392,6 +2469,7 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
             wirePlayerRollback();
             wireIndustryBenchmark();
             wireFunnels();
+            wireAudit();
             startClock();
             loadMyGamesIntoSelector();
             initLanguageToggle('lang-toggle');
@@ -2804,6 +2882,144 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
         }
 
         // ─────────────────────────────────────────────────────────────────
+        // Denetim Kaydı + KVKK/GDPR oyuncu verisi araçları
+        // ─────────────────────────────────────────────────────────────────
+
+        function wireAudit() {
+            const yenile = $('audit-refresh-btn');
+            if (yenile) yenile.addEventListener('click', () => loadAuditLog(yenile));
+            const disa = $('gdpr-export-btn');
+            if (disa) disa.addEventListener('click', () => exportPlayerData(disa));
+            const sil = $('gdpr-delete-btn');
+            if (sil) sil.addEventListener('click', () => deletePlayerData(sil));
+        }
+
+        function renderAuditLog(entries) {
+            const root = $('audit-list');
+            if (!root) return;
+            if (!entries || entries.length === 0) {
+                root.innerHTML = `<div class="empty-state">${t('audit.noEntries')}</div>`;
+                return;
+            }
+            const lang = getLanguage();
+            root.innerHTML = `<div class="audit-list">${entries.map(e => {
+                const zaman = e.at
+                    ? new Date(e.at).toLocaleString(lang === 'en' ? 'en-US' : 'tr-TR',
+                        { dateStyle: 'short', timeStyle: 'medium' })
+                    : '—';
+                const reddedildi = e.result === 'denied';
+                const sistem = e.actorUid === 'system';
+                const aktor = sistem
+                    ? t('audit.systemActor')
+                    : (e.actorEmail || e.actorUid || '—');
+                const ayrinti = Object.keys(e.details || {}).length
+                    ? Object.entries(e.details)
+                        .map(([k, v]) => `${k}=${Array.isArray(v) ? v.join('|') : v}`)
+                        .join(' · ')
+                    : '';
+                return `
+                    <div class="audit-row${reddedildi ? ' denied' : ''}${sistem ? ' system' : ''}">
+                        <div class="audit-time">${escapeHtml(zaman)}</div>
+                        <div class="audit-main">
+                            <div class="audit-action">
+                                ${escapeHtml(e.action)}
+                                ${reddedildi ? `<span class="audit-badge denied">${t('audit.denied')}</span>` : ''}
+                                ${e.actorIsAdmin && !sistem ? `<span class="audit-badge admin">admin</span>` : ''}
+                            </div>
+                            <div class="audit-meta">
+                                ${escapeHtml(aktor)}${e.targetId ? ' → ' + escapeHtml(e.targetId) : ''}
+                            </div>
+                            ${e.reason ? `<div class="audit-reason">${escapeHtml(e.reason)}</div>` : ''}
+                            ${ayrinti ? `<div class="audit-details">${escapeHtml(ayrinti)}</div>` : ''}
+                        </div>
+                    </div>`;
+            }).join('')}</div>`;
+        }
+
+        async function loadAuditLog(btn) {
+            const root = $('audit-list');
+            if (btn) { btn.disabled = true; btn.textContent = t('audit.loading'); }
+            try {
+                const fn = httpsCallable(functions, 'listAuditLog', { timeout: 60000 });
+                const r = await fn({ gameId: currentGame, limit: 200 });
+                renderAuditLog(r.data?.entries || []);
+            } catch (err) {
+                if (root) {
+                    root.innerHTML = `<div class="empty-state">${t('audit.error')}: ${
+                        escapeHtml(err.message || '')}</div>`;
+                }
+            }
+            if (btn) { btn.disabled = false; btn.textContent = '↻ ' + t('audit.refresh'); }
+        }
+
+        /** Rollback sekmesindeki arama kutusundan playerAnonId al. */
+        function gdprPlayerId() {
+            const el = $('rollback-player-id');
+            const v = el ? String(el.value || '').trim() : '';
+            if (!v) { alert(t('gdpr.needId')); return null; }
+            if (!currentGame) { alert(t('funnel.noGame')); return null; }
+            return v;
+        }
+
+        async function exportPlayerData(btn) {
+            const pid = gdprPlayerId();
+            if (!pid) return;
+            const kutu = $('gdpr-result');
+            if (btn) btn.disabled = true;
+            try {
+                const fn = httpsCallable(functions, 'exportPlayerData', { timeout: 240000 });
+                const r = await fn({ gameId: currentGame, playerAnonId: pid });
+                const veri = r.data || {};
+                // Tarayıcıdan indir — veri panelde asılı kalmasın.
+                const blob = new Blob([JSON.stringify(veri, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `altare-player-${pid.slice(0, 24)}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                if (kutu) {
+                    kutu.innerHTML = `<div class="gdpr-ok">✅ ${t('gdpr.exportDone')} · ${
+                        (veri.events || []).length} event${
+                        veri.truncated ? ` · ⚠ ${t('gdpr.truncated')}` : ''}</div>`;
+                }
+            } catch (err) {
+                if (kutu) kutu.innerHTML = `<div class="gdpr-err">⚠️ ${escapeHtml(err.message || '')}</div>`;
+            }
+            if (btn) btn.disabled = false;
+        }
+
+        async function deletePlayerData(btn) {
+            const pid = gdprPlayerId();
+            if (!pid) return;
+            // Geri alınamaz bir işlem: kimliği ELLE yazdırarak onaylat.
+            const onay = prompt(t('gdpr.confirmPrompt').replace('{id}', pid));
+            if (onay !== pid) {
+                if (onay !== null) alert(t('gdpr.confirmMismatch'));
+                return;
+            }
+            const kutu = $('gdpr-result');
+            if (btn) btn.disabled = true;
+            try {
+                const fn = httpsCallable(functions, 'deletePlayerData', { timeout: 540000 });
+                const r = await fn({ gameId: currentGame, playerAnonId: pid });
+                const d = (r.data && r.data.deleted) || {};
+                if (kutu) {
+                    kutu.innerHTML = `<div class="gdpr-ok">🗑 ${t('gdpr.deleteDone')} · ${
+                        t('gdpr.events')}: ${d.events || 0} · ${
+                        t('gdpr.rollup')}: ${d.rollup || 0} · ${
+                        t('gdpr.snapshots')}: ${d.snapshots || 0}</div>
+                        <div class="gdpr-note">${escapeHtml(r.data?.note || '')}</div>`;
+                }
+            } catch (err) {
+                if (kutu) kutu.innerHTML = `<div class="gdpr-err">⚠️ ${escapeHtml(err.message || '')}</div>`;
+            }
+            if (btn) btn.disabled = false;
+        }
+
+        // ─────────────────────────────────────────────────────────────────
         // Dönüşüm Hunileri
         // ─────────────────────────────────────────────────────────────────
 
@@ -2814,8 +3030,15 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
             });
         }
 
-        /** Saniyeyi okunur süreye çevir (medyan geçiş süreleri için). */
-        function formatDuration(sn) {
+        /**
+         * Huni adımları arası medyan süreyi okunur hale getirir.
+         * Panelde ayrıca bir formatDuration(seconds) var ("5m 30s" üretir);
+         * o oturum süreleri için. Huni adımları saniyeden güne kadar
+         * değiştiği için burada çok ölçekli ayrı bir biçimlendirici var —
+         * ADLARI AYRI OLMAK ZORUNDA: ES modülünde aynı isimde iki fonksiyon
+         * tanımı SyntaxError'dır ve panelin TÜM JS'ini öldürür.
+         */
+        function formatStepDuration(sn) {
             if (sn == null || !isFinite(sn) || sn < 0) return null;
             if (sn < 60) return Math.round(sn) + 's';
             if (sn < 3600) return Math.round(sn / 60) + 'dk';
@@ -2849,7 +3072,7 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
                     const kopus = rs && rs.dropFromPrev != null && i > 0
                         ? '−' + (rs.dropFromPrev * 100).toFixed(0) + '%' : '';
                     const enKotu = r && r.biggestDropStep === i;
-                    const sure = rs ? formatDuration(rs.medianSecondsFromPrev) : null;
+                    const sure = rs ? formatStepDuration(rs.medianSecondsFromPrev) : null;
                     const etiket = s.label || s.eventName;
                     const paramNot = s.paramKey ? ` [${s.paramKey}=${s.paramValue}]` : '';
                     return `

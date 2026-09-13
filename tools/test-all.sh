@@ -21,6 +21,8 @@ calistir "Huni analizi (sirali yol + olgunlasma + donusum)" \
   node tools/test-funnels.js
 calistir "AI baglam blogu (uydurma yasagi tek kaynaktan)" \
   node tools/test-ai-context.js
+calistir "Denetim kaydi (eksiksizlik + degismezlik)" \
+  node tools/test-audit.js
 calistir "Istemci/sunucu hash paritesi (C# modeli ≡ JavaScript)" \
   python3 tools/test-hash-parity.py
 calistir "AltareJson ayristirici (≡ JSON.parse)" \
@@ -29,8 +31,16 @@ calistir "Panel deney karti render'i" \
   node tools/test-panel-experiments.mjs
 calistir "Panel huni karti render'i" \
   node tools/test-panel-funnels.mjs
+calistir "Panel denetim kaydi render'i" \
+  node tools/test-panel-audit.mjs
 calistir "Unity SDK C# yapisal denge" \
   python3 tools/check-csharp.py
+# ⚠ Bunu ATLAMA: panel.html'in icindeki modul blogu TEK PARCA ayristirilir.
+# Render testleri fonksiyonlari tek tek cikarip calistirdigi icin
+# "ayni isimde iki fonksiyon" gibi MODUL SEVIYESI hatalari goremez —
+# oyle bir hata sayfanin TUM JS'ini oldurur ve bir kez canliya cikti.
+calistir "HTML ici script bloklari (modul seviyesi sozdizimi)" \
+  python3 tools/check-html-js.py
 
 printf '\n\033[1m▶ Sozdizimi\033[0m\n'
 for f in firebase/functions/index.js firebase/functions/experiments.js \
