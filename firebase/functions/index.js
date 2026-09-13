@@ -1553,21 +1553,21 @@ async function deneyiAnalizEt(gameId, deneyId) {
   // Okunabilirligi bozan uyarilar tek yerde toplansin — panel ve AI bunu okur.
   const uyarilar = [];
   if (exposureTruncated) {
-    uyarilar.push("maruz_kalma_kirpildi: oyuncularin bir kismi analiz disi kaldi, " +
-      "sonuc temsili degildir");
+    uyarilar.push("maruz_kalma_kırpıldı: oyuncuların bir kısmı analiz dışı kaldı, " +
+      "sonuç temsili değildir");
   } else if (truncated) {
-    uyarilar.push("olaylar_kirpildi: en yeni olaylar analiz disi kaldi, " +
-      "sonuc eksik veriyle hesaplandi");
+    uyarilar.push("olaylar_kırpıldı: en yeni olaylar analiz dışı kaldı, " +
+      "sonuç eksik veriyle hesaplandı");
   }
   if (rapor.mismatchRate > 0.01) {
-    uyarilar.push("atama_uyusmazligi: istemci ve sunucu ayni varyanti hesaplamiyor " +
-      "(oran %" + (rapor.mismatchRate * 100).toFixed(1) + ") — SDK surumunu kontrol et");
+    uyarilar.push("atama_uyuşmazlığı: istemci ve sunucu aynı varyantı hesaplamıyor " +
+      "(oran %" + (rapor.mismatchRate * 100).toFixed(1) + ") — SDK sürümünü kontrol et");
   }
   for (const [mk, m] of Object.entries(rapor.metrics || {})) {
     for (const t of Object.values(m.vs_control || {})) {
       if (t && t.zeroVariance) {
-        uyarilar.push("sifir_varyans: " + mk + " her oyuncuda ayni deger — " +
-          "klasik test gecerli degil, sonucu elle dogrula");
+        uyarilar.push("sıfır_varyans: " + mk + " her oyuncuda aynı değer — " +
+          "klasik test geçerli değil, sonucu elle doğrula");
       }
     }
   }
@@ -2044,25 +2044,25 @@ async function huniyiAnalizEt(gameId, funnelId) {
 
   const uyarilar = [];
   if (truncated) {
-    uyarilar.push("olaylar_kirpildi: en yeni olaylar analiz disi kaldi, " +
-      "donusum oranlari eksik veriyle hesaplandi");
+    uyarilar.push("olaylar_kırpıldı: en yeni olaylar analiz dışı kaldı, " +
+      "dönüşüm oranları eksik veriyle hesaplandı");
   }
   if (rapor.playersTruncated > 0) {
-    uyarilar.push(`oyuncu_kirpildi: ${rapor.playersTruncated} oyuncu ` +
-      "maliyet tavani yuzunden atlandi");
+    uyarilar.push(`oyuncu_kırpıldı: ${rapor.playersTruncated} oyuncu ` +
+      "maliyet tavanı yüzünden atlandı");
   }
   // Olgunlasmamis oyuncu orani yuksekse sayiyi okumak yaniltici olur.
   if (rapor.enteredIncludingInProgress > 0) {
     const devamOrani = rapor.inProgress / rapor.enteredIncludingInProgress;
     if (devamOrani > 0.5) {
-      uyarilar.push("cogu oyuncu hala pencere icinde (%" +
-        Math.round(devamOrani * 100) + ") — oran henuz temsili degil, " +
-        "pencere suresi kadar bekle");
+      uyarilar.push("çoğu oyuncu hâlâ pencere içinde (%" +
+        Math.round(devamOrani * 100) + ") — oran henüz temsili değil, " +
+        "pencere süresi kadar bekle");
     }
   }
   if (rapor.entered === 0) {
-    uyarilar.push("hicbir oyuncu huniye girmedi — ilk adimin event adi " +
-      "oyunun gerceken gonderdigi adla ayni mi?");
+    uyarilar.push("hiçbir oyuncu huniye girmedi — ilk adımın event adı " +
+      "oyunun gerçekten gönderdiği adla aynı mı?");
   }
   rapor.warnings = uyarilar;
 
