@@ -1,0 +1,41 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html",          "x": 0,    "y": 0,    "w": 1440, "h": 900,  "title": "A — Editoryal (hero)" },
+    { "file": "HeroSinematik.dc.html", "x": 1560, "y": 0,    "w": 1440, "h": 900,  "title": "B — Sinematik (hero)" },
+    { "file": "Oyunlar.dc.html",       "x": 0,    "y": 1020, "w": 1440, "h": 940,  "title": "Oyunlar" },
+    { "file": "Hakkimizda.dc.html",    "x": 1560, "y": 1020, "w": 1440, "h": 820,  "title": "Hakkımızda" },
+    { "file": "Iletisim.dc.html",      "x": 0,    "y": 2080, "w": 1440, "h": 600,  "title": "İletişim + Footer" },
+    { "file": "Mobil.dc.html",         "x": 1560, "y": 2080, "w": 390,  "h": 1000, "title": "Mobil (kaydırılmış)" }
+  ],
+  "annotations": [
+    {
+      "id": "yon-a",
+      "x": 0,
+      "y": -210,
+      "w": 620,
+      "text": "YÖN A — EDİTORYAL\n\nMevcut devasa tipografiyi koruyor ama merkezden çıkarıyor: görünmez 12 sütunluk ızgara, künye rayı (İstanbul / 2025 / 6 oyun), ince çizgiler, bölüm indeksi (01 —). Amber tek bir işe ayrılmış: \"şu an oynanıyor\".\n\nGüçlü yanı: ciddi bir stüdyo gibi okunuyor — jüri, yayıncı, iş ortağı için ideal.\nZayıf yanı: oyuncuyu duygusal olarak yakalamıyor; oyunun kendisi küçük kalıyor."
+    },
+    {
+      "id": "yon-b",
+      "x": 1560,
+      "y": -210,
+      "w": 620,
+      "text": "YÖN B — SİNEMATİK\n\nChopHero key art'ı tam kanama, katmanlı karartmayla. Stüdyo kimliği önce geliyor (amber çizgi + \"Altare · Mobil Oyun Stüdyosu\"), sonra söz, sonra oyun. Alt şeritte künye.\n\nGüçlü yanı: oyuncuyu ilk saniyede yakalıyor, oyunun kalitesini gösteriyor.\nZayıf yanı: ChopHero'nun sitesi gibi görünme riski — stüdyo kimliği arka plana düşebilir. Oyun değişince hero yeniden çekilmeli."
+    },
+    {
+      "id": "ortak",
+      "x": 0,
+      "y": 2810,
+      "w": 700,
+      "text": "İKİ YÖNDE DE ORTAK OLAN DÜZELTME\n\nMevcut sitede oyun kartlarının başlıkları yalnızca hover'da görünüyor (opacity 0 → 1). Telefonda hover yok — yani mobilde oyunlarının ADI HİÇ GÖRÜNMÜYOR, kartlara dokununca doğrudan Google Play'e gidiyor.\n\nBurada başlıklar görselin ALTINDA, her zaman okunur. Hover sadece vurgu ekler."
+    },
+    {
+      "id": "kontrol",
+      "x": 760,
+      "y": 2810,
+      "w": 560,
+      "text": "SENİN KONTROL ETMEN GEREKENLER\n\n• İstatistik \"5 Yayınlanan Oyun\" diyor ama portfolyoda 6 oyun var. Tuvalde 6 yazdım — hangisi doğru?\n\n• İletişim bölümünde e-posta adresi [E-POSTA ADRESİ] olarak boş bırakıldı, uydurmadım.\n\n• Oyun türleri (Puzzle / Action / Hyper-Casual / Endless Runner) görsellerden tahmin edildi — yanlışları düzelt."
+    }
+  ],
+  "launch": { "view": "canvas" }
+}

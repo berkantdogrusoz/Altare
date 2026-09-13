@@ -1,3 +1,9 @@
 
 # Node bagimliliklari (kok dizinde paket yok; test kosarken olusan artiklar)
 node_modules/
+
+# Tasarim tuvali: .dc.html artboard'lari ve gorseller KAYNAKTIR, girer.
+# Seed edilen cikti (~2.8 MB, icinde editor gomulu) uretilebilir bir
+# ciktidir — her degisiklikte yeniden uretiliyor, depoda yeri yok.
+design/*.html
+!design/*.dc.html

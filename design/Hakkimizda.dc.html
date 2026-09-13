@@ -1,0 +1,89 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap">
+  <style>
+    body { margin: 0; font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif; }
+    a { color: #fbbf24; text-decoration: none; }
+    a:hover { color: #fcd34d; }
+  </style>
+</helmet>
+
+<div style="width: 1440px; height: 820px; background: #0a0a0a; color: #ffffff; position: relative; overflow: hidden; padding: 72px 48px 0 48px; box-sizing: border-box;">
+
+  <!-- Filigran şerit -->
+  <div style="position: absolute; left: -60px; bottom: 118px; font-size: 150px; font-weight: 900; text-transform: uppercase; letter-spacing: -0.02em; line-height: 1; color: transparent; -webkit-text-stroke: 1.5px rgba(255,255,255,0.055); white-space: nowrap; user-select: none;">Altare Altare Altare Altare</div>
+
+  <div style="position: relative; display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 80px; align-items: start;">
+
+    <!-- Sol: indeks + etiket -->
+    <div style="display: flex; flex-direction: column; gap: 18px;">
+      <div style="display: flex; align-items: baseline; gap: 14px; font-size: 11px; font-weight: 700; letter-spacing: 0.28em; text-transform: uppercase; color: rgba(255,255,255,0.4);">
+        <span style="color: #fbbf24;">03</span>
+        <span style="width: 28px; height: 1px; background: rgba(255,255,255,0.25); display: inline-block; transform: translateY(-3px);"></span>
+        <span>Biz Kimiz</span>
+      </div>
+      <div style="font-size: 56px; font-weight: 900; text-transform: uppercase; letter-spacing: -0.025em; line-height: 0.96;">Mobil<br>zanaat</div>
+    </div>
+
+    <!-- Sağ: metin -->
+    <div style="display: flex; flex-direction: column; gap: 26px; max-width: 760px; padding-top: 4px;">
+      <div style="font-size: 25px; font-weight: 600; line-height: 1.5; letter-spacing: -0.01em; color: rgba(255,255,255,0.94); text-wrap: pretty;">
+        Altare, ilgi çekici ve görsel olarak çarpıcı mobil oyunlar üreten bağımsız bir stüdyo. Hyper-casual'dan mid-core'a farklı türleri deniyor, her oyunda tek bir mekaniği sonuna kadar zorluyoruz.
+      </div>
+      <div style="font-size: 16px; font-weight: 400; line-height: 1.75; color: rgba(255,255,255,0.55); text-wrap: pretty;">
+        Amiral gemimiz <span style="color: #ffffff; font-weight: 600;">ChopHero: Relic Quest</span>, lanetli bir çölde geçen tek parmakla oynanan bir action RPG. Otomatik savaş ve derin silah ilerlemesi üzerine kurulu — tamamen çevrimdışı çalışıyor, çünkü oyuncunun internetine güvenmek istemedik.
+      </div>
+    </div>
+  </div>
+
+  <!-- İstatistikler -->
+  <div style="position: relative; margin-top: 92px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; border-top: 1px solid rgba(255,255,255,0.12);">
+
+    <div style="display: flex; flex-direction: column; gap: 10px; padding: 34px 32px 34px 0; border-right: 1px solid rgba(255,255,255,0.08);">
+      <div style="font-size: 72px; font-weight: 900; line-height: 1; letter-spacing: -0.03em;">6</div>
+      <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(255,255,255,0.42);">Yayınlanan Oyun</div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 10px; padding: 34px 32px; border-right: 1px solid rgba(255,255,255,0.08);">
+      <div style="display: flex; align-items: baseline; gap: 4px;">
+        <span style="font-size: 72px; font-weight: 900; line-height: 1; letter-spacing: -0.03em;">50</span>
+        <span style="font-size: 34px; font-weight: 800; color: #fbbf24; line-height: 1;">K+</span>
+      </div>
+      <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(255,255,255,0.42);">İndirme</div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 10px; padding: 34px 32px; border-right: 1px solid rgba(255,255,255,0.08);">
+      <div style="font-size: 72px; font-weight: 900; line-height: 1; letter-spacing: -0.03em;">3</div>
+      <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(255,255,255,0.42);">Tür</div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 10px; padding: 34px 0 34px 32px;">
+      <div style="font-size: 72px; font-weight: 900; line-height: 1; letter-spacing: -0.03em;">2025</div>
+      <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: rgba(255,255,255,0.42);">Kuruluş</div>
+    </div>
+
+  </div>
+
+  <!-- Marquee şeridi -->
+  <div style="position: absolute; left: 0; right: 0; bottom: 0; border-top: 1px solid rgba(255,255,255,0.08); overflow: hidden; height: 104px; display: flex; align-items: center;">
+    <div style="display: flex; align-items: center; gap: 80px; white-space: nowrap; padding-left: 48px;">
+      <span style="font-size: 68px; font-weight: 900; text-transform: uppercase; letter-spacing: -0.02em; color: transparent; -webkit-text-stroke: 1.5px rgba(255,255,255,0.1);">Oyunlarımız</span>
+      <span style="width: 9px; height: 9px; border-radius: 50%; background: #fbbf24; flex-shrink: 0;"></span>
+      <span style="font-size: 68px; font-weight: 900; text-transform: uppercase; letter-spacing: -0.02em; color: transparent; -webkit-text-stroke: 1.5px rgba(255,255,255,0.1);">Oyunlarımız</span>
+      <span style="width: 9px; height: 9px; border-radius: 50%; background: #fbbf24; flex-shrink: 0;"></span>
+      <span style="font-size: 68px; font-weight: 900; text-transform: uppercase; letter-spacing: -0.02em; color: transparent; -webkit-text-stroke: 1.5px rgba(255,255,255,0.1);">Oyunlarımız</span>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>
