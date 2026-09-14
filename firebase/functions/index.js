@@ -126,6 +126,7 @@ const DENETIM_EYLEMLERI = {
   PLAYER_RESTORE: "player.state_restore",
   PLAYER_DATA_DELETE: "player.data_delete",
   PLAYER_DATA_EXPORT: "player.data_export",
+  BIGQUERY_SETUP: "bigquery.setup",
 };
 
 /** Denetim kaydinda saklanacak ayrintiyi kucuk ve zararsiz tut. */
@@ -4770,6 +4771,142 @@ async function olayAdlariniKaydet(gameId, adlar) {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// BIGQUERY YAZIM YOLU
+//
+// Sema, satir uretimi ve maliyet korkuluklari ./bigquery.js icinde ve o dosya
+// AGA CIKMAZ — burasi yalnizca gercek istemciyi kullanan ince kenardir.
+//
+// UC KURAL:
+//  1) OLAY YAZIMINI ASLA BLOKLAMAZ. BigQuery duserse oyunun telemetrisi
+//     akmaya devam eder; Firestore hala birincil depodur. Bu yuzden her
+//     hata yutulur ve yalnizca loglanir.
+//  2) TEMBEL YUKLEME. @google-cloud/bigquery agir bir paket; require()
+//     ancak ilk yazimda calisir, yoksa her soguk baslangica bedel oder.
+//  3) BAYRAKLA KAPATILABILIR. ALTARE_BQ_ENABLED=false ile tamamen durur.
+// ═══════════════════════════════════════════════════════════════════════════
+
+const BQ = require("./bigquery");
+const BQ_ACIK = String(process.env.ALTARE_BQ_ENABLED || "true") !== "false";
+let _bqIstemci = null;
+let _bqTablo = null;
+
+function bqTablo() {
+  if (_bqTablo) return _bqTablo;
+  // Tembel: yalnizca gercekten yazacaksak yukle.
+  const { BigQuery } = require("@google-cloud/bigquery");
+  _bqIstemci = _bqIstemci || new BigQuery();
+  _bqTablo = _bqIstemci.dataset(BQ.DATASET_ADI).table(BQ.TABLO_ADI);
+  return _bqTablo;
+}
+
+/**
+ * Yeniden denemede AYNI olayin iki kez yazilmasini engellemek icin
+ * deterministik kimlik. SDK bir yigini tekrar gonderirse (ag hatasi sonrasi
+ * retry) ayni insertId uretilir ve BigQuery kopyayi eler.
+ *
+ * DURUST SINIR: BigQuery'nin insertId elemesi "best-effort" ve kisa bir
+ * pencerede gecerlidir; saatler sonra gelen bir tekrar ELENMEZ. Yine de
+ * gercek hayattaki retry'lar saniyeler icinde oldugu icin pratikte calisir.
+ * (Firestore tarafinda bu koruma HIC yok — orada auto-ID kullaniliyor.)
+ */
+function bqInsertId(satir) {
+  return [
+    satir.game_id, satir.player_anon_id, satir.session_id,
+    satir.event_name, satir.client_timestamp || satir.timestamp,
+  ].join("|").slice(0, 128);
+}
+
+/**
+ * Olay yigini BigQuery'ye yazar. Best-effort — hicbir kosulda atmaz.
+ * @param {object[]} dokumanlar Firestore'a yazilan olay nesneleri
+ * @param {number} yazimMs serverTimestamp cozulmedigi icin kullanilacak zaman
+ */
+async function bigQueryYaz(dokumanlar, yazimMs) {
+  if (!BQ_ACIK || !Array.isArray(dokumanlar) || dokumanlar.length === 0) return;
+
+  let satirlar;
+  try {
+    satirlar = dokumanlar
+      .map((d) => BQ.satirYap(d, yazimMs))
+      .filter(Boolean)
+      .map((s) => ({ insertId: bqInsertId(s), json: s }));
+  } catch (err) {
+    logger.warn("bigquery satir uretimi basarisiz", { message: err?.message });
+    return;
+  }
+  if (satirlar.length === 0) return;
+
+  try {
+    await bqTablo().insert(satirlar, {
+      raw: true,
+      // Tek bozuk satir TUM yigini dusurmesin: gecerliler yazilsin.
+      skipInvalidRows: true,
+      // Sema ilerledeyse eski alanlar yigini patlatmasin.
+      ignoreUnknownValues: true,
+    });
+  } catch (err) {
+    // En sik goruleni: tablo henuz yok. Ne yapilacagini ACIKCA soyle,
+    // yoksa bu log "bir sey olmadi" diye gecistirilir.
+    const notFound = err?.code === 404 || /not found/i.test(err?.message || "");
+    if (notFound) {
+      logger.error(
+        "bigquery tablosu YOK — setupBigQuery callable'ini bir kez calistir " +
+        "(admin). O zamana kadar olaylar yalnizca Firestore'a yaziliyor.",
+        { dataset: BQ.DATASET_ADI, tablo: BQ.TABLO_ADI });
+    } else {
+      logger.warn("bigquery yazim basarisiz (olaylar Firestore'da guvende)", {
+        message: err?.message,
+        // insert hatalari satir basina detay tasir; ilk birkaci yeter.
+        detay: Array.isArray(err?.errors) ? err.errors.slice(0, 3) : undefined,
+      });
+    }
+  }
+}
+
+/**
+ * Dataset + tabloyu bir kez olusturur. Admin callable — deploy sonrasi
+ * elle bir kez calistirilir.
+ *
+ * Neden otomatik degil: her yazim denemesinde "yoksa olustur" yapmak, tablo
+ * gercekten olusamadiginda (yetki, kota) SONSUZ deneme demektir ve her
+ * denemenin bedeli vardir. Bir kez, bilerek, gorunur sekilde calistirilir.
+ */
+exports.setupBigQuery = onCall({ timeoutSeconds: 120 }, async (request) => {
+  assertAdmin(request);
+  const { BigQuery } = require("@google-cloud/bigquery");
+  const istemci = new BigQuery();
+  const projeId = await istemci.getProjectId();
+
+  // Dataset — KONUM SONRADAN DEGISTIRILEMEZ. europe-west1: Functions ile
+  // ayni bolge (bolgeler arasi transfer ucreti yok) ve veri AB'de kalir.
+  const [datasetVar] = await istemci.dataset(BQ.DATASET_ADI).exists();
+  if (!datasetVar) {
+    await istemci.createDataset(BQ.DATASET_ADI, { location: BQ.DATASET_KONUMU });
+    logger.info("bigquery dataset olusturuldu", {
+      dataset: BQ.DATASET_ADI, konum: BQ.DATASET_KONUMU });
+  }
+
+  // Tablo: bolumleme + kumeleme + require_partition_filter DDL'den gelir.
+  const ddl = BQ.tabloDDL(projeId);
+  await istemci.query({ query: ddl, location: BQ.DATASET_KONUMU });
+
+  await denetimYaz(request, DENETIM_EYLEMLERI.BIGQUERY_SETUP, {
+    details: { dataset: BQ.DATASET_ADI, tablo: BQ.TABLO_ADI, konum: BQ.DATASET_KONUMU },
+  });
+
+  logger.info("bigquery kurulum tamam", { projeId, dataset: BQ.DATASET_ADI });
+  return {
+    success: true,
+    projeId,
+    dataset: BQ.DATASET_ADI,
+    tablo: BQ.TABLO_ADI,
+    konum: BQ.DATASET_KONUMU,
+    bolumOmruGun: BQ.BOLUM_OMRU_GUN,
+    ddl,
+  };
+});
+
 /** Bilinen oyun kimliklerini kisa sure bellekte tutar (her istekte okuma yapmamak icin). */
 const _ingestGameCache = new Map(); // gameId -> { ok, gameName, at }
 const INGEST_GAME_CACHE_MS = 5 * 60 * 1000;
@@ -4953,6 +5090,8 @@ exports.ingestEvents = onRequest(
       // Panelin "bu oyunda bu bolum anlamli mi" karari icin: bu yiginda
       // hangi olay adlari gecti (bkz. olayAdlariniKaydet).
       const yigindakiAdlar = new Set();
+      // BigQuery'ye gidecek dokumanlar (Firestore'a yazilanin AYNISI).
+      const bqDokumanlari = [];
 
       for (const e of events) {
         const eventName = String((e && e.eventName) || "").trim().slice(0, 64);
@@ -4965,7 +5104,11 @@ exports.ingestEvents = onRequest(
         }
         const sessionId = String(e.sessionId || batchSessionId || "").trim().slice(0, 64);
 
-        batch.set(col.doc(), {
+        // Dokuman TEK KEZ kuruluyor ve hem Firestore'a hem BigQuery'ye
+        // ayni nesneden gidiyor. Iki yerde ayri ayri kurulsaydi alanlar
+        // zamanla ayrisir ve iki depodan hesaplanan ayni metrik farkli
+        // cikardi — hangisinin dogru oldugu da belli olmazdi.
+        const dok = {
           gameId,
           gameName,
           playerAnonId,
@@ -4980,7 +5123,9 @@ exports.ingestEvents = onRequest(
           gpuModel,
           totalMemoryMb,
           via: "http",
-        });
+        };
+        batch.set(col.doc(), dok);
+        bqDokumanlari.push(dok);
         yazilan++;
       }
 
@@ -5011,6 +5156,10 @@ exports.ingestEvents = onRequest(
       // Panel yuzey uyarlamasinin gozlem yarisi. Best-effort: basarisiz
       // olursa olaylar yine yazilmis olur, panel yalnizca gameType'a duser.
       await olayAdlariniKaydet(gameId, yigindakiAdlar);
+      // Analitik ambar. batch.commit()'TEN SONRA cagriliyor: Firestore
+      // birincil depo, once oranin garanti olmasi gerekiyor. serverTimestamp
+      // burada henuz cozulmedigi icin yazim zamani ayrica veriliyor.
+      await bigQueryYaz(bqDokumanlari, Date.now());
 
       res.json({ ok: true, written: yazilan });
     } catch (err) {

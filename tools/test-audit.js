@@ -122,6 +122,10 @@ const DENETIM_YAZMALI = [
   "createCustomer", "setAdminRole",
   "restorePlayerSnapshot",
   "deletePlayerData", "exportPlayerData",
+  // Altyapi kurar (dataset + tablo) ve KONUM SONRADAN DEGISTIRILEMEZ —
+  // yanlis bolgede olusturulursa verinin AB'den cikmasi demektir.
+  // Bir kez calisan, geri alinamaz bir islem: denetlenmesi sart.
+  "setupBigQuery",
 ];
 
 /**
