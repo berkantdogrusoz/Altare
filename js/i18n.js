@@ -262,6 +262,13 @@ const I18N = {
         'kpi.failRate': 'Fail Oranı',
         'kpi.adWatches': 'Reklam İzleme (24h)',
         'kpi.iapRevenue': 'IAP Geliri (24h)',
+        // Yuzey uyarlamasi — panel.html YUZEY_KAYDI ile eslesir
+        'surface.levels': 'Bölüm analizi',
+        'surface.ads': 'Reklam metrikleri',
+        'surface.iap': 'Uygulama içi satın alma',
+        'surface.missingTitle': 'Bu bölümler gizlendi — beklenen event hiç gelmedi',
+        'surface.missingHint': 'Oyun tipine göre bu eventleri bekliyorduk ama akışta hiç görülmedi. ' +
+            'Oyunda bu mekanik yoksa sorun yok. Varsa, SDK entegrasyonunda bu eventler gönderilmiyor demektir.',
         'kpi.fpsWarnings': 'FPS Uyarısı',
         'kpi.crashes': 'Crash (24h)',
         'kpi.realtimeActive': 'Anlık Aktif',
@@ -669,6 +676,13 @@ const I18N = {
         'kpi.failRate': 'Fail Rate',
         'kpi.adWatches': 'Ad Watches (24h)',
         'kpi.iapRevenue': 'IAP Revenue (24h)',
+        // Surface adaptation — mirrors YUZEY_KAYDI in panel.html
+        'surface.levels': 'Level analysis',
+        'surface.ads': 'Ad metrics',
+        'surface.iap': 'In-app purchases',
+        'surface.missingTitle': 'These sections are hidden — the expected events never arrived',
+        'surface.missingHint': 'For this game type we expected these events, but none were ever seen in the stream. ' +
+            'If the game does not have this mechanic, nothing is wrong. If it does, your SDK integration is not sending them.',
         'kpi.fpsWarnings': 'FPS Warnings',
         'kpi.crashes': 'Crashes (24h)',
         'kpi.realtimeActive': 'Realtime Active',

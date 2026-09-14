@@ -33,6 +33,12 @@ calistir "Panel huni karti render'i" \
   node tools/test-panel-funnels.mjs
 calistir "Panel denetim kaydi render'i" \
   node tools/test-panel-audit.mjs
+# Bu ozellik panelden BOLUM GIZLIYOR. Yanlis calisirsa musteri verisini
+# goremez ve gizlenmis bir sekme hic var olmamis gibi gorunur — sessiz veri
+# kaybinin arayuz hali. Ayrica panel kaydi, SUNUCUNUN okudugu event adlarina
+# dayaniyor: iki dosya, tek gercek.
+calistir "Panel yuzey uyarlamasi (oyun tipi + gozlenen eventler)" \
+  node tools/test-panel-surfaces.mjs
 calistir "Unity SDK C# yapisal denge" \
   python3 tools/check-csharp.py
 # ⚠ Bunu ATLAMA: panel.html'in icindeki modul blogu TEK PARCA ayristirilir.

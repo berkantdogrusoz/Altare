@@ -2972,6 +2972,9 @@ exports.listMyGames = onCall(async (request) => {
       status: data.status || "active",
       apiKey: data.apiKey,
       createdAt: data.createdAt ? data.createdAt.toMillis() : null,
+      // Panel yuzey uyarlamasi: oyunun GERCEKTEN gonderdigi olay adlari.
+      // Oyun dokumaninda tutuldugu icin ek okuma maliyeti YOK.
+      observedEvents: Array.isArray(data.observedEvents) ? data.observedEvents : [],
     };
   });
 
@@ -4678,6 +4681,95 @@ async function updatePlayerRollup(gameId, playerAnonId, isNewInstall) {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// GOZLENEN OLAY ADLARI — panelin "bu oyunda bu bolum anlamli mi" sorusuna
+// verdigi cevabin GERCEK yarisi.
+//
+// Panel bugune kadar 18 sekmenin hepsini her oyuna gosteriyordu: level'i
+// olmayan bir oyunda "Level Intelligence" sekmesi duruyor, acan kisi bos
+// ekran goruyordu. Bunu yalnizca gameType'a (stüdyonun BEYANI) bakarak
+// cozmek yanlis olur — "casual" etiketli bir oyunun bolumleri olabilir,
+// "rpg" etiketli biri hic level eventi gondermiyor olabilir.
+//
+// Bu yuzden ikinci ve DAHA GUCLU sinyal burada uretiliyor: oyunun
+// GERCEKTEN gonderdigi olay adlari. Beyan ile gozlem catisirsa gozlem
+// kazanir; boylece panel hicbir zaman veri OLAN bir bolumu gizlemez.
+//
+// Neden oyun dokumaninda (ayri bir koleksiyonda degil): listMyGames zaten
+// oyun dokumanlarini okuyor — orada tutulunca panel bu bilgiyi SIFIR ek
+// okuma ile aliyor. deleteGame recursiveDelete ile oyunu sildiginde bu da
+// gidiyor, ayrica temizlik gerekmiyor.
+//
+// UNUTMAZ: bir olay bir kez gorulduyse listede kalir. Oyun o olayi
+// gondermeyi birakirsa bolum gorunur kalmaya devam eder. Bu BILINCLI bir
+// tercih — yanlis yon "veri varken gizlemek" olurdu, "veri yokken
+// gostermek" degil.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** Oyun basina "bu surecte hangi adlari zaten yazdik" — gereksiz yazimi keser. */
+const _olayAdiCache = new Map(); // gameId -> Set<eventName>
+const OLAY_ADI_CACHE_MAX_OYUN = 500;
+// Tek bir bozuk istemci ("level_1", "level_2", ... gibi dinamik adlar)
+// dokumani sisirebilir. Tavan hem maliyeti hem de 1 MiB dokuman sinirini korur.
+const OLAY_ADI_TAVANI = 200;
+
+/**
+ * Yigindaki olay adlarindan DAHA ONCE GORULMEMIS olanlari oyun dokumanina
+ * ekler. Hicbir kosulda olay yazimini bloklamaz — hata yutulur.
+ *
+ * Yazim maliyeti: yalnizca YENI bir ad gorulunce bir kez. Kararli bir oyunda
+ * bu, surec omru boyunca birkac yazim demektir; her istekte degil.
+ */
+async function olayAdlariniKaydet(gameId, adlar) {
+  if (!adlar || adlar.size === 0) return;
+
+  let gorulen = _olayAdiCache.get(gameId);
+  if (!gorulen) {
+    if (_olayAdiCache.size >= OLAY_ADI_CACHE_MAX_OYUN) _olayAdiCache.clear();
+    // Ilk kez: dokumandaki mevcut listeyi oku ki her soguk baslangicta
+    // ayni adlari tekrar yazmayalim.
+    try {
+      const snap = await db.collection("games").doc(gameId).get();
+      const mevcut = snap.exists ? snap.data().observedEvents : null;
+      gorulen = new Set(Array.isArray(mevcut) ? mevcut : []);
+    } catch (err) {
+      logger.warn("observedEvents okunamadi", { gameId, message: err?.message });
+      gorulen = new Set();
+    }
+    _olayAdiCache.set(gameId, gorulen);
+  }
+
+  const yeni = [];
+  for (const ad of adlar) {
+    if (!gorulen.has(ad)) yeni.push(ad);
+  }
+  if (yeni.length === 0) return;
+
+  if (gorulen.size >= OLAY_ADI_TAVANI) {
+    // Tavana vurduk. Yeni adlari cache'e yaz ki her istekte tekrar
+    // denenmesin, ama dokumana EKLEME.
+    for (const ad of yeni) gorulen.add(ad);
+    logger.warn("observedEvents tavani doldu — yeni adlar kaydedilmiyor", {
+      gameId, tavan: OLAY_ADI_TAVANI, atlanan: yeni.length,
+    });
+    return;
+  }
+
+  const eklenecek = yeni.slice(0, OLAY_ADI_TAVANI - gorulen.size);
+  try {
+    await db.collection("games").doc(gameId).set({
+      observedEvents: admin.firestore.FieldValue.arrayUnion(...eklenecek),
+      observedEventsUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+    for (const ad of yeni) gorulen.add(ad);
+    logger.info("observedEvents guncellendi", { gameId, eklenen: eklenecek.length });
+  } catch (err) {
+    // Best-effort: bu basarisiz olursa panel yalnizca gameType'a duser,
+    // olay yazimi etkilenmez.
+    logger.warn("observedEvents yazilamadi", { gameId, message: err?.message });
+  }
+}
+
 /** Bilinen oyun kimliklerini kisa sure bellekte tutar (her istekte okuma yapmamak icin). */
 const _ingestGameCache = new Map(); // gameId -> { ok, gameName, at }
 const INGEST_GAME_CACHE_MS = 5 * 60 * 1000;
@@ -4858,10 +4950,14 @@ exports.ingestEvents = onRequest(
       const batch = db.batch();
       const col = db.collection("games").doc(gameId).collection("events");
       let yazilan = 0;
+      // Panelin "bu oyunda bu bolum anlamli mi" karari icin: bu yiginda
+      // hangi olay adlari gecti (bkz. olayAdlariniKaydet).
+      const yigindakiAdlar = new Set();
 
       for (const e of events) {
         const eventName = String((e && e.eventName) || "").trim().slice(0, 64);
         if (!eventName) continue;
+        yigindakiAdlar.add(eventName);
         let clientTs = null;
         if (e.clientTimestamp) {
           const ms = Date.parse(e.clientTimestamp);
@@ -4912,6 +5008,9 @@ exports.ingestEvents = onRequest(
         return !!(p && (p.is_first_open === true || p.is_first_open === "true"));
       });
       await updatePlayerRollup(gameId, playerAnonId, yeniKurulum);
+      // Panel yuzey uyarlamasinin gozlem yarisi. Best-effort: basarisiz
+      // olursa olaylar yine yazilmis olur, panel yalnizca gameType'a duser.
+      await olayAdlariniKaydet(gameId, yigindakiAdlar);
 
       res.json({ ok: true, written: yazilan });
     } catch (err) {

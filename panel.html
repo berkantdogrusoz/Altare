@@ -32,6 +32,20 @@
 
         html { scroll-behavior: smooth; }
 
+        /* [hidden] OZNITELIGI HER YERDE ISLESIN.
+           Tarayicinin varsayilan `[hidden]{display:none}` kurali, AYNI
+           ozgullukteki bir yazar kuralina yenilir. `.nav-tab{display:flex}`
+           tam olarak bunu yapiyordu: el.hidden=true atanan bir sekme
+           OZNITELIGI ALIYOR ama EKRANDA KALIYORDU.
+           Bu sessizce iki seyi birden bozdu:
+             • admin-only "Musteri Yonetimi" sekmesi admin OLMAYAN herkese
+               gorunuyordu (sunucu assertAdmin ile korumali, veri sizmiyor;
+               ama kullanici tiklayip yetki hatasi aliyordu),
+             • yuzey uyarlamasi alakasiz sekmeyi gizleyemiyordu.
+           Tek kural ikisini birden kapatiyor ve bundan sonra `hidden`
+           kullanan her yeni eleman icin de dogru davranis garanti. */
+        [hidden] { display: none !important; }
+
         body {
             background: var(--bg);
             color: var(--text);
@@ -201,6 +215,39 @@
             display: grid;
             grid-template-columns: 240px 1fr;
             min-height: calc(100vh - 65px);
+        }
+
+        /* Yuzey uyarlamasi bildirimi — "bu tipte bekliyorduk ama gelmedi".
+           Bir bolumu gizlemek sessiz bir karar; sebebi gorunur olmali. */
+        .surface-notice {
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--yellow);
+            background: rgba(251, 191, 36, 0.05);
+            border-radius: 8px;
+            padding: 14px 18px;
+            margin-bottom: 20px;
+        }
+        .surface-notice-title {
+            font-size: 0.84rem;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 8px;
+        }
+        .surface-notice ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .surface-notice li {
+            font-size: 0.82rem;
+            color: var(--text-dim);
+            line-height: 1.7;
+        }
+        .surface-notice li strong { color: var(--text); font-weight: 600; }
+        .surface-notice-sub {
+            margin-top: 8px;
+            font-size: 0.78rem;
+            color: var(--text-faint);
+            line-height: 1.6;
         }
 
         /* Sidebar */
@@ -1516,7 +1563,7 @@
                         <span class="dot"></span> <span data-i18n="tab.auto-heal">Auto-Heal</span>
                     </button>
                     <button class="nav-tab" data-tab="events"><span class="dot"></span> <span data-i18n="tab.events">Canlı Event Stream</span></button>
-                    <button class="nav-tab" data-tab="levels"><span class="dot"></span> <span data-i18n="tab.levels">Level Intelligence</span></button>
+                    <button class="nav-tab" data-tab="levels" data-surface="levels"><span class="dot"></span> <span data-i18n="tab.levels">Level Intelligence</span></button>
                     <button class="nav-tab" data-tab="performance"><span class="dot"></span> <span data-i18n="tab.performance">Crash & Performance</span></button>
                     <button class="nav-tab" data-tab="device-intel"><span class="dot"></span> <span data-i18n="tab.device-intel">Device Intelligence</span></button>
                     <button class="nav-tab" data-tab="player-rollback"><span class="dot"></span> <span data-i18n="tab.player-rollback">Oyuncu State Rollback</span></button>
@@ -1547,6 +1594,11 @@
                 </div>
 
                 <section class="tab-view active" data-tab="overview">
+                    <!-- Bir yuzey gizlendiginde SEBEBINI soyler. Gizlemek sessiz
+                         bir karardir; aciklanmazsa kullanici bolumun bozuldugunu
+                         sanir. Yalnizca "bu tipte bekliyorduk ama hic gelmedi"
+                         durumunda gorunur. -->
+                    <div class="surface-notice" id="surface-notice" hidden></div>
                     <div class="kpi-grid">
                         <div class="kpi-card">
                             <div class="kpi-label" data-i18n="kpi.d1">D1 Retention</div>
@@ -1578,19 +1630,19 @@
                             <div class="kpi-value mono" id="kpi-avg-session">—</div>
                             <div class="kpi-delta" id="kpi-avg-session-delta"></div>
                         </div>
-                        <div class="kpi-card">
+                        <div class="kpi-card" data-surface="levels">
                             <div class="kpi-label" data-i18n="kpi.failRate">Fail Oranı</div>
                             <div class="kpi-value mono" id="kpi-fail-rate">—</div>
                             <div class="kpi-delta" id="kpi-fail-rate-delta"></div>
                         </div>
                     </div>
                     <div class="kpi-grid">
-                        <div class="kpi-card">
+                        <div class="kpi-card" data-surface="ads">
                             <div class="kpi-label" data-i18n="kpi.adWatches">Reklam İzleme (24h)</div>
                             <div class="kpi-value mono" id="kpi-ads">—</div>
                             <div class="kpi-delta" id="kpi-ads-delta"></div>
                         </div>
-                        <div class="kpi-card">
+                        <div class="kpi-card" data-surface="iap">
                             <div class="kpi-label" data-i18n="kpi.iapRevenue">IAP Geliri (24h)</div>
                             <div class="kpi-value mono" id="kpi-iap">—</div>
                             <div class="kpi-delta" id="kpi-iap-delta"></div>
@@ -2436,6 +2488,9 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
 
         // Game name lookup — listMyGames'den dolar (selector'a populated edilince)
         const GAME_NAMES = {};
+        // Yuzey uyarlamasi icin oyunun tamami lazim (gameType + observedEvents),
+        // yalnizca adi degil.
+        const GAMES = {};
 
         const $ = (id) => document.getElementById(id);
 
@@ -2461,8 +2516,13 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
             const isAdmin = (ctx && ctx.isAdmin === true) || (claims && claims.admin === true);
             _isAdminUser = isAdmin;
             // Hide admin-only UI for non-admins
+            // Iki yonlu atama SART: HTML'de bu ogeler `hidden` olarak
+            // basliyor. Yalnizca `if (!isAdmin) hidden = true` yazilirsa
+            // admin icin oznitelik hicbir zaman KALDIRILMAZ ve admin de
+            // sekmeyi goremez. (Bugune kadar gorunmesinin sebebi
+            // `.nav-tab{display:flex}` hatasiydi; o duzeldi.)
             document.querySelectorAll('.admin-only').forEach(el => {
-                if (!isAdmin) el.hidden = true;
+                el.hidden = !isAdmin;
             });
             // GA4 section sadece admin icin; non-admin'de DOM'dan da kaldir
             const ga4Section = $('ga4-section');
@@ -2515,6 +2575,7 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
 
                 for (const g of games) {
                     GAME_NAMES[g.gameId] = g.gameName || g.gameId;
+                    GAMES[g.gameId] = g;
                     const opt = document.createElement('option');
                     opt.value = g.gameId;
                     opt.textContent = g.gameName || g.gameId;
@@ -2524,6 +2585,7 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
                 currentGame = games[0].gameId;
                 sel.value = currentGame;
                 if (display) display.textContent = GAME_NAMES[currentGame];
+                uygulaYuzeyler(GAMES[currentGame]);
                 subscribeToGame(currentGame);
             } catch (err) {
                 console.error('loadMyGamesIntoSelector failed:', err);
@@ -2543,6 +2605,139 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
         function wireLogout() {
             const btn = $('logout-btn');
             if (btn) btn.addEventListener('click', () => altareSignOut('/login.html'));
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // YUZEY UYARLAMASI — "level'i olmayan oyunda neden Level Intelligence
+        // gorunuyor?"
+        //
+        // KRITIK AYRIM — bu kaydin tamami buna dayaniyor:
+        //
+        //   YAPISAL event  : yoklugu "bu mekanik YOK" demektir.
+        //                    level_start gelmiyorsa oyunun bolumu yoktur.
+        //                    ad_watched gelmiyorsa oyunda reklam yoktur.
+        //                    -> yuzey GIZLENEBILIR.
+        //
+        //   OLCUM event    : yoklugu bir SONUCTUR, hatta iyi haberdir.
+        //                    crash_detected gelmiyorsa oyun cokmuyor demektir.
+        //                    "Crash & Performance" sekmesini bu yuzden
+        //                    gizlemek ABSURT olurdu — tam tersine, orasi
+        //                    "hic crash yok" yazmali.
+        //                    -> yuzey ASLA gizlenmez, kayda hic girmez.
+        //
+        // Yalnizca YAPISAL eventi olan yuzeyler burada listelenir.
+        //
+        // gameType neden tek basina yetmez: "casual" etiketli bir oyunun
+        // bolumleri olabilir, "rpg" etiketli biri hic level eventi
+        // gondermiyor olabilir. Etiket BEYANDIR, event akisi GERCEKTIR.
+        // Bu yuzden gorunurlugu GOZLEM belirler; gameType yalnizca
+        // "beklemistik ama gelmedi" teshisini uretir.
+        // ═══════════════════════════════════════════════════════════════════
+        const YUZEY_KAYDI = {
+            levels: {
+                // buildSummaryData bu adlari okuyor (firebase/functions/index.js).
+                events: ['level_start', 'level_complete', 'level_fail'],
+                i18n: 'surface.levels',
+            },
+            ads: {
+                events: ['ad_watched', 'rewarded_ad_watched'],
+                i18n: 'surface.ads',
+            },
+            iap: {
+                events: ['iap_purchase_success'],
+                i18n: 'surface.iap',
+            },
+        };
+
+        // Hangi oyun tipinde hangi yuzey BEKLENIR. Yalnizca teshis metni
+        // icin: gorunurluk kararini DEGISTIRMEZ. Beklenen bir yuzeyin
+        // eventi hic gelmiyorsa bu, buyuk olasilikla eksik SDK entegrasyonu
+        // demektir ve kullaniciya soylenmeye deger.
+        const TIP_BEKLENTILERI = {
+            puzzle: ['levels', 'ads'],
+            match3: ['levels', 'ads', 'iap'],
+            midcore: ['levels', 'iap'],
+            rpg: ['levels', 'iap'],
+            action: ['levels', 'ads'],
+            strategy: ['levels', 'iap'],
+            simulation: ['ads', 'iap'],
+            casino: ['ads', 'iap'],
+        };
+
+        /**
+         * Saf fonksiyon — DOM'a dokunmaz, test edilebilir.
+         *
+         * @param {{gameType?:string, observedEvents?:string[]}} oyun
+         * @returns {Object<string,{gorunur:boolean, beklenmisti:boolean, eksik:string[]}>}
+         */
+        function cozumleYuzeyler(oyun) {
+            const tip = (oyun && oyun.gameType) || null;
+            const ham = (oyun && oyun.observedEvents) || [];
+            const gorulen = new Set(Array.isArray(ham) ? ham : []);
+            // Oyun hic event gondermemisse HICBIR SEY gizlenmez. Yeni
+            // entegrasyon yapan kullaniciya yarim panel gostermek, ona
+            // "burasi calismiyor" dedirtir.
+            const veriVar = gorulen.size > 0;
+            const beklenen = TIP_BEKLENTILERI[tip] || [];
+
+            const sonuc = {};
+            for (const [id, tanim] of Object.entries(YUZEY_KAYDI)) {
+                const eslesen = tanim.events.filter((e) => gorulen.has(e));
+                const gorunur = !veriVar || eslesen.length > 0;
+                sonuc[id] = {
+                    gorunur,
+                    // "Bu tipte beklerdik ama gelmedi" — eksik entegrasyon sinyali.
+                    beklenmisti: !gorunur && beklenen.includes(id),
+                    eksik: gorunur ? [] : tanim.events.slice(),
+                };
+            }
+            return sonuc;
+        }
+
+        /** Cozumlemeyi DOM'a uygular. Gizlenen sekme aciksa Genel Bakis'a doner. */
+        function uygulaYuzeyler(oyun) {
+            const karar = cozumleYuzeyler(oyun);
+            const uyarilar = [];
+
+            for (const [id, d] of Object.entries(karar)) {
+                document.querySelectorAll(`[data-surface="${id}"]`).forEach((el) => {
+                    el.hidden = !d.gorunur;
+                });
+                if (d.beklenmisti) uyarilar.push({ id, eksik: d.eksik });
+            }
+
+            // Acik olan sekme gizlendiyse kullanici bos ekranda kalir.
+            const aktif = document.querySelector('.nav-tab.active');
+            if (aktif && aktif.hidden) {
+                const genel = document.querySelector('.nav-tab[data-tab="overview"]');
+                if (genel) genel.click();
+            }
+
+            renderYuzeyUyarisi(uyarilar);
+        }
+
+        /**
+         * "Bu tipte bekliyorduk ama hic gelmedi" uyarisi. Yuzeyi gizlemek
+         * sessiz bir karardir; sebebini soylemezsek kullanici bolumun
+         * kaybolduğunu sanir.
+         */
+        function renderYuzeyUyarisi(uyarilar) {
+            const kap = $('surface-notice');
+            if (!kap) return;
+            if (!uyarilar.length) {
+                kap.hidden = true;
+                kap.innerHTML = '';
+                return;
+            }
+            const satirlar = uyarilar.map((u) =>
+                `<li><strong>${escapeHtml(t(YUZEY_KAYDI[u.id].i18n))}</strong> — ` +
+                `<span class="mono">${escapeHtml(u.eksik.join(', '))}</span></li>`
+            ).join('');
+            kap.innerHTML =
+                `<div class="surface-notice-title">${escapeHtml(t('surface.missingTitle'))}</div>` +
+                `<ul>${satirlar}</ul>` +
+                `<div class="surface-notice-sub">${escapeHtml(t('surface.missingHint'))}</div>`;
+            kap.hidden = false;
         }
 
         function wireTabs() {
@@ -2571,6 +2766,8 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
             sel.addEventListener('change', (e) => {
                 currentGame = e.target.value;
                 if (display) display.textContent = GAME_NAMES[currentGame] || currentGame;
+                // Oyun degisti — yuzeyler de degisir (biri level'li, oburu degil).
+                uygulaYuzeyler(GAMES[currentGame]);
                 subscribeToGame(currentGame);
             });
         }
