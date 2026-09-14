@@ -103,10 +103,35 @@ Kaba hesap: ~150k event/gün, satır başına ~300 bayt → **~1,35 GB/ay**.
   kısalt (canlı akış için 7 gün yeter) — Firestore depolama + okuma maliyeti
   daha da düşer.
 
-**Faz 2'den bağımsız, çok daha ucuz bir hızlı kazanç var:** `detectAnomalies`
-baseline penceresini önbelleğe al ya da rollup'tan oku. Geçmiş veri
-değişmiyor; 30 dakikada bir yeniden okumanın hiçbir karşılığı yok. Tek başına
-bu, yukarıdaki $17,3/oyun/ay kaleminin büyük kısmını siler.
+### Hızlı kazanç — **yapıldı** (Faz 2'den bağımsız)
+
+`detectAnomalies`'in baseline'ı artık ham event yerine günlük özet
+dokümanlarından kuruluyor:
+
+| | okuma/ay | $/oyun/ay |
+|---|---|---|
+| Önce (2 × `buildSummaryData`) | 28,8M | ~$17,3 |
+| Sonra (1 × `buildSummaryData` + ~8 doküman) | 14,4M | ~$8,65 |
+| **Kazanç** | **14,4M (%50)** | **~$8,6** — 6 oyunda ~$52/ay |
+
+Bunun yanında **iki gerçek hata** düzeldi. İkisi birbirini maskeliyordu:
+
+1. Baseline sorgusu `orderBy timestamp desc limit 10000` olduğu için "7
+   günlük baseline" aslında **7 günün en yeni 10.000 event'i** idi — günde
+   150k event üreten bir oyunda ~1,6 saat. Sentinel kendini kendisiyle
+   karşılaştırıyordu.
+2. `dau_drop` kuralı **ham sayı** karşılaştırıyordu: 2 saatlik tekil oyuncu
+   vs 7 günlük. Gerçek bir 7 günlük baseline'da neredeyse her koşuda
+   tetiklenirdi — ama baseline kırpıldığı için `now ≈ baseline` oluyor ve
+   kural susuyordu.
+
+Yani **yalnızca baseline'ı düzeltmek yanlış alarm seline yol açardı.** İkisi
+birlikte çözüldü: `dau_drop` artık bugünün DAU'sunu önceki günlerin günlük
+ortalamasıyla karşılaştırıyor — iki taraf da 24 saat.
+
+`sentinel.js` içindeki `PENCERE_GUVENLIGI` kaydı bu tuzağı kalıcı olarak
+kapatıyor: yeni bir kural ham sayı karşılaştırırsa test kırılır ve yazan kişi
+"bu kural hangi pencereyi ölçüyor" sorusunu cevaplamak zorunda kalır.
 
 ---
 

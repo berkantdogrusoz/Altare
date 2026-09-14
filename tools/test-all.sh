@@ -30,6 +30,13 @@ calistir "Denetim kaydi (eksiksizlik + degismezlik)" \
 # biri silinirse tablo yine CALISIR, sadece faturasi katlanir.
 calistir "BigQuery (sema paritesi + maliyet korkuluklari)" \
   node tools/test-bigquery.js
+# Sentinel'de iki hata birbirini MASKELIYORDU: baseline 10.000 event'e
+# kirpildigi icin "7 gunluk" aslinda ~1,6 saatti (now ≈ baseline), bu da
+# dau_drop'un HAM SAYI karsilastirdigini gizliyordu. Yalnizca birini
+# duzeltmek yanlis alarm seline yol acardi. Kayit, yeni bir ham-sayi
+# kuralinin siniflandirilmadan eklenmesini engelliyor.
+calistir "Sentinel (baseline kurulumu + pencere guvenligi)" \
+  node tools/test-sentinel.js
 calistir "Istemci/sunucu hash paritesi (C# modeli ≡ JavaScript)" \
   python3 tools/test-hash-parity.py
 calistir "AltareJson ayristirici (≡ JSON.parse)" \

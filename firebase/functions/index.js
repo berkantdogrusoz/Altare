@@ -833,6 +833,10 @@ exports.getIndustryBenchmark = onCall(async (request) => {
 // gosterilir + okunmamis sayisi bildirim olarak akar.
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Baseline kac gunluk ozetten kurulur. 7 gun: haftalik dongu (hafta sonu
+// trafigi hafta ici trafiginden farklidir) tam olarak icine girsin.
+const SENTINEL_BASELINE_GUN = 7;
+
 const ANOMALY_RULES = [
   {
     id: "crash_spike",
@@ -859,15 +863,28 @@ const ANOMALY_RULES = [
     severity: "high",
     title_tr: "DAU son 14 gun dibinde",
     title_en: "DAU at 14-day low",
-    check: (now, baseline) => {
-      if (baseline.uniquePlayers < 10) return null;
-      const drop = (baseline.uniquePlayers - now.uniquePlayers) / baseline.uniquePlayers;
+    // ⚠ TEK HAM-SAYI KURALI — pencere uzunlugu ONEMLI.
+    // Eskiden 2 SAATLIK tekil oyuncu sayisini 7 GUNLUK sayiyla
+    // karsilastiriyordu; bunlar ayni buyukluk mertebesinde bile degil ve
+    // kural neredeyse her kosuda tetiklenirdi. Fark edilmemesinin tek
+    // sebebi baseline'in 10.000 event'e kirpilmasiyla now ≈ baseline
+    // olmasiydi — iki hata birbirini ortuyordu.
+    // Artik IKI TARAF DA 24 SAAT: bugunun DAU'su vs onceki gunlerin
+    // gunluk ortalamasi. ctx.bugun yoksa kural susar (uydurma yapmaz).
+    check: (now, baseline, ctx) => {
+      const bugun = ctx && ctx.bugun;
+      if (!bugun) return null;
+      const bugunDau = Number(bugun.uniquePlayers) || 0;
+      const ortalamaDau = Number(baseline._gunlukOrtalamaOyuncu) || 0;
+      if (ortalamaDau < 10) return null;
+      const drop = (ortalamaDau - bugunDau) / ortalamaDau;
       if (drop > 0.4) {
+        const gun = baseline._gunSayisi;
         return {
           metric: "uniquePlayers",
           delta_pct: -Math.round(drop * 100),
-          rationale_tr: `Aktif oyuncu ${baseline.uniquePlayers} -> ${now.uniquePlayers} (%${Math.round(drop * 100)} dusus)`,
-          rationale_en: `Active players ${baseline.uniquePlayers} -> ${now.uniquePlayers} (${Math.round(drop * 100)}% drop)`,
+          rationale_tr: `Gunluk aktif oyuncu ${ortalamaDau} (son ${gun} gun ort.) -> ${bugunDau} (%${Math.round(drop * 100)} dusus)`,
+          rationale_en: `Daily active players ${ortalamaDau} (${gun}-day avg) -> ${bugunDau} (${Math.round(drop * 100)}% drop)`,
         };
       }
       return null;
@@ -1024,19 +1041,52 @@ exports.detectAnomalies = onSchedule(
       const gameId = gameDoc.id;
       const gameData = gameDoc.data();
       try {
-        // Now window: last 2h. Baseline window: previous 7 days (24h chunk).
+        // Simdiki pencere: son 2 saat, HAM olaylardan — ani sicramayi
+        // gormek icin kisa pencere sart.
+        //
+        // Baseline: GUNLUK OZETLERDEN. Eskiden burada ikinci bir
+        // buildSummaryData(gameId, now - 7 gun) cagrisi vardi ve o sorgu
+        // "en yeni 10.000 event" getiriyordu — gunde 150k event ureten bir
+        // oyunda ~1,6 SAAT. Yani "7 gunluk baseline" aslinda son 1,6 saatti
+        // ve Sentinel kendini kendisiyle karsilastiriyordu.
+        //
+        // aggregateDailyStats zaten stats/{YYYY-MM-DD} altina tam ozeti
+        // yaziyor. Oradan kurmak ~8 DOKUMAN okur, 10.000 degil; ustelik
+        // baseline GERCEKTEN cok gunluk olur.
         const nowSince = admin.firestore.Timestamp.fromMillis(Date.now() - 2 * 3600e3);
-        const baselineSince = admin.firestore.Timestamp.fromMillis(Date.now() - 7 * 24 * 3600e3);
+        const bugunKey = new Date().toISOString().slice(0, 10);
 
-        const [nowStats, baselineStats] = await Promise.all([
-          buildSummaryData(gameId, nowSince),
-          buildSummaryData(gameId, baselineSince),
-        ]);
+        // Dokuman kimligi YYYY-MM-DD oldugu icin sozluk sirasi = tarih sirasi.
+        const statsSnap = await db
+          .collection("games").doc(gameId).collection("stats")
+          .orderBy(admin.firestore.FieldPath.documentId(), "desc")
+          .limit(SENTINEL_BASELINE_GUN + 1)
+          .get();
+        const gunlukler = statsSnap.docs.map((d) => ({ gun: d.id, ...d.data() }));
+        const bugunOzet = gunlukler.find((g) => g.gun === bugunKey) || null;
+        // Bugun baseline'a GIRMEZ: simdiki pencereyle ortusur ve anomaliyi
+        // kendi baseline'ina karistirip sinyali sulandirir.
+        const baselineStats = SENTINEL.baselineKur(
+          gunlukler.filter((g) => g.gun !== bugunKey));
+
+        if (!SENTINEL.baselineYeterliMi(baselineStats)) {
+          // Az veriyle alarm uretmek, uretmemekten KOTUDUR: musteri bir kez
+          // bos yere korkutulunca sonrakine de inanmaz.
+          logger.info("sentinel: baseline yetersiz, atlandi", {
+            gameId, gunSayisi: baselineStats ? baselineStats._gunSayisi : 0 });
+          return;
+        }
+
+        const nowStats = await buildSummaryData(gameId, nowSince);
 
         if (nowStats.totalEvents < 10) {
           // not enough signal
           return;
         }
+
+        // Ham sayi karsilastiran kurallarin ihtiyaci (bkz. sentinel.js
+        // PENCERE_GUVENLIGI): iki tarafi da 24 saat olan bir olcut.
+        const kuralCtx = { bugun: bugunOzet, baselineGunSayisi: baselineStats._gunSayisi };
 
         for (const rule of ANOMALY_RULES) {
           // Dedupe: same rule fired within last 6h -> skip
@@ -1048,7 +1098,7 @@ exports.detectAnomalies = onSchedule(
             .limit(1).get();
           if (!recentDedupe.empty) continue;
 
-          const result = rule.check(nowStats, baselineStats);
+          const result = rule.check(nowStats, baselineStats, kuralCtx);
           if (!result) continue;
 
           await db.collection("games").doc(gameId).collection("alerts").add({
@@ -3714,6 +3764,10 @@ async function buildSummaryData(gameId, sinceTs) {
   const avgFps = totalFpsSamples > 0 ? Math.round(fpsSum / totalFpsSamples) : null;
 
   return {
+    // Kirpilma cagirana SOYLENMELI: eskiden yalnizca loglaniyordu ve
+    // detectAnomalies "7 gunluk" sandigi verinin aslinda 1,6 saatlik
+    // oldugunu ogrenemiyordu.
+    truncated,
     totalEvents: events.length,
     uniquePlayers: players.size,
     uniqueSessions: sessions.size,
@@ -4787,6 +4841,7 @@ async function olayAdlariniKaydet(gameId, adlar) {
 // ═══════════════════════════════════════════════════════════════════════════
 
 const BQ = require("./bigquery");
+const SENTINEL = require("./sentinel");
 const BQ_ACIK = String(process.env.ALTARE_BQ_ENABLED || "true") !== "false";
 let _bqIstemci = null;
 let _bqTablo = null;
