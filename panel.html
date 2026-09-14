@@ -1590,6 +1590,12 @@
                         <span id="game-name-display">—</span> ·
                         <span class="mono" id="time-range" data-i18n="page.last24h">Son 24 saat</span> ·
                         <span class="mono" id="current-time">--:--</span>
+                        <!-- VERININ ne zaman guncellendigi. Canli saat tek basina,
+                             sayilarin o dakikaya ait oldugunu ima ediyordu; oysa
+                             toplamalar SAATLIK yaziliyor. Ayirici metnin ICINDE:
+                             veri yokken oge gizleniyor ve bosta duran "·"
+                             kalmiyor. -->
+                        <span class="mono" id="stats-fresh" title="" hidden></span>
                     </p>
                 </div>
 
@@ -4084,7 +4090,31 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
             }
         }
 
+        /**
+         * Ozet verisinin ne kadar taze oldugunu yazar.
+         * aggregateDailyStats SAATLIK calisiyor, yani bu sayilar 60 dakikaya
+         * kadar eski olabilir. Soylenmezse baslikataki canli saat yanlis bir
+         * izlenim verir — "anlik" gorunum isteyen Canli Event Stream'de.
+         */
+        function renderStatsFreshness(stats) {
+            const el = $('stats-fresh');
+            if (!el) return;
+            const ms = stats && stats.updatedAt && typeof stats.updatedAt.toMillis === 'function'
+                ? stats.updatedAt.toMillis() : null;
+            if (!ms) { el.hidden = true; el.textContent = ''; el.title = ''; return; }
+
+            const dk = Math.max(0, Math.round((Date.now() - ms) / 60000));
+            const saat = new Date(ms).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const metin = dk < 1
+                ? t('page.freshNow')
+                : t('page.freshAgo').replace('{dk}', String(dk));
+            el.textContent = '· ' + metin;
+            el.title = t('page.freshAt').replace('{saat}', saat);
+            el.hidden = false;
+        }
+
         function renderStats(stats) {
+            renderStatsFreshness(stats);
             setKpi('kpi-sessions', stats ? formatInt(stats.uniqueSessions || 0) : '—');
             setKpi('kpi-events', stats ? formatInt(stats.totalEvents || 0) : '—');
             setKpi('kpi-avg-session', stats ? formatDuration(stats.avgSessionSeconds || 0) : '—');

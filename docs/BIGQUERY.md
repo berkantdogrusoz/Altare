@@ -133,6 +133,33 @@ ortalamasıyla karşılaştırıyor — iki taraf da 24 saat.
 kapatıyor: yeni bir kural ham sayı karşılaştırırsa test kırılır ve yazan kişi
 "bu kural hangi pencereyi ölçüyor" sorusunu cevaplamak zorunda kalır.
 
+### `aggregateDailyStats` saatliğe alındı
+
+| | okuma/ay | $/oyun/ay |
+|---|---|---|
+| 30 dakikada bir | 14,4M | ~$8,6 |
+| **Saatlik** | **7,2M** | **~$4,3** |
+| Kazanç | %50 | ~$4,3 — 6 oyunda ~$26/ay |
+
+Tazelik kaybının kimseyi vurmadığı kontrol edildi: KPI kartları **24 saatlik
+yuvarlanan** toplamlar (30 dakikada zaten kayda değer değişmez), sektör
+benchmark günlük toplama, Sentinel baseline'ı ise **önceki günlerin**
+özetlerini kullanıyor. Anlık görünüm isteyen kullanıcı zaten **Canlı Event
+Stream** sekmesinde ve orası gerçek zamanlı.
+
+Yavaşlayan tazelik **görünür kılındı**: panel artık başlıkta
+`veri: 38 dk önce` yazıyor (`stats.updatedAt`). Aksi halde yanındaki canlı
+saat, sayıların o dakikaya ait olduğunu ima etmeye devam ederdi.
+
+### Toplam kazanç
+
+| Kalem | Önce | Sonra |
+|---|---|---|
+| `detectAnomalies` | ~$17,3 | ~$8,65 |
+| `aggregateDailyStats` | ~$8,6 | ~$4,3 |
+| **Oyun başına toplam** | **~$25,9** | **~$13,0** |
+| **6 oyun** | **~$155/ay** | **~$78/ay** |
+
 ---
 
 ## Doğrulama durumu — dürüst sınır

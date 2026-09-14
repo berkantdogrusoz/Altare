@@ -169,6 +169,62 @@ ok("sentinel.js Firebase ICE AKTARMAZ (saf kalmali)",
    !fs.readFileSync(path.join(KOK, "firebase", "functions", "sentinel.js"), "utf8")
       .includes('require("firebase'));
 
+// ═══════════════════════════════════════════════════════════════════════════
+baslik("5. ⚠ ZAMANLANMIŞ İŞ SIKLIĞI — doğrudan fatura kalemi");
+// ═══════════════════════════════════════════════════════════════════════════
+// Her buildSummaryData çağrısı 10.000 doküman okuyor. Sıklık sessizce
+// artırılırsa maliyet de aynı oranda artar ve hiçbir test kırılmaz —
+// fark etmenin tek yolu fatura olur. Bu yüzden sıklıklar burada sabitli.
+
+/** Bir onSchedule dışa aktarımının schedule metnini al. */
+function zamanlama(ad) {
+  const b = kaynak.indexOf(`exports.${ad} = onSchedule`);
+  if (b < 0) return null;
+  const m = /schedule:\s*"([^"]+)"/.exec(kaynak.slice(b, b + 400));
+  return m ? m[1] : null;
+}
+
+const DK = { "every 30 minutes": 30, "every 60 minutes": 60, "every 1 hours": 60,
+             "every 6 hours": 360 };
+const beklenen = {
+  // 10.000 okuma/koşu — saatlik. 30 dakikaya düşürülürse maliyet İKİYE KATLANIR.
+  aggregateDailyStats: 60,
+  // Ani sıçrama dedektörü: kısa pencere gerekiyor, 30 dakika bilinçli.
+  // Artık koşu başına 1 buildSummaryData + ~8 doküman okuyor (eskiden 2 × 10.000).
+  detectAnomalies: 30,
+};
+
+for (const [ad, dk] of Object.entries(beklenen)) {
+  const z = zamanlama(ad);
+  ok(`${ad} zamanlamasi bulundu`, !!z, "onSchedule bulunamadi");
+  ok(`${ad} = ${dk} dakikada bir`, z && DK[z] === dk,
+     `${z} bulundu — degistirildiyse maliyet etkisini hesapla ve bu testi guncelle`);
+}
+
+// aggregateDailyStats, detectAnomalies'ten SEYREK olmali degil: baseline
+// gunluk ozetlerden kuruldugu icin ozetler yeterince sik yazilmali.
+ok("gunluk ozet, anomali kosusundan cok seyrek degil",
+   DK[zamanlama("aggregateDailyStats")] <= 4 * DK[zamanlama("detectAnomalies")],
+   "ozetler cok seyrek yazilirsa baseline bayatlar");
+
+// ═══════════════════════════════════════════════════════════════════════════
+baslik("6. DÜRÜSTLÜK — yavaşlayan tazelik GÖRÜNÜR mü?");
+// ═══════════════════════════════════════════════════════════════════════════
+// Toplamalar saatlik yazilirken baslikta yalnizca canli saat gostermek,
+// sayilarin o dakikaya ait oldugunu ima eder. Yanlis izlenim, eksik
+// bilgiden kotudur.
+const panel = fs.readFileSync(path.join(KOK, "panel.html"), "utf8");
+ok("panelde tazelik gostergesi var", /id="stats-fresh"/.test(panel));
+ok("tazelik stats.updatedAt'ten okunuyor",
+   /updatedAt[\s\S]{0,120}toMillis/.test(panel));
+ok("renderStats tazeligi cagiriyor", /renderStats\(stats\)\s*\{\s*renderStatsFreshness\(stats\)/.test(panel));
+const sozluk = fs.readFileSync(path.join(KOK, "js", "i18n.js"), "utf8");
+for (const anahtar of ["page.freshNow", "page.freshAgo", "page.freshAt"]) {
+  ok(`'${anahtar}' TR sozlugunde`,
+     sozluk.slice(sozluk.indexOf("tr: {"), sozluk.indexOf("en: {")).includes(anahtar));
+  ok(`'${anahtar}' EN sozlugunde`, sozluk.slice(sozluk.indexOf("en: {")).includes(anahtar));
+}
+
 console.log("\n" + "=".repeat(60));
 if (k === 0) console.log(`✅  SENTINEL TESTLERI GECTI — ${g} kontrol`);
 else { console.log(`❌  ${k} BASARISIZ / ${g + k}\n`); hatalar.forEach((x) => console.log("   ✗ " + x)); }

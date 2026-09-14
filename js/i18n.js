@@ -263,6 +263,10 @@ const I18N = {
         'kpi.adWatches': 'Reklam İzleme (24h)',
         'kpi.iapRevenue': 'IAP Geliri (24h)',
         // Yuzey uyarlamasi — panel.html YUZEY_KAYDI ile eslesir
+        // Veri tazeligi — aggregateDailyStats SAATLIK yaziyor
+        'page.freshNow': 'veri: az önce',
+        'page.freshAgo': 'veri: {dk} dk önce',
+        'page.freshAt': 'Özet verisi saat {saat} itibarıyla. Saatlik güncellenir; anlık akış için Canlı Event Stream sekmesine bak.',
         'surface.levels': 'Bölüm analizi',
         'surface.ads': 'Reklam metrikleri',
         'surface.iap': 'Uygulama içi satın alma',
@@ -677,6 +681,10 @@ const I18N = {
         'kpi.adWatches': 'Ad Watches (24h)',
         'kpi.iapRevenue': 'IAP Revenue (24h)',
         // Surface adaptation — mirrors YUZEY_KAYDI in panel.html
+        // Data freshness — aggregateDailyStats writes HOURLY
+        'page.freshNow': 'data: just now',
+        'page.freshAgo': 'data: {dk} min ago',
+        'page.freshAt': 'Summary data as of {saat}. Updated hourly; use the Live Event Stream tab for real time.',
         'surface.levels': 'Level analysis',
         'surface.ads': 'Ad metrics',
         'surface.iap': 'In-app purchases',

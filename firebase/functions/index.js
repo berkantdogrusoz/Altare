@@ -502,8 +502,25 @@ exports.generateAIReport = onCall(
 // aggregateDailyStats — scheduled every 30 min
 // ─────────────────────────────────────────────────────────────────────────────
 
+// SAATLIK, 30 DAKIKADA BIR DEGIL.
+// Bu is her kosuda buildSummaryData cagiriyor ve o da 10.000 dokuman
+// okuyor (EVENT_CAP). 30 dakikada bir -> ayda 1.440 kosu -> 14,4M okuma
+// -> oyun basina ~$8,6/ay. Saatlik yarisi.
+//
+// Tazelik kaybi neyi etkiliyor:
+//   • panel KPI kartlari — 24 SAATLIK yuvarlanan toplamlar; boyle bir
+//     sayi 30 dakikada zaten kayda deger sekilde degismez
+//   • aggregateIndustryBenchmark — gunluk toplama, saatlik fazlasiyla yeter
+//   • detectAnomalies baseline'i — onceki GUNLERIN ozetini kullanir,
+//     bugunun tazeliginden etkilenmez
+// Anlik gorunum isteyen kullanici zaten Canli Event Stream sekmesinde;
+// orasi gercek zamanli onSnapshot ve bu degisiklikten etkilenmiyor.
+//
+// Yavaslayan tazelik GORUNUR kilindi: panel artik verinin ne zaman
+// guncellendigini yaziyor (stats.updatedAt). Aksi halde baslikataki canli
+// saat, sayilarin o dakikaya ait oldugunu ima etmeye devam ederdi.
 exports.aggregateDailyStats = onSchedule(
-  { schedule: "every 30 minutes", timeZone: "Europe/Istanbul" },
+  { schedule: "every 60 minutes", timeZone: "Europe/Istanbul" },
   async () => {
     const gamesSnap = await db.collection("games").get();
     const since = admin.firestore.Timestamp.fromMillis(Date.now() - 24 * 3600e3);
