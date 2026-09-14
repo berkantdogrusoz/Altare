@@ -143,7 +143,8 @@
                             diagnostics.</li>
                         <li><strong>Advertising and purchase data</strong> — ad impressions and rewarded-ad
                             engagement, purchase and refund state, and the transaction metadata the storefront returns
-                            to us.</li>
+                            to us. In ad-supported games, Google AdMob additionally processes your device's
+                            advertising identifier; see section 04.</li>
                         <li><strong>Consent state</strong> — whether you accepted, refused or later changed your
                             choice about analytics and personalised advertising.</li>
                     </ul>
@@ -231,16 +232,20 @@
                     <h2 id="ads"><span class="n">04</span>Advertising</h2>
                     <p>
                         Our games are free and funded by advertising and optional in-app purchases. Where a game shows
-                        ads, an advertising SDK operates inside that game and processes device and ad-interaction data
-                        under its own provider's terms in order to select, deliver, cap and measure ads, and to detect
-                        invalid traffic.
+                        ads, we use <strong>Google AdMob</strong>. AdMob operates inside the game and processes device
+                        and ad-interaction data — including your device's advertising identifier — under
+                        <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google's own
+                        privacy policy</a>, in order to select, deliver, cap and measure ads and to detect invalid
+                        traffic.
                     </p>
                     <p>
-                        In Türkiye, the EEA, the UK and other regions where the law requires it, a consent screen is
-                        shown before personalised advertising is enabled. <strong>If you refuse, ads still appear but
-                        are non-personalised</strong> — they are selected without an advertising profile. You can
-                        change this choice later from the game's privacy settings, and you can reset or delete your
-                        advertising identifier from your device settings at any time.
+                        In Türkiye, the EEA, the UK and other regions where the law requires it, we ask for your
+                        consent before personalised advertising is enabled, using the
+                        <strong>Google User Messaging Platform (UMP)</strong> consent screen.
+                        <strong>If you refuse, ads still appear but are non-personalised</strong> — they are selected
+                        without an advertising profile. You can change this choice later from the game's privacy
+                        settings, and you can reset or delete your advertising identifier from your device settings at
+                        any time.
                     </p>
                     <p>
                         Advertising data is handled separately from Altare Panel data: as described above, the Panel
@@ -284,8 +289,8 @@
                         <li><strong>Google Firebase</strong> (Authentication, Firestore, Cloud Functions) — the backend
                             that stores and processes Altare Panel data.</li>
                         <li><strong>Google Play</strong> — app distribution, billing, purchase validation and refunds.</li>
-                        <li><strong>Advertising providers</strong> integrated in ad-supported games, for ad delivery,
-                            consent handling and ad measurement.</li>
+                        <li><strong>Google AdMob and the Google User Messaging Platform</strong> — ad delivery, ad
+                            measurement, invalid-traffic detection and the consent screen in ad-supported games.</li>
                         <li><strong>GitHub Pages and Cloudflare</strong> — static hosting, DNS and content delivery for
                             this website.</li>
                         <li><strong>AI model providers</strong> — the Panel's assistant features send aggregate,
@@ -468,7 +473,9 @@
                         <li><strong>Cihaz ve teknik veri</strong> — cihaz modeli, GPU modeli, bellek sınıfı, işletim
                             sistemi, uygulama sürümü, dil, ülke ya da bölge, çökme ve performans kayıtları.</li>
                         <li><strong>Reklam ve satın alma verisi</strong> — reklam gösterimleri ve ödüllü reklam
-                            etkileşimi, satın alma ve iade durumu, mağazanın bize döndüğü işlem bilgileri.</li>
+                            etkileşimi, satın alma ve iade durumu, mağazanın bize döndüğü işlem bilgileri. Reklam
+                            destekli oyunlarda Google AdMob ayrıca cihazınızın reklam kimliğini işler; bkz. 04.
+                            madde.</li>
                         <li><strong>Rıza durumu</strong> — analitik ve kişiselleştirilmiş reklam tercihinizi kabul
                             edip etmediğiniz ya da sonradan değiştirip değiştirmediğiniz.</li>
                     </ul>
@@ -556,16 +563,19 @@
                     <h2 id="tr-reklam"><span class="n">04</span>Reklamlar</h2>
                     <p>
                         Oyunlarımız ücretsizdir; reklam ve isteğe bağlı uygulama içi satın alımlarla finanse edilir.
-                        Reklam gösteren bir oyunda, o oyunun içinde bir reklam SDK’sı çalışır ve reklamı seçmek,
-                        göstermek, sıklığını sınırlamak, ölçümlemek ve geçersiz trafiği tespit etmek amacıyla cihaz ve
-                        reklam etkileşimi verisini kendi sağlayıcısının koşulları altında işler.
+                        Reklam gösteren oyunlarımızda <strong>Google AdMob</strong> kullanıyoruz. AdMob, oyunun içinde
+                        çalışır ve reklamı seçmek, göstermek, sıklığını sınırlamak, ölçümlemek ve geçersiz trafiği
+                        tespit etmek amacıyla cihaz ve reklam etkileşimi verisini — cihazınızın reklam kimliği dâhil —
+                        <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google’ın kendi
+                        gizlilik politikası</a> kapsamında işler.
                     </p>
                     <p>
                         Türkiye’de, AEA’da, Birleşik Krallık’ta ve kanunun gerektirdiği diğer bölgelerde,
-                        kişiselleştirilmiş reklam açılmadan önce bir rıza ekranı gösterilir. <strong>Reddederseniz
-                        reklamlar yine çıkar ama kişiselleştirilmez</strong> — reklam profili kullanılmadan seçilir. Bu
-                        tercihi daha sonra oyunun gizlilik ayarlarından değiştirebilir, reklam kimliğinizi de istediğiniz
-                        zaman cihaz ayarlarınızdan sıfırlayabilir veya silebilirsiniz.
+                        kişiselleştirilmiş reklam açılmadan önce <strong>Google User Messaging Platform (UMP)</strong>
+                        rıza ekranıyla açık rızanızı istiyoruz. <strong>Reddederseniz reklamlar yine çıkar ama
+                        kişiselleştirilmez</strong> — reklam profili kullanılmadan seçilir. Bu tercihi daha sonra oyunun
+                        gizlilik ayarlarından değiştirebilir, reklam kimliğinizi de istediğiniz zaman cihaz
+                        ayarlarınızdan sıfırlayabilir veya silebilirsiniz.
                     </p>
                     <p>
                         Reklam verisi, Altare Panel verisinden ayrı işlenir: yukarıda belirtildiği gibi Panel SDK’sı
@@ -611,8 +621,8 @@
                             Panel verisinin saklandığı ve işlendiği altyapı.</li>
                         <li><strong>Google Play</strong> — uygulama dağıtımı, faturalandırma, satın alma doğrulama ve
                             iadeler.</li>
-                        <li><strong>Reklam sağlayıcıları</strong> — reklam destekli oyunlarda reklam sunumu, rıza
-                            yönetimi ve reklam ölçümü için.</li>
+                        <li><strong>Google AdMob ve Google User Messaging Platform</strong> — reklam destekli
+                            oyunlarda reklam sunumu, reklam ölçümü, geçersiz trafik tespiti ve rıza ekranı.</li>
                         <li><strong>GitHub Pages ve Cloudflare</strong> — bu web sitesinin statik barındırması, DNS’i
                             ve içerik dağıtımı.</li>
                         <li><strong>Yapay zekâ model sağlayıcıları</strong> — Panel’in asistan özellikleri, yazılı

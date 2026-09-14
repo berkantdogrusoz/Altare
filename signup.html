@@ -165,6 +165,19 @@
             line-height: 1.5;
         }
         .ok.show { display: block; }
+        .consent-note {
+            font-size: 0.76rem;
+            line-height: 1.6;
+            color: var(--text-faint);
+            text-align: center;
+            margin: -2px 0 2px;
+        }
+        .consent-note a {
+            color: var(--text-dim);
+            text-decoration: none;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+        }
+        .consent-note a:hover { color: var(--text); }
         .footer-note {
             margin-top: 26px;
             text-align: center;
@@ -219,6 +232,15 @@
             </div>
             <div class="err" id="err"></div>
             <div class="ok" id="ok"></div>
+            <!-- Rizanin hukuken anlamli oldugu yer BURASI: kullanici hesabi
+                 olusturarak kabul ediyor, o yuzden not dugmenin hemen ustunde
+                 duruyor — sayfanin dibinde degil. -->
+            <p class="consent-note">
+                Hesap oluşturarak
+                <a href="/terms-of-service.html" target="_blank" rel="noopener">Kullanım Şartları</a>’nı ve
+                <a href="/privacy-policy.html" target="_blank" rel="noopener">Gizlilik Politikası</a>’nı
+                kabul etmiş olursun.
+            </p>
             <button type="submit" id="submit-btn">Hesap Oluştur ve Panele Gir</button>
         </form>
 
@@ -226,6 +248,9 @@
             Hesabın var mı? <a href="/login.html"><strong>Giriş yap</strong></a>
             <br>
             <a href="/">← Ana siteye dön</a>
+            <br>
+            <a href="/privacy-policy.html">Gizlilik Politikası</a> ·
+            <a href="/terms-of-service.html">Kullanım Şartları</a>
         </p>
     </div>
 
