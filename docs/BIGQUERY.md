@@ -33,11 +33,37 @@ Aynı olaylar ayda binlerce kez faturalanıyor.
 
 ## Kurulum — bir kez, elle
 
-Deploy sonrası panelden/CLI'dan **bir kez** çağır (admin gerekir):
+### 1. Deploy
 
+Kodun canlıya çıkması gerek (yeni fonksiyon `setupBigQuery` ve BigQuery
+yazım yolu):
+
+```bash
+cd firebase
+firebase deploy --only functions
 ```
-setupBigQuery()
+
+Tek fonksiyonu deploy etmek yeterliyse:
+
+```bash
+firebase deploy --only functions:setupBigQuery,functions:ingestEvents,functions:detectAnomalies,functions:aggregateDailyStats
 ```
+
+Panel değişiklikleri (Altyapı sekmesi) GitHub Pages'ten gelir — `main`'e
+push yeterli, ayrı deploy yok.
+
+### 2. Butona bas
+
+Panelde **Altyapı → Veri Ambarını Kur**. Sekme yalnızca admin'e görünür.
+
+Dataset'i `europe-west1`'de oluşturur ve tabloyu dört korkulukla kurar.
+Tekrar basmak zararsızdır (`exists()` kontrolü + `CREATE TABLE IF NOT
+EXISTS`).
+
+> **Yetki hatası alırsan** Functions servis hesabının BigQuery izni yok
+> demektir. Cloud Console → IAM'den servis hesabına
+> `roles/bigquery.dataEditor` + `roles/bigquery.jobUser` ver. Buton bu hatada
+> ne yapman gerektiğini zaten ekrana yazıyor.
 
 Dataset'i `europe-west1`'de oluşturur ve tabloyu dört korkulukla kurar.
 Çağrılana kadar olaylar **yalnızca Firestore'a** yazılır ve loglara açık bir

@@ -1550,6 +1550,7 @@
                     <div class="sidebar-label" data-i18n="sidebar.studio">Studio</div>
                     <button class="nav-tab" data-tab="my-games"><span class="dot"></span> <span data-i18n="tab.my-games">Oyunlarım</span></button>
                     <button class="nav-tab admin-only" data-tab="customers" hidden><span class="dot"></span> <span data-i18n="tab.customers">Müşteri Yönetimi</span></button>
+                    <button class="nav-tab admin-only" data-tab="infra" hidden><span class="dot"></span> <span data-i18n="tab.infra">Altyapı</span></button>
                     <button class="nav-tab" data-tab="integration"><span class="dot"></span> <span data-i18n="tab.integration">Entegrasyon Rehberi</span></button>
                 </div>
                 <div class="sidebar-section">
@@ -2040,6 +2041,33 @@
                                 <button type="submit" class="primary-btn" data-i18n="customers.btnCreate">Müşteri Oluştur</button>
                             </form>
                             <div id="new-customer-result"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="tab-view" data-tab="infra">
+                    <div class="info-banner" data-i18n-html="infra.banner">
+                        <strong>Altyapı kurulumu</strong> · Bir kez çalıştırılır, tekrar çalıştırmak zararsızdır. Bu işlemler denetim kaydına yazılır.
+                    </div>
+
+                    <div class="section-block">
+                        <div class="section-head">
+                            <h3 data-i18n="infra.bq.title">Veri Ambarı (BigQuery)</h3>
+                            <span class="head-meta mono">europe-west1</span>
+                        </div>
+                        <div class="section-content">
+                            <p data-i18n-html="infra.bq.p1">
+                                Olay ambarını oluşturur: <code>altare_analytics.events</code> tablosu, tarih bölümlemesi,
+                                kümeleme ve <code>require_partition_filter</code> ile. <strong>Bölge sonradan
+                                değiştirilemez</strong> — <code>europe-west1</code> seçili, veri AB'de kalır.
+                            </p>
+                            <p data-i18n-html="infra.bq.p2">
+                                Bu çağrı yapılana kadar olaylar <strong>yalnızca Firestore'a</strong> yazılır ve
+                                loglara açık bir uyarı düşer — veri kaybolmaz.
+                            </p>
+                            <button type="button" class="primary-btn" id="btn-setup-bq"
+                                data-i18n="infra.bq.btn">Veri Ambarını Kur</button>
+                            <div id="setup-bq-result" style="margin-top:14px;"></div>
                         </div>
                     </div>
                 </section>
@@ -2543,6 +2571,7 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
             wireCopilot();
             wirePlayerRollback();
             wireIndustryBenchmark();
+            wireInfraSetup();
             wireFunnels();
             wireAudit();
             startClock();
@@ -3096,6 +3125,50 @@ AltareAnalytics.SubmitFeedback(rating: 5, text: "Harika oyun!");</pre>
         // ─────────────────────────────────────────────────────────────────
         // Denetim Kaydı + KVKK/GDPR oyuncu verisi araçları
         // ─────────────────────────────────────────────────────────────────
+
+        /**
+         * Altyapi kurulumu — setupBigQuery.
+         *
+         * Tekrar calistirmak ZARARSIZ: dataset icin exists() kontrolu,
+         * tablo icin CREATE TABLE IF NOT EXISTS var. Yine de buton kosarken
+         * kilitleniyor — cift tiklama iki es zamanli DDL sorgusu acardi.
+         */
+        function wireInfraSetup() {
+            const btn = $('btn-setup-bq');
+            const out = $('setup-bq-result');
+            if (!btn || !out) return;
+
+            btn.addEventListener('click', async () => {
+                btn.disabled = true;
+                out.innerHTML = `<div class="empty">${escapeHtml(t('infra.bq.running'))}</div>`;
+                try {
+                    const fn = httpsCallable(functions, 'setupBigQuery');
+                    const r = await fn({});
+                    const d = r.data || {};
+                    out.innerHTML = `
+                        <div class="success-box">
+                            <h4>✅ ${escapeHtml(t('infra.bq.ok'))}</h4>
+                            <div class="kv">
+                                <div class="kv-row"><span class="kv-key">${escapeHtml(t('infra.bq.table'))}</span><code class="kv-val">${escapeHtml(d.dataset || '?')}.${escapeHtml(d.tablo || '?')}</code></div>
+                                <div class="kv-row"><span class="kv-key">${escapeHtml(t('infra.bq.region'))}</span><code class="kv-val">${escapeHtml(d.konum || '?')}</code></div>
+                                <div class="kv-row"><span class="kv-key">${escapeHtml(t('infra.bq.expiry'))}</span><code class="kv-val">${escapeHtml(String(d.bolumOmruGun || '?'))}</code></div>
+                            </div>
+                            <p style="margin-top:12px;color:var(--muted);">${escapeHtml(t('infra.bq.next'))}</p>
+                        </div>`;
+                } catch (err) {
+                    // Yetki hatasi EN SIK gorulen: Functions servis hesabinin
+                    // BigQuery izni yoksa burada patlar. Ne yapilacagini soyle.
+                    const yetki = /permission|denied|403|PERMISSION_DENIED/i.test(err?.message || '');
+                    out.innerHTML =
+                        `<div class="error-box">${escapeHtml(t('infra.bq.fail'))}: ` +
+                        `${escapeHtml(err?.message || String(err))}` +
+                        (yetki ? `<br><br>${escapeHtml(t('infra.bq.permHint'))}` : '') +
+                        `</div>`;
+                } finally {
+                    btn.disabled = false;
+                }
+            });
+        }
 
         function wireAudit() {
             const yenile = $('audit-refresh-btn');
