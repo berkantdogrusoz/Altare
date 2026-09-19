@@ -221,6 +221,82 @@ ok("bigquery.js istemciyi ICE AKTARMAZ (saf kalmali)",
       .includes('require("@google-cloud/bigquery")'),
    "saf kalmazsa bu test kutuphane ve kimlik dogrulama ister");
 
+// ═══════════════════════════════════════════════════════════════════════════
+baslik("6. ⚠ SİLME — KVKK md. 7 / GDPR md. 17");
+// ═══════════════════════════════════════════════════════════════════════════
+// Olaylar artık İKİ depoya yazılıyor. Yalnızca Firestore'dan silmek,
+// gizlilik politikasındaki "Silme, olaylarınızı ... siler" sözünü
+// TUTMAMAK demektir — oyuncunun bütün geçmişi ambarda kalır ve biz
+// sildiğimizi sanırız. Hiçbir hata mesajı çıkmaz.
+
+const silOyuncu = BQ.silmeSorgusu("p", { gameId: "g1", playerAnonId: "pl1" });
+const silOyun = BQ.silmeSorgusu("p", { gameId: "g1" });
+
+ok("silme DELETE uretir", /^DELETE FROM/.test(silOyuncu.query));
+ok("oyuncu silmede player_anon_id kosulu var", /player_anon_id = @playerAnonId/.test(silOyuncu.query));
+ok("oyun silmede player_anon_id kosulu YOK", !/player_anon_id/.test(silOyun.query),
+   "oyun silinirken tum oyuncular gitmeli");
+ok("game_id her zaman kosulda", /game_id = @gameId/.test(silOyuncu.query) &&
+   /game_id = @gameId/.test(silOyun.query));
+
+// Degerler parametre olarak gecmeli — sorguya gomulurse SQL enjeksiyonu.
+ok("degerler sorguya GOMULMEZ (parametre)",
+   !silOyuncu.query.includes("pl1") && !silOyuncu.query.includes("g1"),
+   "gameId/playerAnonId sorgu metnine girmis — enjeksiyon riski");
+ok("parametreler tasiniyor",
+   silOyuncu.params.gameId === "g1" && silOyuncu.params.playerAnonId === "pl1");
+ok("oyun silmede fazladan parametre yok",
+   Object.keys(silOyun.params).length === 1);
+
+// ⚠ BÖLÜM FİLTRESİ: require_partition_filter olmadan DELETE REDDEDILIR.
+ok("silme sorgusunda bolum filtresi var", /event_date/.test(silOyuncu.query),
+   "require_partition_filter bu DELETE'i reddeder");
+ok("silme korkuluk denetiminden gecer", BQ.sorguyuDenetle(silOyuncu.query).length === 0,
+   JSON.stringify(BQ.sorguyuDenetle(silOyuncu.query)));
+
+// Aralik TUM bolumleri kapsamali. Dar bir aralik, silinmesi gereken ESKI
+// olaylari kacirir ve bu SESSIZ bir eksik silme olur.
+const gunSayisi = Number((/INTERVAL (\d+) DAY/.exec(silOyuncu.query) || [])[1]);
+ok("silme araligi bolum omrunu KAPSIYOR", gunSayisi > BQ.BOLUM_OMRU_GUN,
+   `${gunSayisi} gun vs bolum omru ${BQ.BOLUM_OMRU_GUN} — dar aralik eski olaylari kacirir`);
+
+ok("gameId zorunlu", (() => {
+  try { BQ.silmeSorgusu("p", {}); return false; } catch { return true; }
+})(), "gameId'siz silme TUM oyunlari silerdi");
+
+// ── Cagri yollari ──
+const dpBlok = kaynak.slice(kaynak.indexOf("exports.deletePlayerData"),
+                            kaynak.indexOf("exports.exportPlayerData"));
+ok("deletePlayerData BigQuery'den de siliyor", /bigQuerySil\(/.test(dpBlok),
+   "yalnizca Firestore siliniyorsa oyuncunun gecmisi ambarda KALIR");
+ok("deletePlayerData oyuncuya ozel siliyor", /playerAnonId/.test(dpBlok));
+
+const dgBlok = kaynak.slice(kaynak.indexOf("exports.deleteGame"),
+                            kaynak.indexOf("exports.deleteGame") + 6000);
+ok("deleteGame BigQuery'den de siliyor", /bigQuerySil\(/.test(dgBlok),
+   "recursiveDelete yalnizca Firestore'u dolasir");
+
+// ⚠ EN ÖNEMLİSİ: yazım yolu hatayı yutar, SİLME YOLU YUTMAMALI.
+const silBlok = kaynak.slice(kaynak.indexOf("async function bigQuerySil"),
+                             kaynak.indexOf("async function bigQuerySil") + 2200);
+ok("bigQuerySil hatayi YUTMUYOR", !/catch\s*\([^)]*\)\s*\{[^}]*logger\.(warn|info)/.test(silBlok),
+   "yazim yolu gibi sessizce yutarsa eksik silme basarili gorunur");
+for (const [ad, blok] of [["deletePlayerData", dpBlok], ["deleteGame", dgBlok]]) {
+  // ⚠ "bir yerde throw var mi" YETMEZ: bu fonksiyonlarda zaten girdi
+  // dogrulamasi icin throw'lar var. Aranan sey, BIGQUERY HATASINA BAGLI
+  // olan throw. Aksi halde benim eklediğim throw silinse bile test gecerdi.
+  ok(`${ad} BigQuery hatasinda HATA veriyor`,
+     /if\s*\(\s*bq\w*Hata\s*\)[\s\S]{0,400}?throw new HttpsError/.test(blok),
+     "eksik silmeyi basarili gostermek, hata vermekten DAHA KOTU");
+  ok(`${ad} hata mesaji silmenin EKSIK oldugunu soyluyor`,
+     /EKSIK/.test(blok),
+     "kullanici neyin yarim kaldigini bilmeli, yoksa silindi sanir");
+  ok(`${ad} BigQuery sonucunu denetime yaziyor`, /bigQuery:/.test(blok),
+     "basarisiz silme denemesi de kayda gecmeli");
+}
+ok("tablo yoksa hata degil, atlanir", /tablo_yok/.test(silBlok),
+   "setupBigQuery calistirilmamissa silinecek bir sey de yoktur");
+
 console.log("\n" + "=".repeat(60));
 if (k === 0) console.log(`✅  BIGQUERY TESTLERI GECTI — ${g} kontrol`);
 else { console.log(`❌  ${k} BASARISIZ / ${g + k}\n`); hatalar.forEach((x) => console.log("   ✗ " + x)); }

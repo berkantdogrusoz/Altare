@@ -223,8 +223,47 @@ function sorguyuDenetle(sql) {
   return sorunlar;
 }
 
+/**
+ * SILME SORGUSU — KVKK md. 7 / GDPR md. 17 "unutulma hakki".
+ *
+ * NEDEN AYRI BIR FONKSIYON: olaylar artik iki depoya birden yaziliyor.
+ * Yalnizca Firestore'dan silmek, gizlilik politikasinda verilen sozu
+ * TUTMAMAK demektir — oyuncunun butun olay gecmisi BigQuery'de kalir.
+ *
+ * BOLUM FILTRESI ZORUNLU: tablo require_partition_filter ile kuruldu, yani
+ * event_date filtresi olmayan bir DELETE sunucu tarafinda REDDEDILIR. Burada
+ * bilincli olarak TUM olasi bolumleri kapsayan bir aralik veriliyor:
+ * bolum omru BOLUM_OMRU_GUN oldugundan ondan eski bolum zaten yoktur.
+ * Dar bir aralik vermek, silinmesi gereken eski olaylari KACIRIRDI.
+ *
+ * @param {string} projeId
+ * @param {{gameId:string, playerAnonId?:string}} olcut
+ * @returns {{query:string, params:object}}
+ */
+function silmeSorgusu(projeId, olcut) {
+  const gameId = olcut && olcut.gameId;
+  if (!gameId) throw new Error("silmeSorgusu: gameId zorunlu");
+
+  const tam = `\`${projeId}.${DATASET_ADI}.${TABLO_ADI}\``;
+  const params = { gameId };
+  const kosullar = [
+    // Bolum filtresi — hem zorunlu hem de TUM bolumleri kapsiyor.
+    `event_date > DATE_SUB(CURRENT_DATE(), INTERVAL ${BOLUM_OMRU_GUN + 1} DAY)`,
+    "game_id = @gameId",
+  ];
+
+  // playerAnonId verilmezse OYUNUN TAMAMI silinir (deleteGame yolu).
+  // Verilirse yalnizca o oyuncu (deletePlayerData yolu).
+  if (olcut.playerAnonId) {
+    kosullar.push("player_anon_id = @playerAnonId");
+    params.playerAnonId = olcut.playerAnonId;
+  }
+
+  return { query: `DELETE FROM ${tam} WHERE ${kosullar.join(" AND ")}`, params };
+}
+
 module.exports = {
   DATASET_ADI, TABLO_ADI, DATASET_KONUMU, BOLUM_OMRU_GUN,
   SEMA, KUMELEME,
-  gunAnahtari, msCevir, satirYap, tabloDDL, sorguyuDenetle,
+  gunAnahtari, msCevir, satirYap, tabloDDL, sorguyuDenetle, silmeSorgusu,
 };

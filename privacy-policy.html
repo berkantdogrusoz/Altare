@@ -351,7 +351,9 @@
                         <li><strong>Export</strong> returns your event history, your player record and your saved
                             progression snapshots.</li>
                         <li><strong>Erasure</strong> deletes your events, your player record and your snapshots from
-                            the game's data.</li>
+                            the game's data — from both stores we keep them in, the operational database and the
+                            analytics warehouse. If either deletion fails, the request is reported as failed rather
+                            than reported as done.</li>
                     </ul>
                     <div class="note">
                         <p>
@@ -684,7 +686,9 @@
                         <li><strong>Dışa aktarma</strong>, olay geçmişinizi, oyuncu kaydınızı ve kayıtlı ilerleme
                             anlık görüntülerinizi döner.</li>
                         <li><strong>Silme</strong>, olaylarınızı, oyuncu kaydınızı ve anlık görüntülerinizi oyunun
-                            verisinden siler.</li>
+                            verisinden siler — bunları tuttuğumuz iki deponun ikisinden de: işletim veritabanı ve
+                            analiz ambarı. İkisinden biri başarısız olursa talep, tamamlandı diye değil,
+                            <strong>başarısız</strong> diye raporlanır.</li>
                     </ul>
                     <div class="note">
                         <p>

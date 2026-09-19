@@ -2353,15 +2353,42 @@ exports.deletePlayerData = onCall(
       snapshot = 1;
     } catch (e) { logger.warn("snapshot silinemedi", { message: e.message }); }
 
+    // Olaylar iki depoya birden yaziliyor; yalnizca Firestore'dan silmek
+    // gizlilik politikasindaki sozu TUTMAMAK olurdu.
+    let bq = null, bqHata = null;
+    try {
+      bq = await bigQuerySil({ gameId, playerAnonId });
+    } catch (err) {
+      bqHata = err?.message || String(err);
+      logger.error("bigquery silme BASARISIZ — silme EKSIK", {
+        gameId, playerAnonId, message: bqHata });
+    }
+
+    // Denetim kaydi hata durumunda DA yazilir: basarisiz bir silme
+    // denemesi, basarili olani kadar kayda gecmeyi hak eder.
     await denetimYaz(request, DENETIM_EYLEMLERI.PLAYER_DATA_DELETE, {
       gameId, targetId: playerAnonId,
-      details: { eventsDeleted: olay, rollupDeleted: rollup, snapshotsDeleted: snapshot },
+      details: {
+        eventsDeleted: olay, rollupDeleted: rollup, snapshotsDeleted: snapshot,
+        bigQuery: bqHata ? `HATA: ${bqHata}` : (bq.atlandi ? bq.sebep : bq.silinen),
+      },
     });
+
+    if (bqHata) {
+      // Eksik silmeyi basarili gostermektense hata ver. Tekrar calistirmak
+      // guvenli: iki taraftaki silme de idempotent.
+      throw new HttpsError("internal",
+        "Firestore verisi silindi ama BigQuery silinemedi — silme EKSIK. " +
+        "Ayni istegi tekrar calistir. Sebep: " + bqHata);
+    }
 
     logger.info("player data deleted", { gameId, playerAnonId, events: olay });
     return {
       success: true,
-      deleted: { events: olay, rollup, snapshots: snapshot },
+      deleted: {
+        events: olay, rollup, snapshots: snapshot,
+        bigQueryRows: bq.atlandi ? bq.sebep : bq.silinen,
+      },
       // Durust ol: neyin SILINMEDIGINI de soyle.
       note: "Toplu istatistikler (retention, huni, gunluk stats) geri " +
             "hesaplanmaz — bunlar anonim toplamlardir ve tek bir oyuncuyu " +
@@ -3111,6 +3138,20 @@ exports.deleteGame = onCall(
     // eklendiginde burasi kendiliginden kapsar.
     await db.recursiveDelete(gameRef);
 
+    // recursiveDelete yalnizca FIRESTORE'u dolasir. Olaylar artik BigQuery'ye
+    // de yaziliyor, dolayisiyla oyunun ambardaki satirlari burada elle
+    // silinmek zorunda — yoksa "oyun silinince veri agacinin tamami silinir"
+    // sozu tutulmamis olur ve silinen oyunun verisi ambarda yasamaya devam
+    // eder (ayrica ayni gameId ile yeni oyun acilirsa onun verisine karisir).
+    let bqGame = null, bqGameHata = null;
+    try {
+      bqGame = await bigQuerySil({ gameId });
+    } catch (err) {
+      bqGameHata = err?.message || String(err);
+      logger.error("bigquery oyun silme BASARISIZ — silme EKSIK",
+        { gameId, message: bqGameHata });
+    }
+
     if (data.developerId) {
       await db.collection("developers").doc(data.developerId).set(
         {
@@ -3123,10 +3164,29 @@ exports.deleteGame = onCall(
 
     await denetimYaz(request, DENETIM_EYLEMLERI.GAME_DELETE, {
       gameId, targetId: gameId,
-      details: { gameName: data.gameName || null, developerId: data.developerId || null },
+      details: {
+        gameName: data.gameName || null,
+        developerId: data.developerId || null,
+        bigQuery: bqGameHata
+          ? `HATA: ${bqGameHata}`
+          : (bqGame.atlandi ? bqGame.sebep : bqGame.silinen),
+      },
     });
+
+    if (bqGameHata) {
+      // Firestore tarafi bitti ama ambar temizlenmedi. Sessizce basarili
+      // donmek, silinmemis veriyi silinmis gostermek olurdu.
+      throw new HttpsError("internal",
+        "Oyun Firestore'dan silindi ama BigQuery satirlari silinemedi — " +
+        "silme EKSIK. Ayni istegi tekrar calistir. Sebep: " + bqGameHata);
+    }
+
     logger.info("game deleted", { gameId, by: request.auth.uid });
-    return { success: true, gameId };
+    return {
+      success: true,
+      gameId,
+      bigQueryRows: bqGame.atlandi ? bqGame.sebep : bqGame.silinen,
+    };
   }
 );
 
@@ -4870,6 +4930,51 @@ function bqTablo() {
   _bqIstemci = _bqIstemci || new BigQuery();
   _bqTablo = _bqIstemci.dataset(BQ.DATASET_ADI).table(BQ.TABLO_ADI);
   return _bqTablo;
+}
+
+/**
+ * KVKK md. 7 / GDPR md. 17 — BigQuery tarafindaki silme.
+ *
+ * ⚠ YAZIM YOLUNDAN TEMELDEN FARKLI BIR HATA POLITIKASI VAR.
+ *
+ * bigQueryYaz hatayi YUTAR: BigQuery duserse oyunun telemetrisi akmaya
+ * devam etmeli, kaybedilen sey bir metriktir.
+ *
+ * Burada hatayi yutmak KABUL EDILEMEZ. Silme basarisiz olup "silindi"
+ * denirse, oyuncunun butun olay gecmisi ambarda kalir ve biz sildigimizi
+ * saniriz. Gizlilik politikamiz "Silme, olaylarinizi ... siler" diyor.
+ * Eksik bir silmeyi basarili gostermek, hata vermekten DAHA KOTUDUR.
+ *
+ * Bu yuzden hata YUKARI ATILIR. Tekrar calistirmak guvenlidir: hem
+ * Firestore hem BigQuery silmeleri idempotenttir.
+ *
+ * @returns {{atlandi:true, sebep:string} | {atlandi:false, silinen:number}}
+ */
+async function bigQuerySil(olcut) {
+  if (!BQ_ACIK) return { atlandi: true, sebep: "bigquery_kapali" };
+
+  const { BigQuery } = require("@google-cloud/bigquery");
+  const istemci = new BigQuery();
+  const projeId = await istemci.getProjectId();
+
+  // Tablo hic kurulmadiysa silinecek bir sey de yok. Bu bir HATA DEGIL:
+  // setupBigQuery calistirilmamis bir projede olaylar zaten yalnizca
+  // Firestore'da duruyor.
+  const [tabloVar] = await istemci.dataset(BQ.DATASET_ADI)
+    .table(BQ.TABLO_ADI).exists();
+  if (!tabloVar) return { atlandi: true, sebep: "tablo_yok" };
+
+  const { query, params } = BQ.silmeSorgusu(projeId, olcut);
+  const [job] = await istemci.createQueryJob({
+    query, params, location: BQ.DATASET_KONUMU,
+  });
+  await job.getQueryResults();
+
+  const istatistik = job.metadata && job.metadata.statistics &&
+    job.metadata.statistics.query;
+  const silinen = Number((istatistik && istatistik.numDmlAffectedRows) || 0);
+  logger.info("bigquery silme tamam", { ...olcut, silinen });
+  return { atlandi: false, silinen };
 }
 
 /**
